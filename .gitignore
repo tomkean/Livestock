@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.env
+
+# Node
+node_modules/
+
+# Runtime output. The app writes data to ..\data and builds to ..\build,
+# both outside this repo; these catch anything that strays in here.
+data/
+build/
+dist/
+*.log
+*.db
+*.bak
+*.stackdump

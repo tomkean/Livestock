@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Livestock</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header id="app-header">
+        <div class="logo">LIVESTOCK</div>
+        <nav id="tabs">
+            <button data-tab="herd" class="active">Herd</button>
+            <button data-tab="capture">Capture <span id="capture-badge" class="badge hidden"></span></button>
+            <button data-tab="log">Log</button>
+        </nav>
+        <div class="header-right">
+            <span id="capture-status" class="pill">No screen shared</span>
+            <button id="btn-capture" class="primary">Capture</button>
+        </div>
+    </header>
+    <main id="dynamic-content"></main>
+    <div id="toast"></div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
