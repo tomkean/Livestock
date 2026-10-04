@@ -17,7 +17,7 @@ Looking at an animal shows a card the game generates; the player cannot change i
 | Genes D L Y F H | **D**ung output, **L**ifespan, **Y**ield (milk / wool), **F**ertility (breeding cooldown and twin chance), **H**ardiness (tolerance of poor conditions). | Known |
 | Gene colours | Green = Good, Grey = Ok, Red = Bad. | Video |
 | 6th column | Herd number, two rows like the genes. Used to detect incest. | Video |
-| Second row | **Normal players see only the top row.** The second row (genes and herd number) is visible only to admins. The two-row screenshot came from a YouTuber playing as admin; they later said so. Our own ranch sheep, seen as a normal player, showed one row. | Video + Known |
+| Second row | **Players see only the top row.** Our own ranch sheep showed one row, and so did animals on a test server while we were admin. The YouTuber's two-row screenshot, which they put down to being admin, must have come from something else (a debug command or an older build). | Known (one row); cause of two rows unknown |
 
 ## Inheritance
 
@@ -53,6 +53,22 @@ Looking at an animal shows a card the game generates; the player cannot change i
 | Trips to the ranch are dangerous and often fail, so animals are scarce. | Known | — |
 | Gestation, breeding cooldown, time to maturity | Unknown | Log timestamps. |
 | Space per animal before a pen counts as overcrowded | Unknown | — |
+
+## Observation log
+
+Raw sightings, kept separate from the conclusions above. Genes are the top row only (normal-player view) unless noted.
+G = green, O = grey, B = red. Order D L Y F H.
+
+| Date | Server | Name | Species | Sex | Source | Genes | Herd | Coat | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| 2026-10-04 | test (admin) | Taylor | sheep | M | spawned | O O G G G | 15 | dark brown | Admin did not show a second row. |
+| 2026-10-04 | test (admin) | Brenda | sheep | F | spawned | O G G O B | 14 | dark brown | Red H: Bad/Bad if dominance holds. |
+| 2026-10-04 | test (admin) | Estella | sheep | F (lamb) | bought from ranch NPC | G B G O O | 6 | white | Bought as a lamb. |
+
+Notes so far:
+- Being admin did not show the second row, so the two-row card in the video came from something else (a debug command, or an older build). Unresolved; `find livestock` in the F1 console may show the relevant commands.
+- Herd numbers seen: 14 and 15 (spawned together), 6 (bought). Looks like a per-animal or per-batch ID.
+- Coat colour varies (white vs dark brown). Cosmetic or meaningful: unknown.
 
 ## Goal and strategy (provisional)
 
