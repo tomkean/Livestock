@@ -194,6 +194,8 @@ main { padding: 16px 20px; }
 .odds-seg.a-B { background: var(--bad); }
 .odds-summary { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 10px; }
 
+.parents-table td { padding: 4px 8px 4px 0; }
+
 /* Plan */
 .plan-summary { display: flex; gap: 28px; flex-wrap: wrap; margin: 10px 0 6px; }
 .plan-summary div { display: flex; flex-direction: column; }

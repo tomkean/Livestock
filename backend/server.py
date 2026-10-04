@@ -254,6 +254,27 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
     return animal
 
 
+class ChildIn(Observed):
+    id: Optional[int] = None  # the animal itself, when it is already in the herd
+
+
+def _parents(session: Session, child) -> list[dict]:
+    animals = session.exec(select(Animal)).all()  # sold and dead animals may still be parents
+    mated = {(e.animal_id, e.other_id) for e in session.exec(select(Event).where(Event.kind == "mated"))}
+    return genetics.likely_parents(child, animals, mated)
+
+
+@app.post("/api/parents")
+def find_parents(child: ChildIn, session: Session = Depends(get_session)):
+    """Which pairs in the herd could have produced an animal with this card, most likely first."""
+    return _parents(session, child)
+
+
+@app.get("/api/animals/{animal_id}/parents")
+def find_animal_parents(animal_id: int, session: Session = Depends(get_session)):
+    return _parents(session, get_animal(session, animal_id))
+
+
 @app.delete("/api/animals/{animal_id}")
 def delete_animal(animal_id: int, session: Session = Depends(get_session)):
     """Remove a record entered by mistake (a duplicate, a wrong capture). Real departures use status sold/dead.

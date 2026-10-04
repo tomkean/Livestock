@@ -2,6 +2,7 @@ import { View } from './View.js';
 import { api } from '../services/api.js';
 import { AnimalForm } from '../components/animalForm.js';
 import { GENE_NAMES, animalCardHtml, animalLabel } from '../components/animalCard.js';
+import { renderParents } from '../components/parentsList.js';
 import { esc, fmtTime, media, refreshCaptureBadge, toast } from '../ui.js';
 
 const pct = (p) => `${Math.round(p * 1000) / 10}%`;
@@ -104,6 +105,8 @@ export class HerdView extends View {
                 ${statusButtons}
                 <button id="detail-delete" class="danger" title="For mistakes and duplicates. Use Mark sold / Mark dead for real departures.">Delete record</button>
             </div>
+            <h3>Parents</h3>
+            <div id="detail-parents"><button id="btn-find-parents">Find parents</button></div>
             <h3>History</h3>
             <ul class="events">${events.map(ev => `
                 <li><span class="when">${fmtTime(ev.at)}</span> ${esc(ev.kind)}
@@ -118,11 +121,27 @@ export class HerdView extends View {
         });
         panel.querySelector('#detail-save').addEventListener('click', () => this.save(a.id, this.form.values()));
         panel.querySelector('#detail-delete').addEventListener('click', () => this.deleteRecord(a));
+        panel.querySelector('#btn-find-parents').addEventListener('click', () => this.findParents(a));
         panel.querySelectorAll('[data-status]').forEach(btn => btn.addEventListener('click', () => {
             const status = btn.dataset.status;
             if (status !== 'alive' && !confirm(`Mark ${a.code} as ${status}?`)) return;
             this.save(a.id, { status });
         }));
+    }
+
+    async findParents(a) {
+        const target = this.container.querySelector('#detail-parents');
+        target.innerHTML = '<p class="hint">Checking every pair…</p>';
+        try {
+            const [candidates, everyone] = await Promise.all([
+                api.get(`/api/animals/${a.id}/parents`),
+                api.get('/api/animals?include_gone=true')
+            ]);
+            renderParents(target, candidates, Object.fromEntries(everyone.map(x => [x.id, x])),
+                (c) => this.save(a.id, { origin: 'bred', mother_id: c.mother_id, father_id: c.father_id }));
+        } catch (e) {
+            target.innerHTML = `<p class="error">${esc(e.message)}</p>`;
+        }
     }
 
     async deleteRecord(a) {

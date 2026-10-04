@@ -113,3 +113,70 @@ def match_score(animal, observed) -> int | None:
             return None
         score += 1
     return score
+
+
+MARKER_VALUES = 16  # markers seen are 0-15; an unknown parent marker matches a given value 1 time in 16
+
+
+def _marker_chance(parent_markers: list, value) -> float:
+    """Chance a parent passes this marker value: each of its two markers is passed half the time."""
+    p = 0.0
+    for m in parent_markers:
+        if m is None:
+            p += 0.5 / MARKER_VALUES
+        elif m == value:
+            p += 0.5
+    return p
+
+
+def parentage_likelihood(child, mother, father) -> float:
+    """How likely this mother and father are to produce exactly what the child's card shows (0 = impossible).
+
+    Genes: the chance of the child's genotype when both rows are known, or of its top row when only that is.
+    Markers: one comes from each parent, in either order.
+    """
+    odds = mating_odds(mother, father)
+    p = 1.0
+    for i, g in enumerate(odds["genes"]):
+        top = child.genes_top[i]
+        bottom = (child.genes_bottom or "")[i:i + 1]
+        if top == "?":
+            continue
+        if bottom and bottom != "?":
+            p *= g["genotypes"].get(_pair(top, bottom), 0.0)
+        else:
+            p *= g["expressed"].get(top, 0.0)
+        if p == 0:
+            return 0.0
+    m_markers = [mother.herd_top, mother.herd_bottom]
+    f_markers = [father.herd_top, father.herd_bottom]
+    x, y = child.herd_top, child.herd_bottom
+    if x is not None and y is not None:
+        p *= (_marker_chance(m_markers, x) * _marker_chance(f_markers, y)
+              + (_marker_chance(m_markers, y) * _marker_chance(f_markers, x) if x != y else 0.0))
+    elif x is not None or y is not None:
+        v = x if x is not None else y
+        p *= 1 - (1 - _marker_chance(m_markers, v)) * (1 - _marker_chance(f_markers, v))
+    return p
+
+
+def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 5) -> list[dict]:
+    """Mother × father pairs that could have produced the child, most likely first, with relative chances.
+
+    A pair with a recorded mating is weighted 10× (it's where lambs usually come from); the chances are relative
+    to the other candidates, not absolute.
+    """
+    child_id = getattr(child, "id", None)
+    pool = [a for a in animals if a.species == child.species and getattr(a, "id", None) != child_id]
+    scored = []
+    for m in (a for a in pool if a.sex == "F"):
+        for f in (a for a in pool if a.sex == "M"):
+            p = parentage_likelihood(child, m, f)
+            if p > 0:
+                if (m.id, f.id) in mated_pairs:
+                    p *= 10
+                scored.append((p, m, f))
+    total = sum(p for p, _, _ in scored)
+    scored.sort(key=lambda s: -s[0])
+    return [{"mother_id": m.id, "father_id": f.id, "chance": p / total, "mated": (m.id, f.id) in mated_pairs}
+            for p, m, f in scored[:limit]]

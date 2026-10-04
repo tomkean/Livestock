@@ -3,7 +3,8 @@ import { api } from '../services/api.js';
 import { ScreenCaptureService } from '../services/ScreenCaptureService.js';
 import { requestCapture } from '../services/captureActions.js';
 import { AnimalForm } from '../components/animalForm.js';
-import { animalCardHtml } from '../components/animalCard.js';
+import { animalCardHtml, displayName } from '../components/animalCard.js';
+import { renderParents } from '../components/parentsList.js';
 import { esc, fmtTime, media, refreshCaptureBadge, toast } from '../ui.js';
 
 const PREVIEW_MAX_WIDTH = 360;
@@ -101,6 +102,8 @@ export class CaptureView extends View {
                 <h3>What the card shows</h3>
                 <div id="read-status" class="hint">Reading the card…</div>
                 <div id="cap-form"></div>
+                <h3>Likely parents</h3>
+                <div id="parents"><p class="hint">Shown once the genes are filled in.</p></div>
                 <button id="btn-new" class="primary">Save as new animal</button>
                 <h3>Already in the herd?</h3>
                 <div id="matches"><p class="hint">Fill in sex and some genes or herd numbers to find matches.</p></div>
@@ -263,15 +266,37 @@ export class CaptureView extends View {
         }
         if (!matches.length) {
             target.innerHTML = '<p class="hint">No matching animal. Save it as new.</p>';
+        } else {
+            target.innerHTML = matches.map(m => `
+                <div class="match">
+                    ${animalCardHtml(m.animal)}
+                    <button data-update="${m.animal.id}">Update ${esc(displayName(m.animal))} from this capture</button>
+                </div>`).join('');
+            target.querySelectorAll('[data-update]').forEach(btn => btn.addEventListener('click', () =>
+                this.updateExisting(matches.find(m => m.animal.id === Number(btn.dataset.update)).animal)));
+        }
+        this.findParents(v);
+    }
+
+    /** Which pairs in the herd could have produced this card; "Use" fills in Bred and both parents. */
+    async findParents(v) {
+        const target = this.container.querySelector('#parents');
+        if (!target || /^\?+$/.test(v.genes_top)) return;
+        let candidates, everyone;
+        try {
+            [candidates, everyone] = await Promise.all([
+                api.post('/api/parents', v),
+                api.get('/api/animals?include_gone=true')
+            ]);
+        } catch (e) {
             return;
         }
-        target.innerHTML = matches.map(m => `
-            <div class="match">
-                ${animalCardHtml(m.animal)}
-                <button data-update="${m.animal.id}">Update ${esc(m.animal.code)} from this capture</button>
-            </div>`).join('');
-        target.querySelectorAll('[data-update]').forEach(btn => btn.addEventListener('click', () =>
-            this.updateExisting(matches.find(m => m.animal.id === Number(btn.dataset.update)).animal)));
+        const byId = Object.fromEntries(everyone.map(a => [a.id, a]));
+        renderParents(target, candidates, byId, (c) => {
+            this.form.set({ origin: 'bred', mother_id: c.mother_id, father_id: c.father_id });
+            this.formValues = this.form.values();
+            toast('Parents filled in');
+        });
     }
 
     async saveNew() {

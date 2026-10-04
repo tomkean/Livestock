@@ -54,6 +54,21 @@ class MatingOdds(unittest.TestCase):
             self.assertGreater(g["genotypes"].get(pair, 0), 0, g["gene"])
         self.assertEqual(odds["p_inbred"], 0.0)
 
+    def test_parent_finder_names_the_real_parents(self):
+        # Dale: Taylor's lamb by Elsie or Nettie (worked out by hand); no other recorded pairing fits.
+        def ewe(id, top, bottom, a, b):
+            return SimpleNamespace(id=id, species="sheep", sex="F", genes_top=top, genes_bottom=bottom, herd_top=a, herd_bottom=b)
+        def ram(id, top, bottom, a, b):
+            return SimpleNamespace(id=id, species="sheep", sex="M", genes_top=top, genes_bottom=bottom, herd_top=a, herd_bottom=b)
+        herd = [ewe(1, "OOGGG", "OBOOB", 12, 12), ewe(2, "GOGGG", "OBOOB", 13, 15), ewe(3, "GGGOO", "OOOOO", 4, 15),
+                ewe(4, "OGGBG", "BBGBB", 14, 15), ram(10, "OOGGG", "BBGBG", 15, 12), ram(11, "OGGBO", "BGOBO", 15, 0)]
+        dale = SimpleNamespace(id=99, species="sheep", genes_top="OOGOG", genes_bottom="OOOBG", herd_top=12, herd_bottom=15)
+        found = genetics.likely_parents(dale, herd)
+        self.assertEqual({(p["mother_id"], p["father_id"]) for p in found}, {(1, 10), (2, 10)})
+        # A recorded mating tips the balance.
+        found = genetics.likely_parents(dale, herd, mated_pairs={(2, 10)})
+        self.assertEqual((found[0]["mother_id"], found[0]["father_id"]), (2, 10))
+
     def test_taylor_estella(self):
         odds = genetics.mating_odds(ESTELLA, TAYLOR)
         self.assertEqual(self.expressed(odds), {
