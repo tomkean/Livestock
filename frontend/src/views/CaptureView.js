@@ -164,6 +164,18 @@ export class CaptureView extends View {
         this.applyReading();
     }
 
+    /**
+     * The game names a lamb after its mother: "Brenda Junior" is Brenda's. So a Junior is bred, and its mother is the
+     * herd animal with the rest of the name. The father is filled in from her last mating when the lamb is saved.
+     */
+    parentageFromName(name) {
+        const match = /^(.+?)\s+junior$/i.exec((name || '').trim());
+        if (!match) return {};
+        const motherName = match[1].toLowerCase();
+        const mother = this.animals.find(a => a.sex === 'F' && (a.name || '').toLowerCase() === motherName);
+        return mother ? { origin: 'bred', mother_id: mother.id, species: mother.species } : { origin: 'bred' };
+    }
+
     /** Read the card automatically and fill in the boxes and the form; the person only checks and corrects. */
     async applyReading() {
         const capture = this.selected;
@@ -188,6 +200,7 @@ export class CaptureView extends View {
         this.drawPreviews();
         const fields = { genes_top: reading.genes_top, herd_top: reading.herd_top, name: reading.name || '' };
         if (reading.genes_bottom) Object.assign(fields, { genes_bottom: reading.genes_bottom, herd_bottom: reading.herd_bottom });
+        Object.assign(fields, this.parentageFromName(reading.name));
         this.form.set(fields);
         this.formValues = this.form.values();
         const unread = [
