@@ -189,16 +189,19 @@ def read_name(image: np.ndarray, box: list[float]) -> str | None:
         return None
     gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
     gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-    _, ink = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)  # dark text on white
-    data = pytesseract.image_to_data(ink, config="--psm 7", output_type=pytesseract.Output.DICT)
-    words = [(t, float(c)) for t, c in zip(data["text"], data["conf"]) if t.strip() and float(c) >= 0]
-    if not words:
-        return None
-    text = " ".join(t for t, _ in words).strip()
-    confidence = min(c for _, c in words)
-    if confidence < NAME_MIN_CONFIDENCE or not NAME_PATTERN.match(text):
-        return None
-    return text
+    # The name is light grey on the card's dark header. A fixed threshold read all of the first 14 captures;
+    # Otsu's automatic one failed when bright scenery showed through behind the name, so it is only a fallback.
+    _, fixed = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY_INV)
+    _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    for ink in (fixed, otsu):
+        data = pytesseract.image_to_data(ink, config="--psm 7", output_type=pytesseract.Output.DICT)
+        words = [(t, float(c)) for t, c in zip(data["text"], data["conf"]) if t.strip() and float(c) >= 0]
+        if not words:
+            continue
+        text = " ".join(t for t, _ in words).strip()
+        if min(c for _, c in words) >= NAME_MIN_CONFIDENCE and NAME_PATTERN.match(text):
+            return text
+    return None
 
 
 def read_card(image: np.ndarray) -> dict:
