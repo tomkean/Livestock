@@ -10,6 +10,45 @@ Sources:
 
 Confidence: **Known** · **Likely** · **Guess** · **Unknown**
 
+## Published figures (RustHelp wiki, Facepunch, hosting guides, 2026-10-04)
+
+These match everything we measured where we overlap (wool, dung, inbred ×0.8, gestation), so they are treated as reliable.
+Sources: rusthelp.com/world/sheep and /cow, rust.facepunch.com/news/livestock, bisecthosting.com cow guide, plus search summaries of the wiki.
+
+**Gene multipliers (Bad / Ok / Good; inbred Ok in brackets)**
+
+| Gene | Bad | Ok | Good | Inbred Ok |
+|---|---|---|---|---|
+| D Dung | ×0.6 | ×1 | ×1.6 | ×0.8 |
+| L Longevity | ×0.65 | ×1 | ×1.5 | ×0.825 |
+| Y Yield | ×0.6 | ×1 | ×1.6 | ×0.8 |
+| F Fertility | ×0.65 | ×1 | ×1.6 | ×0.825 |
+| H Hardiness | ×0.7 | ×1 | ×1.5 | ×0.85 |
+
+**Sheep and cows (Bad / Ok / Good)**
+
+| Effect | Bad | Ok | Good |
+|---|---|---|---|
+| Lifespan (L) | 31h 12m | 48h (±10%) | 72h |
+| Female cooldown after birth (F) | 1h 41m | 1h 6m | 41m 15s |
+| Male cooldown after mating (F, sheep) | 15m 23s | 10m | 6m 15s |
+| Litter size (F) | 1 | 1 | 1-2 (60% twins) |
+| Hardiness (H): minimum need for full condition | 71% | 50% | 33% |
+| Wool per fleece / regrow (Y, sheep) | 6 / 8m 20s | 10 / 5m | 16 / 3m 7s |
+| Dung interval (D) | 16m 40s | 10m | 6m 15s |
+
+- **Gestation 10 min.** Growth to adult: not published; we measured 60 min (Estella).
+- **Wild animals roll each gene copy Good 20%, Ok 50%, Bad 30%.** So a wild animal is Good/Good on a given gene only 4% of the time, and shows Good on it 36% of the time.
+- Breeding: adult female near an adult male, both with overall condition ≥ 0.7 (pauses at 0.6). Overall condition = the lowest of food, water and personal space.
+- Inbred animals express weaker genes but still pass on their Good copies.
+- Personal space: comfortable with up to 8 herd mates within 20 m; crowded beyond 12. Grazing and trough range 25 m. Wild group size: sheep 2-6, cows 1-4. Sheep HP 150.
+- Taming (trust levels): Known 5 s, Tolerated 30 s, Bonded 5 min, Herd 15 min. Hurting the animal adds 60 s, hurting its herd 30 s.
+- Selling: grown animals sell at the Stable / Large Barn vendor for a **randomised offer based on gene quality**; 3 offers, then it refuses for 15 min. **Wild and purchased animals sell at a penalty; bred animals at full value.** Wool trades for rewards, up to 400 per transaction.
+- Buying calves (one guide's prices; may vary by server): wild Ok 373, wild Good 582, bred Ok 466, bred Good 700 scrap. So the vendor grades what it sells.
+- Milk: tame adult cow; refrigerate milk 4 h to skim into skimmed milk and cream (tea buffs, new recipes).
+- Biofuel generator: organic matter → low grade fuel; output by calorific value; needs stirring about every 30 min. Dung and milk rates not published.
+- Infrastructure: Animal Fence 250 wood, Fence Gate 500 wood, Hitch & Trough 200 wood (a cow drinks up to 200 ml per session).
+
 ## Server variables (`find livestock`)
 
 | Variable | Default | Description (game text, abridged) |
