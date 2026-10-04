@@ -87,11 +87,12 @@ Raw sightings. Genes are the expressed row unless noted. G = green, O = grey, B 
 | Date | Server | Name | Species | Sex | Source | Genes | Marker | Coat | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | 2026-10-04 | test | Taylor | sheep | M | spawned | O O G G G / **B B G B G** | 15 / **12** | dark brown | Second row via `panelalleles`. Dung 1 per 10 min, wool 16 per 3 min. |
-| 2026-10-04 | test | Brenda | sheep | F | spawned | O G G O B / **O B O B B** | 14 / **4** | dark brown | Red H confirmed Bad/Bad. |
+| 2026-10-04 | test | Brenda | sheep | F | spawned | O G G O B / **O B O B B** | 14 / **4** | dark brown | Red H confirmed Bad/Bad. Dung 1 per 10 min, wool 16 per 3 min. |
 | 2026-10-04 | test | Estella | sheep | F (lamb) | bought from ranch NPC | G B G O O | 6 | white | Bought as a lamb. |
 
 Notes so far:
 - Where both rows are known (written top / second), the top copy is never weaker than the second: 10 genes across Taylor and Brenda, no exceptions. Consistent with "the stronger copy is expressed". Brenda's red H is Bad/Bad, as that rule predicts.
+- Rates: Taylor and Brenda both express Good Y and Ok D and show identical rates (16 wool / 3 min, 1 dung / 10 min). Either each band has one fixed value, or slider differences are too small to show. Need an animal expressing Ok or Bad Y.
 - Spawned animals are **not** pure-bred: Taylor carries Bad under Ok on D and L, and Bad under Good on F. His two markers differ (15 / 12).
 - Markers seen: 14 and 15 (spawned one after the other), 6 (bought). Looks like an ID handed out per animal.
 - Coat colour varies (white vs dark brown); per the convars it reflects the genes.
