@@ -1,8 +1,10 @@
 import { View } from './View.js';
 import { api } from '../services/api.js';
 import { AnimalForm } from '../components/animalForm.js';
-import { animalCardHtml, animalLabel } from '../components/animalCard.js';
+import { GENE_NAMES, animalCardHtml, animalLabel } from '../components/animalCard.js';
 import { esc, fmtTime, media, toast } from '../ui.js';
+
+const pct = (p) => `${Math.round(p * 1000) / 10}%`;
 
 /**
  * The base: a Male pen and a Female pen (cows and sheep mixed), a mating recorder,
@@ -49,6 +51,7 @@ export class HerdView extends View {
                         <span class="spacer"></span>
                         <label><input type="checkbox" id="show-gone" ${this.showGone ? 'checked' : ''}> Show sold / dead</label>
                     </div>
+                    <div id="odds"></div>
                     <div class="pens">${pen('M', 'Males')}${pen('F', 'Females')}</div>
                 </div>
                 <aside id="detail" class="panel ${this.selectedId ? '' : 'hidden'}"></aside>
@@ -61,6 +64,8 @@ export class HerdView extends View {
             this.render();
         });
         this.container.querySelector('#btn-mate').addEventListener('click', () => this.recordMating());
+        ['#mate-f', '#mate-m'].forEach(sel =>
+            this.container.querySelector(sel).addEventListener('change', () => this.showOdds()));
 
         if (this.selectedId) this.renderDetail();
     }
@@ -128,6 +133,46 @@ export class HerdView extends View {
         }
     }
 
+    async showOdds() {
+        const target = this.container.querySelector('#odds');
+        const mother_id = this.container.querySelector('#mate-f').value;
+        const father_id = this.container.querySelector('#mate-m').value;
+        if (!mother_id || !father_id) {
+            target.innerHTML = '';
+            return;
+        }
+        let odds;
+        try {
+            odds = await api.get(`/api/odds?mother_id=${mother_id}&father_id=${father_id}`);
+        } catch (e) {
+            target.innerHTML = `<div class="panel error">${esc(e.message)}</div>`;
+            return;
+        }
+        const bar = (expressed) => ['G', 'O', 'B'].filter(a => expressed[a] > 0).map(a =>
+            `<span class="odds-seg a-${a}" style="flex:${expressed[a]}" title="${pct(expressed[a])}">${pct(expressed[a])}</span>`).join('');
+        const genotypes = (g) => Object.entries(g).sort((a, b) => b[1] - a[1])
+            .map(([k, p]) => `${k[0]}/${k[1]} ${pct(p)}`).join(' · ');
+        const caveats = [
+            odds.rows_known ? '' : 'Some second rows are unknown, so hidden copies are guessed (each possibility equally likely).',
+            odds.markers_known ? '' : 'Some lineage markers are unknown, so the inbred chance may be too low.'
+        ].filter(Boolean);
+        target.innerHTML = `
+            <div class="panel odds">
+                <h3>One lamb from this mating</h3>
+                <table>${odds.genes.map(g => `
+                    <tr><th title="${GENE_NAMES[g.gene]}">${g.gene}</th>
+                        <td class="odds-bar">${bar(g.expressed)}</td>
+                        <td class="muted">${genotypes(g.genotypes)}</td></tr>`).join('')}
+                </table>
+                <div class="odds-summary">
+                    <span>Inbred: <b>${pct(odds.p_inbred)}</b></span>
+                    <span>All Good showing: <b>${pct(odds.p_all_good)}</b></span>
+                    <span>God male (Good/Good on all, ♂): <b>${pct(odds.p_god_male)}</b></span>
+                </div>
+                ${caveats.map(c => `<p class="hint">${c}</p>`).join('')}
+            </div>`;
+    }
+
     async recordMating() {
         const mother_id = Number(this.container.querySelector('#mate-f').value);
         const father_id = Number(this.container.querySelector('#mate-m').value);
@@ -137,8 +182,9 @@ export class HerdView extends View {
         }
         try {
             const result = await api.post('/api/matings', { mother_id, father_id });
-            toast(result.incest ? 'Mating recorded. They share a herd number, so this counts as incest.' : 'Mating recorded',
-                result.incest ? 'warn' : 'info');
+            toast(result.p_inbred
+                ? `Mating recorded. The lamb has a ${pct(result.p_inbred)} chance of being inbred.`
+                : 'Mating recorded', result.p_inbred ? 'warn' : 'info');
             if (this.selectedId) this.renderDetail();
         } catch (e) {
             toast(e.message, 'error');

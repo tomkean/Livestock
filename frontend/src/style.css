@@ -178,6 +178,18 @@ main { padding: 16px 20px; }
 .capture-form > .primary { margin-top: 12px; width: 100%; }
 .match { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 
+/* Mating odds */
+.odds { margin-bottom: 16px; }
+.odds table { border-collapse: collapse; width: 100%; }
+.odds th { width: 30px; text-align: left; color: #fff; font-family: var(--font-head); }
+.odds td { padding: 3px 8px; font-size: 15px; }
+.odds-bar { width: 50%; display: flex; gap: 2px; }
+.odds-seg { color: #fff; text-align: center; font-size: 13px; border-radius: 3px; padding: 2px 0; min-width: 34px; }
+.odds-seg.a-G { background: var(--good); }
+.odds-seg.a-O { background: var(--ok); }
+.odds-seg.a-B { background: var(--bad); }
+.odds-summary { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 10px; }
+
 /* Log */
 .log table { width: 100%; border-collapse: collapse; }
 .log th { text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--panel-border); padding: 4px 8px; }

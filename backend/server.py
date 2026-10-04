@@ -250,18 +250,30 @@ def match_animals(observed: Observed, session: Session = Depends(get_session)):
 
 # ---------------------------------------------------------------- breeding log
 
-@app.post("/api/matings")
-def record_mating(body: MatingIn, session: Session = Depends(get_session)):
-    mother = get_animal(session, body.mother_id)
-    father = get_animal(session, body.father_id)
+def get_pair(session: Session, mother_id: int, father_id: int) -> tuple[Animal, Animal]:
+    mother = get_animal(session, mother_id)
+    father = get_animal(session, father_id)
     if mother.sex != "F" or father.sex != "M":
         raise HTTPException(422, "mother must be female and father male")
     if mother.species != father.species:
         raise HTTPException(422, "parents must be the same species")
-    incest = genetics.shares_herd(mother, father)
-    log(session, "mated", mother.id, father.id, body.notes + (" [incest]" if incest else ""))
+    return mother, father
+
+
+@app.get("/api/odds")
+def mating_odds(mother_id: int, father_id: int, session: Session = Depends(get_session)):
+    """Odds for one offspring of a possible mating."""
+    return genetics.mating_odds(*get_pair(session, mother_id, father_id))
+
+
+@app.post("/api/matings")
+def record_mating(body: MatingIn, session: Session = Depends(get_session)):
+    mother, father = get_pair(session, body.mother_id, body.father_id)
+    p_inbred = genetics.mating_odds(mother, father)["p_inbred"]
+    note = f" [inbred chance {p_inbred:.0%}]" if p_inbred else ""
+    log(session, "mated", mother.id, father.id, body.notes + note)
     session.commit()
-    return {"incest": incest}
+    return {"p_inbred": p_inbred}
 
 
 @app.get("/api/events")
