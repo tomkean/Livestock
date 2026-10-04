@@ -69,6 +69,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | An animal refuses to breed once its condition drops to 0.6 or below, and resumes at 0.7 or above. | Known (Convars) |
 | Gestation, breeding cooldown, time to maturity | Unknown: log timestamps |
 | Trust: animals have a trust ladder in bands. What it affects is unknown. | Known (exists) |
+| Giving birth seems to cost health: Brenda went from 150 to 113 HP (−25%) after Brenda junior. If "condition" is HP / max HP she is at 0.75, just above the 0.7 resume threshold, and another birth would drop her below the 0.6 pause threshold. Recovery speed may set the real breeding cycle. Whether H (hardiness) changes the loss is unknown. | Seen once |
 | A closing garage door can pass straight through an animal standing in its path (Brenda, test server). She survived, apparently through a clipping bug. Don't rely on that: keep doors clear of where animals stand. | Seen once |
 
 ## Economics
