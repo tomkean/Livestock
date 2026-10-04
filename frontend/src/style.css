@@ -178,6 +178,9 @@ main { padding: 16px 20px; }
 .capture-form > .primary { margin-top: 12px; width: 100%; }
 .match { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 
+#read-status { margin-bottom: 10px; }
+.warn { color: #e0a030; }
+
 /* Mating odds */
 .odds { margin-bottom: 16px; }
 .odds table { border-collapse: collapse; width: 100%; }

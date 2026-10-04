@@ -29,6 +29,7 @@ export class CaptureView extends View {
         this.boxes = { card: null, name: null };
         this.drawMode = 'card';
         this.formValues = null;
+        this.readings = {};
         this.matchTimer = null;
     }
 
@@ -79,7 +80,7 @@ export class CaptureView extends View {
         return `
             <div class="capture-main">
                 <div class="toolbar">
-                    <span>Draw:</span>
+                    <span>Adjust:</span>
                     <div class="seg">
                         <button data-mode="card" class="${this.drawMode === 'card' ? 'on' : ''}">Card box</button>
                         <button data-mode="name" class="${this.drawMode === 'name' ? 'on' : ''}">Name box</button>
@@ -98,6 +99,7 @@ export class CaptureView extends View {
             </div>
             <aside class="panel capture-form">
                 <h3>What the card shows</h3>
+                <div id="read-status" class="hint">Reading the card…</div>
                 <div id="cap-form"></div>
                 <button id="btn-new" class="primary">Save as new animal</button>
                 <h3>Already in the herd?</h3>
@@ -159,6 +161,42 @@ export class CaptureView extends View {
             this.matchTimer = setTimeout(() => this.findMatches(), 300);
         });
         this.container.querySelector('#btn-new').addEventListener('click', () => this.saveNew());
+        this.applyReading();
+    }
+
+    /** Read the card automatically and fill in the boxes and the form; the person only checks and corrects. */
+    async applyReading() {
+        const capture = this.selected;
+        const status = this.container.querySelector('#read-status');
+        let reading = this.readings[capture.id];
+        if (!reading) {
+            try {
+                reading = await api.get(`/api/captures/${capture.id}/read`);
+            } catch (e) {
+                reading = { found: false, error: e.message };
+            }
+            this.readings[capture.id] = reading;
+        }
+        if (this.selected !== capture || !status) return;  // moved on while reading
+        if (!reading.found) {
+            status.textContent = reading.error ? `Couldn't read the card: ${reading.error}` : 'No card found in this capture - fill it in by hand.';
+            this.findMatches();
+            return;
+        }
+        this.boxes = { card: reading.card_box, name: reading.name_box };
+        this.drawBoxes();
+        this.drawPreviews();
+        const fields = { genes_top: reading.genes_top, herd_top: reading.herd_top };
+        if (reading.genes_bottom) Object.assign(fields, { genes_bottom: reading.genes_bottom, herd_bottom: reading.herd_bottom });
+        this.form.set(fields);
+        this.formValues = this.form.values();
+        const unread = [
+            reading.genes_top.includes('?') || (reading.genes_bottom || '').includes('?') ? 'some genes' : '',
+            reading.herd_top === null || (reading.genes_bottom && reading.herd_bottom === null) ? 'a marker number' : ''
+        ].filter(Boolean);
+        status.innerHTML = 'Read from the card. Check it, set the sex, and save.'
+            + (reading.inbred ? ' <b class="warn">The card says INBRED.</b>' : '')
+            + (unread.length ? ` <b class="warn">Couldn't read ${unread.join(' or ')} - please fill in.</b>` : '');
         this.findMatches();
     }
 

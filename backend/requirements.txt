@@ -4,3 +4,5 @@ sqlmodel
 python-multipart
 pillow
 websockets
+numpy
+opencv-python-headless

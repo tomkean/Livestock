@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional
 
+import cv2
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -11,6 +12,7 @@ from PIL import Image
 from pydantic import BaseModel
 from sqlmodel import Session, or_, select
 
+import card_reader
 import genetics
 import settings_store
 from config import BUILD_DIR, CAPTURE_DIR, CARD_DIR, DATA_DIR, NAME_DIR, PORT
@@ -169,6 +171,11 @@ def apply_capture(session: Session, animal: Animal, crop: dict):
     if crop.get("name_box"):
         animal.name_image = crop_image(capture, crop["name_box"], NAME_DIR)
     capture.animal_id = animal.id
+    # Teach the card reader this capture's marker digits, now that a person has confirmed them.
+    if animal.herd_top is not None or animal.herd_bottom is not None:
+        image = cv2.imread(str(CAPTURE_DIR / capture.path))
+        if image is not None:
+            card_reader.learn_markers(image, animal.herd_top, animal.herd_bottom)
 
 
 def split_crop(data: dict) -> dict:
@@ -321,6 +328,18 @@ async def upload_capture(file: UploadFile = File(...), session: Session = Depend
     session.refresh(capture)
     await hub.broadcast({"type": "capture_ready", "capture": capture.model_dump(mode="json")})
     return capture
+
+
+@app.get("/api/captures/{capture_id}/read")
+def read_capture(capture_id: int, session: Session = Depends(get_session)):
+    """What the card in a capture shows, read automatically. Values that couldn't be read come back as ? or null."""
+    capture = session.get(Capture, capture_id)
+    if not capture:
+        raise HTTPException(404, f"capture {capture_id} not found")
+    image = cv2.imread(str(CAPTURE_DIR / capture.path))
+    if image is None:
+        raise HTTPException(404, "capture image is missing")
+    return card_reader.read_card(image)
 
 
 @app.delete("/api/captures/{capture_id}")

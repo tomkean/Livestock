@@ -43,6 +43,7 @@ export class AnimalForm {
 
     set(values) {
         this.v = { ...this.v, ...values };
+        if (values.genes_bottom) this.showSecond = true;
         if (!this.v.genes_bottom) this.v.genes_bottom = '?????';
         this.render();
     }
