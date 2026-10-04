@@ -67,7 +67,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Rule | Confidence |
 |---|---|
 | An animal refuses to breed once its condition drops to 0.6 or below, and resumes at 0.7 or above. | Known (Convars) |
-| Gestation, breeding cooldown, time to maturity | Unknown: log timestamps |
+| Gestation, breeding cooldown, time to maturity | Gestation roughly 10 min (not timed). The panel shows age in minutes (Estella: 58 min on the test server); maturity possibly at 60 min, to confirm. |
 | Trust: animals have a trust ladder in bands. What it affects is unknown. | Known (exists) |
 | Giving birth seems to cost health: Brenda went from 150 to 113 HP (−25%) after Brenda junior. If "condition" is HP / max HP she is at 0.75, just above the 0.7 resume threshold, and another birth would drop her below the 0.6 pause threshold. Recovery speed may set the real breeding cycle. Whether H (hardiness) changes the loss is unknown. She later recovered to 150; recovery time and whether food matters not yet measured. | Seen once |
 | Animals clip through walls: Jay slept with his head through the wall into the female stalls. Whether mating works through a wall is unknown. Bigger risk: if the game re-places an animal by its head position (on waking, server restart or area reload), it could end up in the other pen. Test by letting him wake, then restarting the server with him in that position. A corridor between the pens means a clipped animal lands in the corridor, not with the other sex. Check pens after every restart. Leave a gap (a one-foundation corridor or a double wall) between male and female pens, and breed in a separate room. | Seen once |
