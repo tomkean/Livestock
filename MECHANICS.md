@@ -112,7 +112,8 @@ Notes so far:
 - Spawned animals are **not** pure-bred: Taylor carries Bad under Ok on D and L, and Bad under Good on F. His two markers differ (15 / 12).
 - Markers seen: 15/12, 14/4, 13/15 (spawned), 6/0 (bought).
 - **If Elsie was spawned, an animal can arrive already inbred:** both markers drawn from a small pool can match. Check a purchase's markers before relying on it as a clean mate.
-- Lambs don't seem to dung: neither Estella nor Brenda junior has a dung line. Both make wool at the adult rate.
+- **Lambs have no dung line;** every adult has one (lambs: Estella, Brenda junior, Dorothy, Marie, Olga).
+- **Lambs show the adult wool rate for their Y:** Good 5.3/min (Estella, Brenda junior, same as adults), Ok 2.0/min (Marie, Olga, same as Santos). Open: the panel may show the gene-based rate whatever the age. Check whether a lamb's wool line changes when it grows up, and whether a lamb actually yields wool.
 - **First birth (Brenda × Taylor):** the lamb's genes D Ok/Bad, L Good/Bad, Y Good/Good, F Bad/Bad, H Good/Bad and markers 14/15 are all one copy from each parent. The rows are not parent-specific: D's top copy came from the mother, H's from the father. Gestation was roughly 10 minutes (not timed).
 - Coat colour varies (white vs dark brown); per the convars it reflects the genes. Of 8 sheep spawned together, 7 were brown and 1 white.
 - **Coat: white = Good D expressed** (5 white, all Good D: Estella, Nettie, Marie, Lori, Olga; 7 brown, all Ok D). Earlier evidence: both white sheep (Estella, Nettie) express Good D; all six brown sheep with known genes (Taylor, Brenda, Marcella, Santos, Jay, Angie) express Ok D. Any brown sheep with green D disproves it. If true, Good-D animals can be spotted at the ranch by coat.
