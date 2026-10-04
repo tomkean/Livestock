@@ -87,6 +87,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Can genes be seen before buying? Can sex be chosen? | Unknown | — |
 | Trips to the ranch are dangerous and often fail, so animals are scarce. | Known | — |
 | **The map spawns wild sheep in grassland** (near barns). If they can be tamed and led home, they are a free alternative to buying. Wild rams near the base are also a risk of unseen, unplanned matings. **Taming:** adults are briefly hostile on approach; stand still, wait 30–60 s nearby, then they can be led. Easy on the test server, exposed on a busy one. Pick by coat from a distance (white = Good D) and read the card while waiting. Wild genes/markers vs bought: unknown. | Known | — |
+| Wool value | Shearing all the ewes on the test server gave 102 wool, worth next to nothing. Value is more likely in dung (fertilizer), milk (cows) or selling animals. | Known |
 | Space per animal before a pen counts as overcrowded | 3 sheep in a 2×2 (≈12 m² each): personal space 83%, happiness 77%. Need readings at 2 and 4 sheep to see the curve. | Seen once |
 
 ## Observation log
