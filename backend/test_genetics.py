@@ -33,6 +33,16 @@ class MatingOdds(unittest.TestCase):
         self.assertEqual(odds["p_god_male"], 0.0)  # nobody carries a Good D
         self.assertTrue(odds["rows_known"] and odds["markers_known"])
 
+    def test_first_birth_was_possible(self):
+        # Brenda junior, born 2026-10-04: every gene the model said she could have.
+        lamb = sheep("OGGBG", "BBGBB", 14, 15)
+        odds = genetics.mating_odds(BRENDA, TAYLOR)
+        for i, g in enumerate(odds["genes"]):
+            pair = lamb.genes_top[i] + lamb.genes_bottom[i]
+            self.assertGreater(g["genotypes"].get(pair, 0), 0, g["gene"])
+        self.assertIn(lamb.herd_top, (BRENDA.herd_top, BRENDA.herd_bottom))
+        self.assertIn(lamb.herd_bottom, (TAYLOR.herd_top, TAYLOR.herd_bottom))
+
     def test_taylor_estella(self):
         odds = genetics.mating_odds(ESTELLA, TAYLOR)
         self.assertEqual(self.expressed(odds), {
