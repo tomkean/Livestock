@@ -97,7 +97,7 @@ Raw sightings. Genes are the expressed row unless noted. G = green, O = grey, B 
 | 2026-10-04 | test | Jay | sheep | M | spawned | O G G B O / **B G O B O** | 15 / **? (red)** | brown | L Good/Good. F Bad/Bad. Wool 16 per 3 min (5.3/min), dung 1 per 10 min. Second marker reported as "red": number to check. |
 | 2026-10-04 | test | Brenda junior | sheep | ? (lamb) | **bred: Brenda × Taylor** | O G G B G / **B B G B B** | 14 / **15** | ? | Every gene and both markers possible under the model (see notes). Wool 16 per 3 min, no dung line. |
 | 2026-10-04 | test | Angie | sheep | F | spawned | O O G O O / **B B O O B** | 13 / **8** | brown | Wool 16 per 3 min (5.3/min), dung 1 per 10 min. Shares 13 with Nettie. |
-| 2026-10-04 | test | Elsie | sheep | F | **bred in the wild** by two spawned sheep (parents unknown; both carry marker 12) | O O G G G / **O B O O B** | **12 / 12** | brown | **Card says INBRED.** Wool 10 per 5 min (2.0/min) despite Good Y; dung 1 per 12 min. |
+| 2026-10-04 | test | Elsie | sheep | F | probably spawned (found among the spawns; has a dung line, which lambs lack). Possibly born in the wild: unconfirmed. | O O G G G / **O B O O B** | **12 / 12** | brown | **Card says INBRED.** Wool 10 per 5 min (2.0/min) despite Good Y; dung 1 per 12 min. |
 
 Notes so far:
 - Where both rows are known (written top / second), the top copy is never weaker than the second: 50 genes across ten sheep, no exceptions. Consistent with "the stronger copy is expressed". Brenda's red H is Bad/Bad, as that rule predicts.
@@ -105,7 +105,7 @@ Notes so far:
 - **Dung does follow D, in small steps:** inbred Elsie (Ok/Ok D, halved) dungs 1 per 12 min against 1 per 10 min for every non-inbred sheep. Earlier note, now superseded: Nettie expresses Good D yet shows the same 1 dung per 10 min as Taylor, Brenda and Marcella (Ok D). Either D doesn't change the shown rate, something else (food, condition, age) also drives it, or the panel rounds too coarsely to show the difference.
 - Spawned animals are **not** pure-bred: Taylor carries Bad under Ok on D and L, and Bad under Good on F. His two markers differ (15 / 12).
 - Markers seen: 15/12, 14/4, 13/15 (spawned), 6/0 (bought).
-- **Sheep left together breed by themselves.** Elsie was born to two spawned sheep running loose. Keep males and females in separate pens on the live server, or you'll get unplanned (and possibly inbred) lambs.
+- **If Elsie was spawned, an animal can arrive already inbred:** both markers drawn from a small pool can match. Check a purchase's markers before relying on it as a clean mate.
 - Lambs don't seem to dung: neither Estella nor Brenda junior has a dung line. Both make wool at the adult rate.
 - **First birth (Brenda × Taylor):** the lamb's genes D Ok/Bad, L Good/Bad, Y Good/Good, F Bad/Bad, H Good/Bad and markers 14/15 are all one copy from each parent. The rows are not parent-specific: D's top copy came from the mother, H's from the father. Gestation was roughly 10 minutes (not timed).
 - Coat colour varies (white vs dark brown); per the convars it reflects the genes. Of 8 sheep spawned together, 7 were brown and 1 white.
