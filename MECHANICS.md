@@ -45,7 +45,7 @@ Sources: rusthelp.com/world/sheep and /cow, rust.facepunch.com/news/livestock, b
 - Taming (trust levels): Known 5 s, Tolerated 30 s, Bonded 5 min, Herd 15 min. Hurting the animal adds 60 s, hurting its herd 30 s.
 - Selling: grown animals sell at the Stable / Large Barn vendor for a **randomised offer based on gene quality**; 3 offers, then it refuses for 15 min. **Wild and purchased animals sell at a penalty; bred animals at full value.** Wool trades for rewards, up to 400 per transaction.
 - Buying calves (one guide's prices; may vary by server): wild Ok 373, wild Good 582, bred Ok 466, bred Good 700 scrap. So the vendor grades what it sells.
-- Milk: tame adult cow; refrigerate milk 4 h to skim into skimmed milk and cream (tea buffs, new recipes).
+- Milk: tame adult cow, **1 milk per milking, every 5 min** (rusthelp; Y effect not stated, ×1.6 for Good if it follows the other genes). Spoils after 48 h. A powered fridge or vending machine skims 1 milk into 1 skimmed milk + 1 cream over 4 h. **Every Milky Pure tea = 1 Pure tea + 3 milk.** Pie amounts not found. Our use: milk goes into teas and pies, never into the biofuel generator. Open: does milk build up between milkings or cap at 1 like wool?
 - Biofuel generator: organic matter → low grade fuel; output by calorific value; needs stirring about every 30 min. Dung and milk rates not published.
 - Infrastructure: Animal Fence 250 wood, Fence Gate 500 wood, Hitch & Trough 200 wood (a cow drinks up to 200 ml per session).
 
