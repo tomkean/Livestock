@@ -2,7 +2,7 @@ import { View } from './View.js';
 import { api } from '../services/api.js';
 import { AnimalForm } from '../components/animalForm.js';
 import { GENE_NAMES, animalCardHtml, animalLabel } from '../components/animalCard.js';
-import { esc, fmtTime, media, toast } from '../ui.js';
+import { esc, fmtTime, media, refreshCaptureBadge, toast } from '../ui.js';
 
 const pct = (p) => `${Math.round(p * 1000) / 10}%`;
 
@@ -102,6 +102,7 @@ export class HerdView extends View {
             <div class="actions">
                 <button id="detail-save" class="primary">Save changes</button>
                 ${statusButtons}
+                <button id="detail-delete" class="danger" title="For mistakes and duplicates. Use Mark sold / Mark dead for real departures.">Delete record</button>
             </div>
             <h3>History</h3>
             <ul class="events">${events.map(ev => `
@@ -116,11 +117,29 @@ export class HerdView extends View {
             this.container.querySelectorAll('.animal-card.selected').forEach(el => el.classList.remove('selected'));
         });
         panel.querySelector('#detail-save').addEventListener('click', () => this.save(a.id, this.form.values()));
+        panel.querySelector('#detail-delete').addEventListener('click', () => this.deleteRecord(a));
         panel.querySelectorAll('[data-status]').forEach(btn => btn.addEventListener('click', () => {
             const status = btn.dataset.status;
             if (status !== 'alive' && !confirm(`Mark ${a.code} as ${status}?`)) return;
             this.save(a.id, { status });
         }));
+    }
+
+    async deleteRecord(a) {
+        const name = a.name || a.code;
+        if (!confirm(`Delete ${name} (${a.code}) completely?
+
+This is for mistakes and duplicates: its history is removed and `
+                + `its capture goes back to Pending. If the animal really left the herd, use Mark sold or Mark dead instead.`)) return;
+        try {
+            await api.del(`/api/animals/${a.id}`);
+            toast(`Deleted ${name}`);
+            this.selectedId = null;
+            refreshCaptureBadge();
+            await this.render();
+        } catch (e) {
+            toast(e.message, 'error');
+        }
     }
 
     async save(id, changes) {

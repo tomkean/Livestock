@@ -252,6 +252,36 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
     return animal
 
 
+@app.delete("/api/animals/{animal_id}")
+def delete_animal(animal_id: int, session: Session = Depends(get_session)):
+    """Remove a record entered by mistake (a duplicate, a wrong capture). Real departures use status sold/dead.
+
+    Its log entries go with it; offspring keep their records but lose the link to it; its capture returns to
+    the pending list so it can be used again or discarded.
+    """
+    animal = get_animal(session, animal_id)
+    for event in session.exec(select(Event).where(or_(Event.animal_id == animal_id, Event.other_id == animal_id))):
+        # A mating needs both animals; any other event belongs to its own animal (e.g. a lamb's birth) and stays.
+        if event.animal_id == animal_id or event.kind == "mated":
+            session.delete(event)
+        else:
+            event.other_id = None
+    for child in session.exec(select(Animal).where(or_(Animal.mother_id == animal_id, Animal.father_id == animal_id))):
+        if child.mother_id == animal_id:
+            child.mother_id = None
+        if child.father_id == animal_id:
+            child.father_id = None
+    for capture in session.exec(select(Capture).where(Capture.animal_id == animal_id)):
+        capture.animal_id = None
+    for image in (animal.card_image, animal.name_image):
+        if image:
+            (DATA_DIR / image).unlink(missing_ok=True)
+    session.flush()
+    session.delete(animal)
+    session.commit()
+    return {"deleted": animal.code}
+
+
 @app.post("/api/animals/match")
 def match_animals(observed: Observed, session: Session = Depends(get_session)):
     """Existing animals a captured card could belong to, best first."""
