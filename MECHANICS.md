@@ -127,6 +127,7 @@ Notes so far:
 - Spawned animals are **not** pure-bred: Taylor carries Bad under Ok on D and L, and Bad under Good on F. His two markers differ (15 / 12).
 - Markers seen: 15/12, 14/4, 13/15 (spawned), 6/0 (bought).
 - **If Elsie was spawned, an animal can arrive already inbred:** both markers drawn from a small pool can match. Check a purchase's markers before relying on it as a clean mate.
+- **Card portrait:** every adult sheep has the same generic portrait, rams included (horns only show on the animal itself). Lambs have a different, lamb portrait. Sex appears on the card only with `livestock.panelgender true`.
 - **Inbred cards** show a red "INBRED" label under GENETICS and a red box round the marker pair.
 - Santos's card showed age "0 SECONDS" although he was adult: unexplained (perhaps age resets when a wild animal is tamed).
 - **Lambs have no dung line;** every adult has one (lambs: Estella, Brenda junior, Dorothy, Marie, Olga).
