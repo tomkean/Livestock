@@ -84,6 +84,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Cow from ranch NPC | 300 scrap | Known |
 | Can genes be seen before buying? Can sex be chosen? | Unknown | — |
 | Trips to the ranch are dangerous and often fail, so animals are scarce. | Known | — |
+| **The map spawns wild sheep in grassland** (near barns). If they can be tamed and led home, they are a free alternative to buying. Wild rams near the base are also a risk of unseen, unplanned matings. Taming method and wild genes/markers: unknown. | Known (spawning); rest unknown | — |
 | Space per animal before a pen counts as overcrowded | 3 sheep in a 2×2 (≈12 m² each): personal space 83%, happiness 77%. Need readings at 2 and 4 sheep to see the curve. | Seen once |
 
 ## Observation log
