@@ -67,6 +67,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Rule | Confidence |
 |---|---|
 | An animal refuses to breed once its condition drops to 0.6 or below, and resumes at 0.7 or above. | Known (Convars) |
+| **Overall happiness = the lowest of the conditions** (food, water, personal space): Lou 74/98/100 → 74; Elsie Junior food 53 → 53; Santos food 28 → 28. Food is usually the limiting one. A "GRAZED BARE" warning appears when the grass they graze is used up. | Known |
 | What "condition" is: health fraction (Brenda 113/150 = 0.75 after a birth) or **happiness** (shown as a %; personal space feeds into it). Happiness fits the wording at least as well. Santos (back from outside, less food) and Elsie did not mate while under 70%; once over it they lay down together and Elsie became pregnant. Points to happiness, with food feeding into it. | Likely happiness |
 | **Mating has no animation:** the pair just lie down together. The only sign is "Pregnant" on the ewe's card, so unplanned matings (through walls, after a restart) are invisible until then. Record a mating when Pregnant appears; the lamb's markers confirm the father. | Known |
 | Gestation, breeding cooldown, time to maturity | Gestation roughly 10 min (not timed). The panel shows age in minutes. **Maturity at exactly 60 min** (Estella, test server); she grew to full size instantly. One generation ≈ 10 min gestation + 60 min growth. Live-server timers may differ. A grown sheep is much bigger, so a pen can become overcrowded when lambs grow up. |
@@ -113,6 +114,7 @@ Raw sightings. Genes are the expressed row unless noted. G = green, O = grey, B 
 | 2026-10-04 | test | Lori | sheep | F | bought from ranch NPC (assumed) | G G G O O / **O O O O O** | 4 / **15** | white | Good D, L, Y. Rates not recorded. |
 | 2026-10-04 | test | Olga | sheep | F (lamb?) | bought from ranch NPC (assumed) | G O O G B / **B O B O B** | 13 / **2** | white | Good D and F. H Bad/Bad. Wool 10 per 5 min (2.0/min), no dung line. |
 | 2026-10-04 | test | Stacie | sheep | F | not one of the 8 spawns (only white spawn was Nettie); source to confirm | G O O O O / **B B B B B** | 4 (cyan) / **10 (light green)** | white | Wool 10 per 5 min (2.0/min), dung 1 per 6 min. |
+| 2026-10-04 | test | Lou | sheep | F | ? | O G G G O / **B B O B B** | 1 / **9** | ? | Age 2 hours. Wool 16 per 3 min, dung 1 per 10 min. First entered by hand with H wrong (Good); the card shows Ok. |
 | 2026-10-04 | test | Laurie | sheep | F | spawned? (brown adult) | O G O G G / **B G O O B** | 1 (blue) / **5 (yellow)** | brown | L Good/Good. Wool 10 per 5 min (2.0/min), dung 1 per 10 min. |
 | 2026-10-04 | test | Elsie junior | sheep | ? (lamb) | **bred: Elsie (inbred 12/12) × Santos** | O O G G G / **O O O O O** | 12 / **15** | ? | Not inbred. Every gene one copy from each parent. Wool 16 per 3 min (5.3/min): full rate, so inbreeding did not carry over from Elsie. |
 
@@ -125,6 +127,8 @@ Notes so far:
 - Spawned animals are **not** pure-bred: Taylor carries Bad under Ok on D and L, and Bad under Good on F. His two markers differ (15 / 12).
 - Markers seen: 15/12, 14/4, 13/15 (spawned), 6/0 (bought).
 - **If Elsie was spawned, an animal can arrive already inbred:** both markers drawn from a small pool can match. Check a purchase's markers before relying on it as a clean mate.
+- **Inbred cards** show a red "INBRED" label under GENETICS and a red box round the marker pair.
+- Santos's card showed age "0 SECONDS" although he was adult: unexplained (perhaps age resets when a wild animal is tamed).
 - **Lambs have no dung line;** every adult has one (lambs: Estella, Brenda junior, Dorothy, Marie, Olga).
 - **Lambs show the adult wool rate for their Y:** Good 5.3/min (Estella, Brenda junior, same as adults), Ok 2.0/min (Marie, Olga, same as Santos). Estella's wool stayed at 16 per 3 min when she grew up, so wool does not depend on age. Only dung starts at maturity. Still open: whether a lamb actually yields the wool its panel shows.
 - **First birth (Brenda × Taylor):** the lamb's genes D Ok/Bad, L Good/Bad, Y Good/Good, F Bad/Bad, H Good/Bad and markers 14/15 are all one copy from each parent. The rows are not parent-specific: D's top copy came from the mother, H's from the father. Gestation was roughly 10 minutes (not timed).
