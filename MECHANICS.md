@@ -70,6 +70,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Gestation, breeding cooldown, time to maturity | Unknown: log timestamps |
 | Trust: animals have a trust ladder in bands. What it affects is unknown. | Known (exists) |
 | Giving birth seems to cost health: Brenda went from 150 to 113 HP (−25%) after Brenda junior. If "condition" is HP / max HP she is at 0.75, just above the 0.7 resume threshold, and another birth would drop her below the 0.6 pause threshold. Recovery speed may set the real breeding cycle. Whether H (hardiness) changes the loss is unknown. She later recovered to 150; recovery time and whether food matters not yet measured. | Seen once |
+| Animals clip through walls: Jay slept with his head through the wall into the female stalls. Whether mating works through a wall is unknown. Leave a gap (a one-foundation corridor or a double wall) between male and female pens, and breed in a separate room. | Seen once |
 | A closing garage door can pass straight through an animal standing in its path (Brenda, test server). She survived, apparently through a clipping bug. Don't rely on that: keep doors clear of where animals stand. | Seen once |
 
 ## Economics
