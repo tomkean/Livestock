@@ -93,7 +93,7 @@ Raw sightings. Genes are the expressed row unless noted. G = green, O = grey, B 
 |---|---|---|---|---|---|---|---|---|---|
 | 2026-10-04 | test | Taylor | sheep | M | spawned | O O G G G / **B B G B G** | 15 / **12** | dark brown | Second row via `panelalleles`. Dung 1 per 10 min, wool 16 per 3 min. |
 | 2026-10-04 | test | Brenda | sheep | F | spawned | O G G O B / **O B O B B** | 14 / **4** | dark brown | Red H confirmed Bad/Bad. Dung 1 per 10 min, wool 16 per 3 min. A garage door closed through her; unharmed. |
-| 2026-10-04 | test | Estella | sheep | F (lamb; grown at 60 min) | bought from ranch NPC | G B G O O / **B B O B O** | 6 / **0** | white | Bought as a lamb. Wool 16 per 3 min. No dung line as a lamb; once grown, dung 1 per 6 min. |
+| 2026-10-04 | test | Estella | sheep | F (lamb; grown at 60 min) | bought from ranch NPC | G B G O O / **B B O B O** | 6 / **0** | white | Bought as a lamb. Wool 16 per 3 min. No dung line as a lamb; once grown, dung 1 per 6 min and wool unchanged. |
 | 2026-10-04 | test | Nettie | sheep | ? | spawned (1 white among 8) | G O G G G / **O B O O B** | 13 / **15** | white | Shares marker 15 with Taylor. Wool 16 per ? min, dung 1 per ? min (periods not recorded). |
 | 2026-10-04 | test | Marcella | sheep | ? | spawned | O O O O G / **O O O O G** | 14 / **10** | brown | Same copies on every gene. Wool 10 per ? min (period not recorded), dung 1 per 10 min. Shares 14 with Brenda. |
 | 2026-10-04 | test | Santos | sheep | M | spawned | O O O O O / **B O B O O** | 11 / **15** | brown | Wool 10 per 5 min (2.0/min), dung 1 per 10 min. |
@@ -116,7 +116,7 @@ Notes so far:
 - Markers seen: 15/12, 14/4, 13/15 (spawned), 6/0 (bought).
 - **If Elsie was spawned, an animal can arrive already inbred:** both markers drawn from a small pool can match. Check a purchase's markers before relying on it as a clean mate.
 - **Lambs have no dung line;** every adult has one (lambs: Estella, Brenda junior, Dorothy, Marie, Olga).
-- **Lambs show the adult wool rate for their Y:** Good 5.3/min (Estella, Brenda junior, same as adults), Ok 2.0/min (Marie, Olga, same as Santos). Open: the panel may show the gene-based rate whatever the age. Check whether a lamb's wool line changes when it grows up, and whether a lamb actually yields wool.
+- **Lambs show the adult wool rate for their Y:** Good 5.3/min (Estella, Brenda junior, same as adults), Ok 2.0/min (Marie, Olga, same as Santos). Estella's wool stayed at 16 per 3 min when she grew up, so wool does not depend on age. Only dung starts at maturity. Still open: whether a lamb actually yields the wool its panel shows.
 - **First birth (Brenda × Taylor):** the lamb's genes D Ok/Bad, L Good/Bad, Y Good/Good, F Bad/Bad, H Good/Bad and markers 14/15 are all one copy from each parent. The rows are not parent-specific: D's top copy came from the mother, H's from the father. Gestation was roughly 10 minutes (not timed).
 - Coat colour varies (white vs dark brown); per the convars it reflects the genes. Of 8 sheep spawned together, 7 were brown and 1 white.
 - **Coat: white = Good D expressed** (5 white, all Good D: Estella, Nettie, Marie, Lori, Olga; 7 brown, all Ok D). Earlier evidence: both white sheep (Estella, Nettie) express Good D; all six brown sheep with known genes (Taylor, Brenda, Marcella, Santos, Jay, Angie) express Ok D. Any brown sheep with green D disproves it. If true, Good-D animals can be spotted at the ranch by coat.
