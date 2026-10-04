@@ -1,7 +1,8 @@
 """Livestock backend: herd register, breeding log and screen-capture intake."""
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Optional
 
 import cv2
@@ -14,6 +15,7 @@ from sqlmodel import Session, or_, select
 
 import card_reader
 import genetics
+import planner
 import settings_store
 from config import BUILD_DIR, CAPTURE_DIR, CARD_DIR, DATA_DIR, NAME_DIR, PORT
 from database import get_session, init_db
@@ -318,6 +320,26 @@ def record_mating(body: MatingIn, session: Session = Depends(get_session)):
     log(session, "mated", mother.id, father.id, body.notes + note)
     session.commit()
     return {"p_inbred": p_inbred}
+
+
+@app.get("/api/plan")
+def breeding_plan(species: str = "sheep", runs: int = 150, session: Session = Depends(get_session)):
+    """The fastest route from the current herd to a god male, by simulation. Takes several seconds."""
+    if species not in genetics.SPECIES:
+        raise HTTPException(422, f"species must be one of {genetics.SPECIES}")
+    animals = session.exec(select(Animal).where(Animal.status == "alive", Animal.species == species)).all()
+    now = datetime.now(timezone.utc)
+    herd = []
+    for a in animals:
+        view = SimpleNamespace(**a.model_dump())
+        # A bred animal's record is made around its birth, so its age is roughly the record's age.
+        created = a.created_at if a.created_at.tzinfo else a.created_at.replace(tzinfo=timezone.utc)
+        view.age_minutes = (now - created).total_seconds() / 60 if a.origin == "bred" else None
+        herd.append(view)
+    if not any(a.sex == "F" for a in herd) or not any(a.sex == "M" for a in herd):
+        return {"possible": False, "missing": [], "reason": "The herd needs at least one female and one male."}
+    capacity = settings_store.load().get("pen_capacity") or {}
+    return planner.plan(herd, runs=max(20, min(runs, 400)), keep=capacity)
 
 
 @app.get("/api/events")

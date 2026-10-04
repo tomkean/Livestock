@@ -6,8 +6,9 @@ import { refreshCaptureBadge, toast } from './ui.js';
 import { HerdView } from './views/HerdView.js';
 import { CaptureView } from './views/CaptureView.js';
 import { LogView } from './views/LogView.js';
+import { PlanView } from './views/PlanView.js';
 
-const VIEWS = { herd: HerdView, capture: CaptureView, log: LogView };
+const VIEWS = { herd: HerdView, capture: CaptureView, plan: PlanView, log: LogView };
 let currentView = null;
 let sharers = 0;
 
