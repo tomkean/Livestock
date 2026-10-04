@@ -24,7 +24,7 @@ class Animal(SQLModel, table=True):
     herd_bottom: Optional[int] = None
     pregnant: bool = False
     born_at: Optional[datetime] = None  # from the card's AGE line at capture; lambs grow up 60 min later
-    status: str = "alive"  # alive | sold | dead
+    status: str = "alive"  # alive | sold | dead | missing
     mother_id: Optional[int] = Field(default=None, foreign_key="animal.id")
     father_id: Optional[int] = Field(default=None, foreign_key="animal.id")
     name_image: Optional[str] = None  # relative to DATA_DIR

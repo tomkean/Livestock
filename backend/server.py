@@ -94,7 +94,7 @@ CHOICES = {
     "species": genetics.SPECIES,
     "sex": ("M", "F", "?"),
     "origin": ("ranch", "bred"),
-    "status": ("alive", "sold", "dead"),
+    "status": ("alive", "sold", "dead", "missing"),  # missing: wandered off; the planner ignores it until restored
 }
 
 

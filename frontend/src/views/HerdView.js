@@ -53,7 +53,7 @@ export class HerdView extends View {
                         <select id="mate-m"><option value="">Male…</option>${options('M')}</select>
                         <button id="btn-mate">Record</button>
                         <span class="spacer"></span>
-                        <label><input type="checkbox" id="show-gone" ${this.showGone ? 'checked' : ''}> Show sold / dead</label>
+                        <label><input type="checkbox" id="show-gone" ${this.showGone ? 'checked' : ''}> Show sold / dead / missing</label>
                     </div>
                     <div id="odds"></div>
                     <div class="pens">${pen('?', 'Lambs and unsexed')}${pen('M', 'Males')}${pen('F', 'Females')}</div>
@@ -100,7 +100,7 @@ export class HerdView extends View {
         const events = await api.get(`/api/events?animal_id=${a.id}&limit=50`);
         const byId = Object.fromEntries(this.animals.map(x => [x.id, x]));
         const statusButtons = a.status === 'alive'
-            ? `<button data-status="sold">Mark sold</button><button data-status="dead" class="danger">Mark dead</button>`
+            ? `<button data-status="sold">Mark sold</button><button data-status="missing">Mark missing</button><button data-status="dead" class="danger">Mark dead</button>`
             : `<button data-status="alive">Restore to herd</button>`;
 
         panel.innerHTML = `
@@ -135,7 +135,7 @@ export class HerdView extends View {
         panel.querySelector('#btn-find-parents').addEventListener('click', () => this.findParents(a));
         panel.querySelectorAll('[data-status]').forEach(btn => btn.addEventListener('click', () => {
             const status = btn.dataset.status;
-            if (status !== 'alive' && !confirm(`Mark ${a.code} as ${status}?`)) return;
+            if (status === 'dead' && !confirm(`Mark ${a.name || a.code} as dead?`)) return;
             this.save(a.id, { status });
         }));
     }
