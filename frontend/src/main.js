@@ -7,6 +7,8 @@ import { HerdView } from './views/HerdView.js';
 import { CaptureView } from './views/CaptureView.js';
 import { LogView } from './views/LogView.js';
 import { PlanView } from './views/PlanView.js';
+import { api } from './services/api.js';
+import { lambStatus } from './components/lambTimer.js';
 
 const VIEWS = { herd: HerdView, capture: CaptureView, plan: PlanView, log: LogView };
 let currentView = null;
@@ -63,6 +65,31 @@ on('close', () => {
     sharers = 0;
     updateShareStatus();
 });
+
+// Header reminder for lambs: they must be sorted by sex before they grow up and start breeding.
+async function refreshLambStatus() {
+    const el = document.getElementById('lamb-status');
+    let animals;
+    try {
+        animals = await api.get('/api/animals');
+    } catch (e) {
+        return;
+    }
+    const pending = animals.map(a => ({ a, st: lambStatus(a) })).filter(x => x.st);
+    const due = pending.filter(x => x.st.due);
+    const next = pending.filter(x => !x.st.due).sort((x, y) => x.st.at - y.st.at)[0];
+    if (due.length) {
+        el.textContent = `${due.length} lamb${due.length > 1 ? 's' : ''} to sort now`;
+        el.className = 'pill due';
+    } else if (next) {
+        el.textContent = `Next lamb: ${next.st.text.toLowerCase()}`;
+        el.className = 'pill';
+    } else {
+        el.className = 'pill hidden';
+    }
+}
+setInterval(refreshLambStatus, 30000);
+refreshLambStatus();
 
 connect();
 refreshCaptureBadge();

@@ -15,7 +15,7 @@ class Animal(SQLModel, table=True):
     # The name image is what identifies the animal in game, whatever script its name is in.
     name: str = ""
     species: str  # cow | sheep
-    sex: str  # M | F
+    sex: str  # M | F | ? (lambs: sex only shows as horns once grown)
     origin: str = "ranch"  # ranch (bought from the NPC) | bred
     # One letter per gene in genetics.GENES order: G(ood) O(k) B(ad) or ? (unread)
     genes_top: str = "?????"
@@ -23,6 +23,7 @@ class Animal(SQLModel, table=True):
     herd_top: Optional[int] = None
     herd_bottom: Optional[int] = None
     pregnant: bool = False
+    born_at: Optional[datetime] = None  # from the card's AGE line at capture; lambs grow up 60 min later
     status: str = "alive"  # alive | sold | dead
     mother_id: Optional[int] = Field(default=None, foreign_key="animal.id")
     father_id: Optional[int] = Field(default=None, foreign_key="animal.id")

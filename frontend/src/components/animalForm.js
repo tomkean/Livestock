@@ -100,7 +100,7 @@ export class AnimalForm {
                 <input type="text" data-input="name" maxlength="40" value="${esc(this.v.name)}"
                     placeholder="Blank: use the app's ID (e.g. S-07)">
                 <label>Species</label>${this._seg('species', [['sheep', '🐑 Sheep'], ['cow', '🐄 Cow']])}
-                <label>Sex</label>${this._seg('sex', [['F', '♀ Female'], ['M', '♂ Male']])}
+                <label>Sex</label>${this._seg('sex', [['F', '♀ Female'], ['M', '♂ Male'], ['?', '? Unknown']])}
                 <label>Origin</label>${this._seg('origin', [['ranch', 'Ranch'], ['bred', 'Bred']])}
                 <label>Genes</label>
                 <div class="genes edit">

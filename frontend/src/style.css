@@ -196,6 +196,9 @@ main { padding: 16px 20px; }
 
 .parents-table td { padding: 4px 8px 4px 0; }
 
+.lamb-timer { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.lamb-timer.due, .pill.due { color: #e0a030; border-color: #e0a030; font-weight: 700; }
+
 /* Plan */
 .plan-summary { display: flex; gap: 28px; flex-wrap: wrap; margin: 10px 0 6px; }
 .plan-summary div { display: flex; flex-direction: column; }

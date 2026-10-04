@@ -1,4 +1,5 @@
 import { esc, media } from '../ui.js';
+import { lambStatus } from './lambTimer.js';
 
 export const GENES = ['D', 'L', 'Y', 'F', 'H'];
 export const GENE_NAMES = { D: 'Dung', L: 'Lifespan', Y: 'Yield', F: 'Fertility', H: 'Hardiness' };
@@ -36,16 +37,19 @@ export function animalCardHtml(a) {
         a.origin === 'ranch' ? '<span class="tag">Ranch</span>' : '',
         a.status !== 'alive' ? `<span class="tag gone">${esc(a.status)}</span>` : ''
     ].join('');
+    const lamb = a.status === 'alive' ? lambStatus(a) : null;
+    const timer = lamb ? `<div class="lamb-timer${lamb.due ? ' due' : ''}" data-animal="${a.id}">${esc(lamb.text)}</div>` : '';
     // The name image is what matches the animal in game, in whatever script its name is written.
     const nameImage = a.name_image ? `<img class="name-img" src="${media(a.name_image)}" alt="">` : '';
     return `
         <div class="animal-card${a.status !== 'alive' ? ' gone' : ''}" data-id="${a.id}">
             <div class="card-head">
                 <span class="code">${SPECIES_ICON[a.species] || ''} ${esc(displayName(a))}</span>
-                <span class="sex">${a.sex === 'F' ? '♀' : '♂'}</span>
+                <span class="sex">${a.sex === 'F' ? '♀' : a.sex === 'M' ? '♂' : '?'}</span>
             </div>
             <div class="card-name">${nameImage}${a.name && a.name !== a.code ? `<span class="tag id">${esc(a.code)}</span>` : ''}</div>
             ${geneDots(a)}
+            ${timer}
             <div class="card-tags">${badges}</div>
         </div>`;
 }

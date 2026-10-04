@@ -158,6 +158,9 @@ def _layout(anchor):
     }
 
 
+AGE_BOX = (400, 150, 300, 45)  # x, y, w, h of the AGE value ("9 MINUTES") from the anchor
+AGE_PATTERN = re.compile(r"(\d+)\s*(SECOND|MINUTE|HOUR|DAY)S?")
+AGE_UNIT_MINUTES = {"SECOND": 1 / 60, "MINUTE": 1, "HOUR": 60, "DAY": 1440}
 NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z '-]{0,38}$")
 NAME_MIN_CONFIDENCE = 75
 WINDOWS_TESSERACT = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
@@ -204,6 +207,44 @@ def read_name(image: np.ndarray, box: list[float]) -> str | None:
     return None
 
 
+def read_age(image: np.ndarray, anchor) -> float | None:
+    """The animal's age in minutes from the card's AGE line ("1 MINUTE", "9 MINUTES", "2 HOURS")."""
+    if not _tesseract_ready():
+        return None
+    x, y, s, _ = anchor
+    ax, ay, aw, ah = (int(round(v * s)) for v in AGE_BOX)
+    crop = image[y + ay:y + ay + ah, x + ax:x + ax + aw]
+    if crop.size == 0:
+        return None
+    gray = cv2.resize(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY), None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    _, ink = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY_INV)
+    text = pytesseract.image_to_string(
+        ink, config="--psm 7 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ").upper()
+    match = AGE_PATTERN.search(text.replace("O", "0").replace("0NE", "1") if not re.search(r"\d", text) else text)
+    if not match:
+        return None
+    return int(match.group(1)) * AGE_UNIT_MINUTES[match.group(2)]
+
+
+PORTRAIT_BOX = (-10, -140, 110, 110)  # x, y, w, h of the card's portrait from the anchor
+LAMB_MAX_SCORE = 0.9  # adult portraits matched the adult template at >= 0.98, lambs at <= 0.75
+
+
+def is_lamb(image: np.ndarray, anchor) -> bool:
+    """Lambs have their own portrait; every adult (ram or ewe) shares one."""
+    x, y, s, _ = anchor
+    px, py, pw, ph = (int(round(v * s)) for v in PORTRAIT_BOX)
+    crop = image[max(y + py, 0):y + py + ph, max(x + px, 0):x + px + pw]
+    tpl = cv2.imread(str(TEMPLATE_DIR / "adult_portrait.png"), cv2.IMREAD_GRAYSCALE)
+    if s != 1:
+        tpl = cv2.resize(tpl, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
+    tpl = tpl[5:-5, 5:-5]
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    if gray.shape[0] < tpl.shape[0] or gray.shape[1] < tpl.shape[1]:
+        return False
+    return float(cv2.matchTemplate(gray, tpl, cv2.TM_CCOEFF_NORMED).max()) < LAMB_MAX_SCORE
+
+
 def read_card(image: np.ndarray) -> dict:
     """Everything the card shows that can be read reliably. Unreadable values come back as '?' or None."""
     anchor = find_anchor(image)
@@ -247,6 +288,9 @@ def read_card(image: np.ndarray) -> dict:
         "card_box": frac_box(x + CARD_LEFT * s, card_top, x + CARD_RIGHT * s, card_bottom),
         "name_box": name_box,
         "name": read_name(image, name_box),
+        # The AGE line is only trustworthy on lambs: adult cards have shown "0 SECONDS" and ages far too low.
+        "lamb": (lamb := is_lamb(image, anchor)),
+        "age_minutes": read_age(image, anchor) if lamb else None,
     }
 
 

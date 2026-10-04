@@ -1,7 +1,7 @@
 """Livestock backend: herd register, breeding log and screen-capture intake."""
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Optional
 
@@ -39,6 +39,7 @@ class CaptureCrop(BaseModel):
     capture_id: Optional[int] = None
     card_box: Optional[Box] = None
     name_box: Optional[Box] = None
+    age_minutes: Optional[float] = None  # read from the card; sets born_at relative to the capture time
 
 
 class AnimalIn(CaptureCrop):
@@ -91,7 +92,7 @@ class MatingIn(BaseModel):
 
 CHOICES = {
     "species": genetics.SPECIES,
-    "sex": ("M", "F"),
+    "sex": ("M", "F", "?"),
     "origin": ("ranch", "bred"),
     "status": ("alive", "sold", "dead"),
 }
@@ -126,7 +127,7 @@ def last_mate(session: Session, mother_id: int) -> Optional[int]:
 
 def check_animal(session: Session, animal: Animal):
     """Rules that span several fields, applied after create or update."""
-    if animal.sex == "M":
+    if animal.sex != "F":
         animal.pregnant = False
     for field, sex in (("mother_id", "F"), ("father_id", "M")):
         parent_id = getattr(animal, field)
@@ -185,7 +186,18 @@ def apply_capture(session: Session, animal: Animal, crop: dict):
 
 
 def split_crop(data: dict) -> dict:
-    return {k: data.pop(k) for k in ("capture_id", "card_box", "name_box") if k in data}
+    return {k: data.pop(k) for k in ("capture_id", "card_box", "name_box", "age_minutes") if k in data}
+
+
+def set_birth(session: Session, animal: Animal, crop: dict):
+    """born_at = when the card was captured, minus the age it showed."""
+    if crop.get("age_minutes") is None:
+        return
+    capture = session.get(Capture, crop["capture_id"]) if crop.get("capture_id") else None
+    seen = capture.at if capture else datetime.now(timezone.utc)
+    if seen.tzinfo is None:
+        seen = seen.replace(tzinfo=timezone.utc)
+    animal.born_at = seen - timedelta(minutes=crop["age_minutes"])
 
 
 # ---------------------------------------------------------------- animals
@@ -216,6 +228,7 @@ def create_animal(body: AnimalIn, session: Session = Depends(get_session)):
     check_animal(session, animal)
     if crop.get("capture_id"):
         apply_capture(session, animal, crop)
+    set_birth(session, animal, crop)
     log(session, "born" if animal.origin == "bred" else "bought", animal.id, animal.mother_id)
     session.commit()
     session.refresh(animal)
@@ -249,6 +262,7 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
     if crop.get("capture_id"):
         apply_capture(session, animal, crop)
         log(session, "captured", animal.id)
+    set_birth(session, animal, crop)
     session.commit()
     session.refresh(animal)
     return animal
@@ -353,9 +367,14 @@ def breeding_plan(species: str = "sheep", runs: int = 150, session: Session = De
     herd = []
     for a in animals:
         view = SimpleNamespace(**a.model_dump())
-        # A bred animal's record is made around its birth, so its age is roughly the record's age.
-        created = a.created_at if a.created_at.tzinfo else a.created_at.replace(tzinfo=timezone.utc)
-        view.age_minutes = (now - created).total_seconds() / 60 if a.origin == "bred" else None
+        if a.sex not in ("M", "F"):
+            continue  # a lamb not yet sexed can't be planned with
+        born = a.born_at
+        if born is None and a.origin == "bred":
+            born = a.created_at  # the record was made around the birth
+        if born is not None and born.tzinfo is None:
+            born = born.replace(tzinfo=timezone.utc)
+        view.age_minutes = (now - born).total_seconds() / 60 if born else None
         herd.append(view)
     if not any(a.sex == "F" for a in herd) or not any(a.sex == "M" for a in herd):
         return {"possible": False, "missing": [], "reason": "The herd needs at least one female and one male."}

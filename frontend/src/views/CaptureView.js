@@ -112,6 +112,7 @@ export class CaptureView extends View {
 
     selectCapture(capture, rerender = true) {
         this.selected = capture;
+        this.ageMinutes = null;
         this.boxes = { card: this.settings.card_box || null, name: this.settings.name_box || null };
         if (rerender) this.render();
     }
@@ -206,14 +207,17 @@ export class CaptureView extends View {
         const fields = { genes_top: reading.genes_top, herd_top: reading.herd_top, name: reading.name || '' };
         if (reading.genes_bottom) Object.assign(fields, { genes_bottom: reading.genes_bottom, herd_bottom: reading.herd_bottom });
         Object.assign(fields, this.parentageFromName(reading.name));
+        if (reading.lamb) fields.sex = '?';  // horns only show once grown
+        this.ageMinutes = reading.lamb ? reading.age_minutes : null;
         this.form.set(fields);
         this.formValues = this.form.values();
         const unread = [
             reading.genes_top.includes('?') || (reading.genes_bottom || '').includes('?') ? 'some genes' : '',
             reading.herd_top === null || (reading.genes_bottom && reading.herd_bottom === null) ? 'a marker number' : ''
         ].filter(Boolean);
-        status.innerHTML = 'Read from the card. Check it, set the sex, and save.'
+        status.innerHTML = 'Read from the card. Check it, set the sex (Unknown for lambs), and save.'
             + (reading.name ? '' : " The name isn't plain Latin text (or OCR is off), so the app's ID will be used unless you type one.")
+            + (reading.lamb ? ` <b class="warn">Lamb${reading.age_minutes != null ? `, ${Math.round(reading.age_minutes)} min old: grows up in ${Math.max(0, Math.round(60 - reading.age_minutes))} min` : ''} - sort it by sex before then.</b>` : '')
             + (reading.inbred ? ' <b class="warn">The card says INBRED.</b>' : '')
             + (unread.length ? ` <b class="warn">Couldn't read ${unread.join(' or ')} - please fill in.</b>` : '');
         this.findMatches();
@@ -253,7 +257,7 @@ export class CaptureView extends View {
     }
 
     cropFields() {
-        return { capture_id: this.selected.id, card_box: this.boxes.card, name_box: this.boxes.name };
+        return { capture_id: this.selected.id, card_box: this.boxes.card, name_box: this.boxes.name, age_minutes: this.ageMinutes ?? null };
     }
 
     async findMatches() {

@@ -3,6 +3,7 @@ import { api } from '../services/api.js';
 import { AnimalForm } from '../components/animalForm.js';
 import { GENE_NAMES, animalCardHtml, animalLabel } from '../components/animalCard.js';
 import { renderParents } from '../components/parentsList.js';
+import { lambStatus } from '../components/lambTimer.js';
 import { esc, fmtTime, media, refreshCaptureBadge, toast } from '../ui.js';
 
 const pct = (p) => `${Math.round(p * 1000) / 10}%`;
@@ -30,10 +31,12 @@ export class HerdView extends View {
         const pen = (sex, title) => {
             const members = this.animals.filter(a => a.sex === sex);
             const living = members.filter(a => a.status === 'alive').length;
-            const capacity = this.settings.pen_capacity?.[sex] ?? '?';
+            if (sex === '?' && !members.length) return '';
+            const capacity = this.settings.pen_capacity?.[sex];
+            const count = capacity == null ? `${living}` : `${living} / ${capacity}`;
             return `
                 <section class="pen">
-                    <h2>${title} <span class="count${living > capacity ? ' over' : ''}">${living} / ${capacity}</span></h2>
+                    <h2>${title} <span class="count${capacity != null && living > capacity ? ' over' : ''}">${count}</span></h2>
                     <div class="pen-grid">${members.map(animalCardHtml).join('') || '<p class="empty">Empty</p>'}</div>
                 </section>`;
         };
@@ -53,7 +56,7 @@ export class HerdView extends View {
                         <label><input type="checkbox" id="show-gone" ${this.showGone ? 'checked' : ''}> Show sold / dead</label>
                     </div>
                     <div id="odds"></div>
-                    <div class="pens">${pen('M', 'Males')}${pen('F', 'Females')}</div>
+                    <div class="pens">${pen('?', 'Lambs and unsexed')}${pen('M', 'Males')}${pen('F', 'Females')}</div>
                 </div>
                 <aside id="detail" class="panel ${this.selectedId ? '' : 'hidden'}"></aside>
             </div>`;
@@ -69,6 +72,14 @@ export class HerdView extends View {
             this.container.querySelector(sel).addEventListener('change', () => this.showOdds()));
 
         if (this.selectedId) this.renderDetail();
+        // Keep the lamb countdowns current without re-rendering (which would discard edits in the detail panel).
+        this.intervals.forEach(id => clearInterval(id));
+        this.intervals = [];
+        this.addInterval(() => this.container.querySelectorAll('.lamb-timer').forEach(el => {
+            const a = this.animals.find(x => x.id === Number(el.dataset.animal));
+            const st = a && lambStatus(a);
+            if (st) { el.textContent = st.text; el.classList.toggle('due', st.due); }
+        }), 20000);
     }
 
     select(id) {

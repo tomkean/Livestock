@@ -17,6 +17,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 # Columns added after a table was first created: create_all() makes new tables but never alters old ones.
 ADDED_COLUMNS = [
     ("animal", "name", "VARCHAR NOT NULL DEFAULT ''"),
+    ("animal", "born_at", "DATETIME"),
 ]
 
 
