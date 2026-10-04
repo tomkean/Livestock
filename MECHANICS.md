@@ -90,11 +90,12 @@ Raw sightings. Genes are the expressed row unless noted. G = green, O = grey, B 
 | 2026-10-04 | test | Taylor | sheep | M | spawned | O O G G G / **B B G B G** | 15 / **12** | dark brown | Second row via `panelalleles`. Dung 1 per 10 min, wool 16 per 3 min. |
 | 2026-10-04 | test | Brenda | sheep | F | spawned | O G G O B / **O B O B B** | 14 / **4** | dark brown | Red H confirmed Bad/Bad. Dung 1 per 10 min, wool 16 per 3 min. A garage door closed through her; unharmed. |
 | 2026-10-04 | test | Estella | sheep | F (lamb) | bought from ranch NPC | G B G O O / **B B O B O** | 6 / **0** | white | Bought as a lamb. Wool 16 per 3 min; no dung line shown (lamb?). |
-| 2026-10-04 | test | Nettie | sheep | ? | spawned (1 white among 8) | G O G G G / **O B O O B** | 13 / **15** | white | Shares marker 15 with Taylor. |
+| 2026-10-04 | test | Nettie | sheep | ? | spawned (1 white among 8) | G O G G G / **O B O O B** | 13 / **15** | white | Shares marker 15 with Taylor. Wool 16 per 3 min, dung 1 per 10 min. |
 
 Notes so far:
 - Where both rows are known (written top / second), the top copy is never weaker than the second: 20 genes across four sheep, no exceptions. Consistent with "the stronger copy is expressed". Brenda's red H is Bad/Bad, as that rule predicts.
 - Rates: Taylor and Brenda both express Good Y and Ok D and show identical rates (16 wool / 3 min, 1 dung / 10 min). Either each band has one fixed value, or slider differences are too small to show. Need an animal expressing Ok or Bad Y.
+- **Dung did not follow D:** Nettie expresses Good D yet shows the same 1 dung per 10 min as Taylor and Brenda (Ok D). Either D doesn't change the shown rate, something else (food, condition, age) also drives it, or the panel rounds too coarsely to show the difference.
 - Spawned animals are **not** pure-bred: Taylor carries Bad under Ok on D and L, and Bad under Good on F. His two markers differ (15 / 12).
 - Markers seen: 15/12, 14/4, 13/15 (spawned), 6/0 (bought).
 - Lambs may not dung: Estella's panel has no dung line. Recheck when grown.
