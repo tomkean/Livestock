@@ -45,8 +45,8 @@ The list continued with a "Commands:" section that has not been captured yet.
 |---|---|---|
 | Each gene has two copies; the card shows "the one the animal expresses". | Known (Convars) | — |
 | Genes are **continuous sliders**, and Good / Ok / Bad are bands on them. From the inbred description: Good ≈ 1, Ok ≈ 0.5, Bad ≈ 0. Two green animals can differ. | Likely (Convars) | Compare `panelyield` / `paneldung` rates of animals in the same band. |
-| The expressed copy is the stronger one (Good > Ok > Bad), so red means both copies Bad. | Likely (Video + 79/79 genes seen) | With `panelalleles` on: does the top row always hold the higher of the two? |
-| Each parent passes one of its two copies per gene, 50/50, independently per gene. | Likely (Video + first birth fits) | Tally offspring against parents' both rows. |
+| The expressed copy is the stronger one (Good > Ok > Bad), so red means both copies Bad. | Likely (Video + 84/84 genes seen) | With `panelalleles` on: does the top row always hold the higher of the two? |
+| Each parent passes one of its two copies per gene, 50/50, independently per gene. | Likely (Video + both births fit) | Tally offspring against parents' both rows. |
 | Ranch and spawned animals are pure-bred (both copies identical). | **False** for spawned (Taylor, Brenda) and ranch-bought (Estella) | — |
 | Coat colour depends on the genes ("its coat and what it produces"). | Likely (Convars) | Compare coat against gene values. |
 | Fertility affects breeding cooldown and twin chance. | Video | Log births and twins against the mother's F. |
@@ -57,7 +57,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Rule | Confidence | How to test |
 |---|---|---|
 | Each animal has two lineage markers. An animal is **inbred when its own two markers match**. | Known (Convars + Elsie: 12/12, card says INBRED) | — |
-| Each parent passes one of its two markers, like a gene. So a mating of relatives gives an inbred offspring only sometimes (25% when the parents share one marker). | Likely (first birth: 14 from mother, 15 from father) | With `panelalleles` on, compare offspring markers to the parents'. |
+| Each parent passes one of its two markers, like a gene. So a mating of relatives gives an inbred offspring only sometimes (25% when the parents share one marker). | Likely (both births: one marker from each parent) | With `panelalleles` on, compare offspring markers to the parents'. |
 | Inbreeding multiplies the **expressed** gene sliders (coat and production) by `inbredscale`. Nothing says the genes passed on are changed. | Known (Convars + Elsie: inbred Good Y makes 2.0 wool/min, the same as Santos's Ok Y) for expression; Guess for passing on | Breed an inbred animal with an unrelated one and check the offspring. |
 | Does inbreeding affect fertility or willingness to breed? | Unknown | Not mentioned in the convars. |
 | Ranch/spawned animals' two markers: same or different? | Unknown | `panelalleles`. |
@@ -111,9 +111,10 @@ Raw sightings. Genes are the expressed row unless noted. G = green, O = grey, B 
 | 2026-10-04 | test | Olga | sheep | F (lamb?) | bought from ranch NPC (assumed) | G O O G B / **B O B O B** | 13 / **2** | white | Good D and F. H Bad/Bad. Wool 10 per 5 min (2.0/min), no dung line. |
 | 2026-10-04 | test | Stacie | sheep | F | not one of the 8 spawns (only white spawn was Nettie); source to confirm | G O O O O / **B B B B B** | 4 (cyan) / **10 (light green)** | white | Wool 10 per 5 min (2.0/min), dung 1 per 6 min. |
 | 2026-10-04 | test | Laurie | sheep | F | spawned? (brown adult) | O G O G G / **B G O O B** | 1 (blue) / **5 (yellow)** | brown | L Good/Good. Wool 10 per 5 min (2.0/min), dung 1 per 10 min. |
+| 2026-10-04 | test | Elsie junior | sheep | ? (lamb) | **bred: Elsie (inbred 12/12) × Santos** | O O G G G / **O O O O O** | 12 / **15** | ? | Not inbred. Every gene one copy from each parent. Wool rate pending: the inbreeding-carryover test. |
 
 Notes so far:
-- Where both rows are known (written top / second), the top copy is never weaker than the second: 79 genes across sixteen sheep, no exceptions. Consistent with "the stronger copy is expressed". Brenda's red H is Bad/Bad, as that rule predicts.
+- Where both rows are known (written top / second), the top copy is never weaker than the second: 84 genes across seventeen sheep, no exceptions. Consistent with "the stronger copy is expressed". Brenda's red H is Bad/Bad, as that rule predicts.
 - **Wool against Y value** (Good ≈ 1, Ok ≈ 0.5, inbred halves): 1.0 → 5.3/min (five sheep); 0.5 → 2.0/min (Santos, Marie, Olga, Stacie and Laurie, Ok; Elsie, inbred Good); 0.25 → 1.3/min (Dorothy, inbred Ok). Inbred Good matching Ok fits the convar text. Not a straight line: halving from 1 to 0.5 more than halves the rate, halving again cuts it by a third. A non-inbred red-Y sheep would give the bottom of the scale.
 - **The NPC sells inbred animals** (Dorothy, 11/11). Check markers before buying. Ranch markers so far: 6/0, 11/11, 13/14: no sign of a different pool from spawned sheep.
 - **Rates must be compared per minute:** the panel changes the time period as well as the amount from animal to animal. Per minute so far: Good-Y wool 5.3 (Taylor G/G, Brenda G/O, Estella G/O, Jay G/O, Angie G/O, so the hidden copy seems not to matter); Santos (Ok/Bad Y) 2.0. Periods for Nettie and Marcella still to check.

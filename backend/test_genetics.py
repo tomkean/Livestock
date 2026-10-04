@@ -43,6 +43,17 @@ class MatingOdds(unittest.TestCase):
         self.assertIn(lamb.herd_top, (BRENDA.herd_top, BRENDA.herd_bottom))
         self.assertIn(lamb.herd_bottom, (TAYLOR.herd_top, TAYLOR.herd_bottom))
 
+    def test_second_birth_was_possible(self):
+        # Elsie junior, born 2026-10-04 to inbred Elsie (12/12) and Santos.
+        elsie = sheep("OOGGG", "OBOOB", 12, 12)
+        santos = sheep("OOOOO", "BOBOO", 11, 15)
+        lamb = sheep("OOGGG", "OOOOO", 12, 15)
+        odds = genetics.mating_odds(elsie, santos)
+        for i, g in enumerate(odds["genes"]):
+            pair = lamb.genes_top[i] + lamb.genes_bottom[i]
+            self.assertGreater(g["genotypes"].get(pair, 0), 0, g["gene"])
+        self.assertEqual(odds["p_inbred"], 0.0)
+
     def test_taylor_estella(self):
         odds = genetics.mating_odds(ESTELLA, TAYLOR)
         self.assertEqual(self.expressed(odds), {
