@@ -168,15 +168,17 @@ export class CaptureView extends View {
     }
 
     /**
-     * The game names a lamb after its mother: "Brenda Junior" is Brenda's. So a Junior is bred, and its mother is the
-     * herd animal with the rest of the name. The father is filled in from her last mating when the lamb is saved.
+     * The game sometimes names a lamb after one parent plus "Junior": Brenda Junior and Elsie Junior after their
+     * mothers, Jay Junior after his father. So a Junior is bred, and the named herd animal is its mother or father
+     * depending on its sex. The parent finder suggests the other parent.
      */
     parentageFromName(name) {
         const match = /^(.+?)\s+junior$/i.exec((name || '').trim());
         if (!match) return {};
-        const motherName = match[1].toLowerCase();
-        const mother = this.animals.find(a => a.sex === 'F' && (a.name || '').toLowerCase() === motherName);
-        return mother ? { origin: 'bred', mother_id: mother.id, species: mother.species } : { origin: 'bred' };
+        const parentName = match[1].toLowerCase();
+        const parent = this.animals.find(a => (a.name || '').toLowerCase() === parentName);
+        if (!parent) return { origin: 'bred' };
+        return { origin: 'bred', species: parent.species, [parent.sex === 'F' ? 'mother_id' : 'father_id']: parent.id };
     }
 
     /** Read the card automatically and fill in the boxes and the form; the person only checks and corrects. */
