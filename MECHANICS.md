@@ -69,6 +69,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | An animal refuses to breed once its condition drops to 0.6 or below, and resumes at 0.7 or above. | Known (Convars) |
 | Gestation, breeding cooldown, time to maturity | Unknown: log timestamps |
 | Trust: animals have a trust ladder in bands. What it affects is unknown. | Known (exists) |
+| A closing garage door kills livestock standing in its path (Brenda, test server). Design pens and the breeding area around it. | Known |
 
 ## Economics
 
@@ -87,7 +88,7 @@ Raw sightings. Genes are the expressed row unless noted. G = green, O = grey, B 
 | Date | Server | Name | Species | Sex | Source | Genes | Marker | Coat | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | 2026-10-04 | test | Taylor | sheep | M | spawned | O O G G G / **B B G B G** | 15 / **12** | dark brown | Second row via `panelalleles`. Dung 1 per 10 min, wool 16 per 3 min. |
-| 2026-10-04 | test | Brenda | sheep | F | spawned | O G G O B / **O B O B B** | 14 / **4** | dark brown | Red H confirmed Bad/Bad. Dung 1 per 10 min, wool 16 per 3 min. |
+| 2026-10-04 | test | Brenda | sheep | F | spawned | O G G O B / **O B O B B** | 14 / **4** | dark brown | Red H confirmed Bad/Bad. Dung 1 per 10 min, wool 16 per 3 min. Killed by a closing garage door before breeding. |
 | 2026-10-04 | test | Estella | sheep | F (lamb) | bought from ranch NPC | G B G O O / **B B O B O** | 6 / **0** | white | Bought as a lamb. Wool 16 per 3 min; no dung line shown (lamb?). |
 
 Notes so far:
