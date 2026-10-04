@@ -47,7 +47,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Genes are **continuous sliders**, and Good / Ok / Bad are bands on them. From the inbred description: Good ≈ 1, Ok ≈ 0.5, Bad ≈ 0. Two green animals can differ. | Likely (Convars) | Compare `panelyield` / `paneldung` rates of animals in the same band. |
 | The expressed copy is the stronger one (Good > Ok > Bad), so red means both copies Bad. | Video | With `panelalleles` on: does the top row always hold the higher of the two? |
 | Each parent passes one of its two copies per gene, 50/50, independently per gene. | Video | Tally offspring against parents' both rows. |
-| Ranch and spawned animals are pure-bred (both copies identical). | Guess | `panelalleles` shows it directly. |
+| Ranch and spawned animals are pure-bred (both copies identical). | **False for spawned** (Taylor); ranch unknown | `panelalleles` on a ranch animal. |
 | Coat colour depends on the genes ("its coat and what it produces"). | Likely (Convars) | Compare coat against gene values. |
 | Fertility affects breeding cooldown and twin chance. | Video | Log births and twins against the mother's F. |
 | Offspring sex is 50/50. | Guess | Tally births. |
@@ -86,11 +86,13 @@ Raw sightings. Genes are the expressed row unless noted. G = green, O = grey, B 
 
 | Date | Server | Name | Species | Sex | Source | Genes | Marker | Coat | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| 2026-10-04 | test | Taylor | sheep | M | spawned | O O G G G | 15 | dark brown | |
+| 2026-10-04 | test | Taylor | sheep | M | spawned | O O G G G / **B B G B G** | 15 / **12** | dark brown | Second row via `panelalleles`. Dung 1 per 10 min, wool 16 per 3 min. |
 | 2026-10-04 | test | Brenda | sheep | F | spawned | O G G O B | 14 | dark brown | |
 | 2026-10-04 | test | Estella | sheep | F (lamb) | bought from ranch NPC | G B G O O | 6 | white | Bought as a lamb. |
 
 Notes so far:
+- Where both rows are known (written top / second), the top copy is never weaker than the second: consistent with "the stronger copy is expressed".
+- Spawned animals are **not** pure-bred: Taylor carries Bad under Ok on D and L, and Bad under Good on F. His two markers differ (15 / 12).
 - Markers seen: 14 and 15 (spawned one after the other), 6 (bought). Looks like an ID handed out per animal.
 - Coat colour varies (white vs dark brown); per the convars it reflects the genes.
 
