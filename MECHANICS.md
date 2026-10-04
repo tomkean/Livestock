@@ -67,6 +67,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Rule | Confidence |
 |---|---|
 | An animal refuses to breed once its condition drops to 0.6 or below, and resumes at 0.7 or above. | Known (Convars) |
+| What "condition" is: health fraction (Brenda 113/150 = 0.75 after a birth) or **happiness** (shown as a %; personal space feeds into it). Happiness fits the wording at least as well. | Unknown |
 | Gestation, breeding cooldown, time to maturity | Gestation roughly 10 min (not timed). The panel shows age in minutes (Estella: 58 min on the test server); maturity possibly at 60 min, to confirm. |
 | Trust: animals have a trust ladder in bands. What it affects is unknown. | Known (exists) |
 | Giving birth seems to cost health: Brenda went from 150 to 113 HP (−25%) after Brenda junior. If "condition" is HP / max HP she is at 0.75, just above the 0.7 resume threshold, and another birth would drop her below the 0.6 pause threshold. Recovery speed may set the real breeding cycle. Whether H (hardiness) changes the loss is unknown. She later recovered to 150; recovery time and whether food matters not yet measured. | Seen once |
@@ -82,7 +83,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Cow from ranch NPC | 300 scrap | Known |
 | Can genes be seen before buying? Can sex be chosen? | Unknown | — |
 | Trips to the ranch are dangerous and often fail, so animals are scarce. | Known | — |
-| Space per animal before a pen counts as overcrowded | Unknown | — |
+| Space per animal before a pen counts as overcrowded | 3 sheep in a 2×2 (≈12 m² each): personal space 83%, happiness 77%. Need readings at 2 and 4 sheep to see the curve. | Seen once |
 
 ## Observation log
 
