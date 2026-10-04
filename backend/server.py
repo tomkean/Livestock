@@ -40,6 +40,7 @@ class CaptureCrop(BaseModel):
 
 
 class AnimalIn(CaptureCrop):
+    name: str = ""
     species: str
     sex: str
     origin: str = "ranch"
@@ -54,6 +55,7 @@ class AnimalIn(CaptureCrop):
 
 
 class AnimalPatch(CaptureCrop):
+    name: Optional[str] = None
     species: Optional[str] = None
     sex: Optional[str] = None
     origin: Optional[str] = None
@@ -108,6 +110,8 @@ def clean(data: dict) -> dict:
         data["genes_bottom"] = None
     if data.get("origin") == "ranch":
         data.update(mother_id=None, father_id=None)
+    if "name" in data:
+        data["name"] = (data["name"] or "").strip()[:40]
     return data
 
 
@@ -197,6 +201,7 @@ def create_animal(body: AnimalIn, session: Session = Depends(get_session)):
     data = body.model_dump()
     crop = split_crop(data)
     animal = Animal(**clean(data), code=next_code(session, data["species"]))
+    animal.name = animal.name or animal.code
     if animal.origin == "bred" and animal.mother_id is not None:
         # Both parents are needed to infer hidden genes, so fill the father from the breeding log.
         if animal.father_id is None:
@@ -234,6 +239,8 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
         log(session, "pregnant" if animal.pregnant else "not_pregnant", animal.id)
     if "status" in changed:
         log(session, animal.status, animal.id)
+    if not animal.name:
+        animal.name = animal.code
     edits = [f for f in changed if f not in ("pregnant", "status")]
     if edits:
         log(session, "edited", animal.id, notes=", ".join(edits))

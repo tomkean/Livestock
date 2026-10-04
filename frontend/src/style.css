@@ -136,7 +136,8 @@ main { padding: 16px 20px; }
 .card-name { height: 30px; margin: 4px 0 6px; display: flex; align-items: center; }
 .name-img { max-height: 28px; max-width: 100%; }
 .name-img.large { max-height: 48px; display: block; margin-bottom: 8px; }
-.name-missing { color: var(--muted); font-size: 13px; font-style: italic; }
+.card-name { gap: 8px; }
+.tag.id { font-size: 11px; }
 .card-img { max-width: 100%; border-radius: 4px; margin-bottom: 10px; }
 .card-tags { display: flex; gap: 4px; margin-top: 6px; min-height: 20px; }
 .tag { font-size: 12px; padding: 1px 6px; border-radius: 8px; border: 1px solid var(--panel-border); color: var(--muted); }

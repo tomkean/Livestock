@@ -186,7 +186,7 @@ export class CaptureView extends View {
         this.boxes = { card: reading.card_box, name: reading.name_box };
         this.drawBoxes();
         this.drawPreviews();
-        const fields = { genes_top: reading.genes_top, herd_top: reading.herd_top };
+        const fields = { genes_top: reading.genes_top, herd_top: reading.herd_top, name: reading.name || '' };
         if (reading.genes_bottom) Object.assign(fields, { genes_bottom: reading.genes_bottom, herd_bottom: reading.herd_bottom });
         this.form.set(fields);
         this.formValues = this.form.values();
@@ -195,6 +195,7 @@ export class CaptureView extends View {
             reading.herd_top === null || (reading.genes_bottom && reading.herd_bottom === null) ? 'a marker number' : ''
         ].filter(Boolean);
         status.innerHTML = 'Read from the card. Check it, set the sex, and save.'
+            + (reading.name ? '' : " The name isn't plain Latin text (or OCR is off), so the app's ID will be used unless you type one.")
             + (reading.inbred ? ' <b class="warn">The card says INBRED.</b>' : '')
             + (unread.length ? ` <b class="warn">Couldn't read ${unread.join(' or ')} - please fill in.</b>` : '');
         this.findMatches();

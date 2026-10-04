@@ -10,7 +10,10 @@ def utcnow():
 
 class Animal(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    code: str = Field(index=True, unique=True)  # app ID, e.g. C-01; the in-game name is only an image
+    code: str = Field(index=True, unique=True)  # app ID, e.g. C-01
+    # Display name: the in-game name when it reads cleanly as Latin text, otherwise the code. Editable.
+    # The name image is what identifies the animal in game, whatever script its name is in.
+    name: str = ""
     species: str  # cow | sheep
     sex: str  # M | F
     origin: str = "ranch"  # ranch (bought from the NPC) | bred

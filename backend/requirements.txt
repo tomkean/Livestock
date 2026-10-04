@@ -6,3 +6,4 @@ pillow
 websockets
 numpy
 opencv-python-headless
+pytesseract  # optional; needs the Tesseract program installed

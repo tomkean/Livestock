@@ -14,9 +14,20 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.close()
 
 
+# Columns added after a table was first created: create_all() makes new tables but never alters old ones.
+ADDED_COLUMNS = [
+    ("animal", "name", "VARCHAR NOT NULL DEFAULT ''"),
+]
+
+
 def init_db():
     import models  # noqa: F401  (registers tables)
     SQLModel.metadata.create_all(engine)
+    with engine.begin() as conn:
+        for table, column, ddl in ADDED_COLUMNS:
+            existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
+            if column not in existing:
+                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
 
 def get_session():

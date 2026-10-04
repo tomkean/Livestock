@@ -22,8 +22,12 @@ export function geneDots(a) {
     return `<div class="genes"><div class="gene-row">${top}</div>${bottom ? `<div class="gene-row">${bottom}</div>` : ''}</div>`;
 }
 
+export function displayName(a) {
+    return a.name || a.code;
+}
+
 export function animalLabel(a) {
-    return `${SPECIES_ICON[a.species] || ''} ${a.code}`;
+    return `${SPECIES_ICON[a.species] || ''} ${displayName(a)}`;
 }
 
 export function animalCardHtml(a) {
@@ -32,16 +36,15 @@ export function animalCardHtml(a) {
         a.origin === 'ranch' ? '<span class="tag">Ranch</span>' : '',
         a.status !== 'alive' ? `<span class="tag gone">${esc(a.status)}</span>` : ''
     ].join('');
-    const name = a.name_image
-        ? `<img class="name-img" src="${media(a.name_image)}" alt="">`
-        : '<span class="name-missing">no name image</span>';
+    // The name image is what matches the animal in game, in whatever script its name is written.
+    const nameImage = a.name_image ? `<img class="name-img" src="${media(a.name_image)}" alt="">` : '';
     return `
         <div class="animal-card${a.status !== 'alive' ? ' gone' : ''}" data-id="${a.id}">
             <div class="card-head">
-                <span class="code">${animalLabel(a)}</span>
+                <span class="code">${SPECIES_ICON[a.species] || ''} ${esc(displayName(a))}</span>
                 <span class="sex">${a.sex === 'F' ? '♀' : '♂'}</span>
             </div>
-            <div class="card-name">${name}</div>
+            <div class="card-name">${nameImage}${a.name && a.name !== a.code ? `<span class="tag id">${esc(a.code)}</span>` : ''}</div>
             ${geneDots(a)}
             <div class="card-tags">${badges}</div>
         </div>`;

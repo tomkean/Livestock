@@ -11,10 +11,18 @@ Offsets were measured on 3840x2160 captures and scale with the frame width.
 """
 from pathlib import Path
 
+import re
+import shutil
+
 import cv2
 import numpy as np
 
 from config import DATA_DIR
+
+try:
+    import pytesseract
+except ImportError:  # optional: without it, names fall back to the app's ID
+    pytesseract = None
 
 REF_WIDTH = 3840
 TEMPLATE_DIR = Path(__file__).resolve().parent / "card_templates"
@@ -150,6 +158,49 @@ def _layout(anchor):
     }
 
 
+NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z '-]{0,38}$")
+NAME_MIN_CONFIDENCE = 75
+WINDOWS_TESSERACT = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
+
+
+def _tesseract_ready() -> bool:
+    if pytesseract is None:
+        return False
+    if shutil.which("tesseract"):
+        return True
+    if WINDOWS_TESSERACT.exists():
+        pytesseract.pytesseract.tesseract_cmd = str(WINDOWS_TESSERACT)
+        return True
+    return False
+
+
+def read_name(image: np.ndarray, box: list[float]) -> str | None:
+    """The animal's name as text, but only when it reads cleanly as Latin letters.
+
+    Names can be in any script. Turning a Cyrillic or Chinese name into Latin letters wouldn't help anyone match it
+    in game, so anything that isn't a confident Latin read comes back as None and the app uses its own ID instead.
+    """
+    if not _tesseract_ready():
+        return None
+    h, w = image.shape[:2]
+    x, y, bw, bh = box
+    crop = image[int(y * h):int((y + bh) * h), int(x * w):int((x + bw) * w)]
+    if crop.size == 0:
+        return None
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    _, ink = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)  # dark text on white
+    data = pytesseract.image_to_data(ink, config="--psm 7", output_type=pytesseract.Output.DICT)
+    words = [(t, float(c)) for t, c in zip(data["text"], data["conf"]) if t.strip() and float(c) >= 0]
+    if not words:
+        return None
+    text = " ".join(t for t, _ in words).strip()
+    confidence = min(c for _, c in words)
+    if confidence < NAME_MIN_CONFIDENCE or not NAME_PATTERN.match(text):
+        return None
+    return text
+
+
 def read_card(image: np.ndarray) -> dict:
     """Everything the card shows that can be read reliably. Unreadable values come back as '?' or None."""
     anchor = find_anchor(image)
@@ -181,6 +232,7 @@ def read_card(image: np.ndarray) -> dict:
     card_top = y + CARD_TOP * s
     card_bottom = 2 * CARD_CENTRE_Y * s - card_top
     nx, ny, nw, nh = (v * s for v in NAME_BOX)
+    name_box = frac_box(x + nx, y + ny, x + nx + nw, y + ny + nh)
     return {
         "found": True,
         "score": round(score, 3),
@@ -190,7 +242,8 @@ def read_card(image: np.ndarray) -> dict:
         "herd_bottom": herd_bottom,
         "inbred": inbred,
         "card_box": frac_box(x + CARD_LEFT * s, card_top, x + CARD_RIGHT * s, card_bottom),
-        "name_box": frac_box(x + nx, y + ny, x + nx + nw, y + ny + nh),
+        "name_box": name_box,
+        "name": read_name(image, name_box),
     }
 
 
