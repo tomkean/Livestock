@@ -45,7 +45,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 |---|---|---|
 | Each gene has two copies; the card shows "the one the animal expresses". | Known (Convars) | — |
 | Genes are **continuous sliders**, and Good / Ok / Bad are bands on them. From the inbred description: Good ≈ 1, Ok ≈ 0.5, Bad ≈ 0. Two green animals can differ. | Likely (Convars) | Compare `panelyield` / `paneldung` rates of animals in the same band. |
-| The expressed copy is the stronger one (Good > Ok > Bad), so red means both copies Bad. | Likely (Video + 40/40 genes seen) | With `panelalleles` on: does the top row always hold the higher of the two? |
+| The expressed copy is the stronger one (Good > Ok > Bad), so red means both copies Bad. | Likely (Video + 45/45 genes seen) | With `panelalleles` on: does the top row always hold the higher of the two? |
 | Each parent passes one of its two copies per gene, 50/50, independently per gene. | Likely (Video + first birth fits) | Tally offspring against parents' both rows. |
 | Ranch and spawned animals are pure-bred (both copies identical). | **False** for spawned (Taylor, Brenda) and ranch-bought (Estella) | — |
 | Coat colour depends on the genes ("its coat and what it produces"). | Likely (Convars) | Compare coat against gene values. |
@@ -96,17 +96,18 @@ Raw sightings. Genes are the expressed row unless noted. G = green, O = grey, B 
 | 2026-10-04 | test | Santos | sheep | M | spawned | O O O O O / **B O B O O** | 11 / **15** | brown | Wool 10 per 5 min (2.0/min), dung 1 per 10 min. |
 | 2026-10-04 | test | Jay | sheep | M | spawned | O G G B O / **B G O B O** | 15 / **? (red)** | brown | L Good/Good. F Bad/Bad. Wool 16 per 3 min (5.3/min), dung 1 per 10 min. Second marker reported as "red": number to check. |
 | 2026-10-04 | test | Brenda junior | sheep | ? (lamb) | **bred: Brenda × Taylor** | O G G B G / **B B G B B** | 14 / **15** | ? | Every gene and both markers possible under the model (see notes). Wool 16 per 3 min, no dung line. |
+| 2026-10-04 | test | Angie | sheep | F | spawned | O O G O O / **B B O O B** | 13 / **8** | brown | Wool 16 per 3 min (5.3/min), dung 1 per 10 min. Shares 13 with Nettie. |
 
 Notes so far:
-- Where both rows are known (written top / second), the top copy is never weaker than the second: 40 genes across eight sheep, no exceptions. Consistent with "the stronger copy is expressed". Brenda's red H is Bad/Bad, as that rule predicts.
-- **Rates must be compared per minute:** the panel changes the time period as well as the amount from animal to animal. Per minute so far: Good-Y wool 5.3 (Taylor G/G, Brenda G/O, Estella G/O, Jay G/O, so the hidden copy seems not to matter); Santos (Ok/Bad Y) 2.0. Periods for Nettie and Marcella still to check.
+- Where both rows are known (written top / second), the top copy is never weaker than the second: 45 genes across nine sheep, no exceptions. Consistent with "the stronger copy is expressed". Brenda's red H is Bad/Bad, as that rule predicts.
+- **Rates must be compared per minute:** the panel changes the time period as well as the amount from animal to animal. Per minute so far: Good-Y wool 5.3 (Taylor G/G, Brenda G/O, Estella G/O, Jay G/O, Angie G/O, so the hidden copy seems not to matter); Santos (Ok/Bad Y) 2.0. Periods for Nettie and Marcella still to check.
 - **Dung did not follow D:** Nettie expresses Good D yet shows the same 1 dung per 10 min as Taylor, Brenda and Marcella (Ok D). Either D doesn't change the shown rate, something else (food, condition, age) also drives it, or the panel rounds too coarsely to show the difference.
 - Spawned animals are **not** pure-bred: Taylor carries Bad under Ok on D and L, and Bad under Good on F. His two markers differ (15 / 12).
 - Markers seen: 15/12, 14/4, 13/15 (spawned), 6/0 (bought).
 - Lambs don't seem to dung: neither Estella nor Brenda junior has a dung line. Both make wool at the adult rate.
 - **First birth (Brenda × Taylor):** the lamb's genes D Ok/Bad, L Good/Bad, Y Good/Good, F Bad/Bad, H Good/Bad and markers 14/15 are all one copy from each parent. The rows are not parent-specific: D's top copy came from the mother, H's from the father. Gestation was roughly 10 minutes (not timed).
 - Coat colour varies (white vs dark brown); per the convars it reflects the genes. Of 8 sheep spawned together, 7 were brown and 1 white.
-- **Coat hypothesis: white = Good D expressed.** Both white sheep (Estella, Nettie) express Good D; all five brown sheep with known genes (Taylor, Brenda, Marcella, Santos, Jay) express Ok D. Any brown sheep with green D disproves it. If true, Good-D animals can be spotted at the ranch by coat.
+- **Coat hypothesis: white = Good D expressed.** Both white sheep (Estella, Nettie) express Good D; all six brown sheep with known genes (Taylor, Brenda, Marcella, Santos, Jay, Angie) express Ok D. Any brown sheep with green D disproves it. If true, Good-D animals can be spotted at the ranch by coat.
 - **Markers are not unique:** Nettie and Taylor both carry 15; Marcella and Brenda both carry 14. 15 has turned up on four of seven sheep (Taylor, Nettie, Santos, Jay), so markers are not a uniform 0-15 draw.
 - Marker circles may be coloured (the video showed a red 0 over a blue 1; Jay's second marker was reported as "red"). What the colour means is unknown. All markers seen are 0-15, so they look like random draws from a small range. Unrelated animals can share one, so a "fresh" mate still needs its markers checked.
 
