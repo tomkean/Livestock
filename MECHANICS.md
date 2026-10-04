@@ -58,7 +58,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 |---|---|---|
 | Each animal has two lineage markers. An animal is **inbred when its own two markers match**. | Known (Convars + Elsie: 12/12, card says INBRED) | — |
 | Each parent passes one of its two markers, like a gene. So a mating of relatives gives an inbred offspring only sometimes (25% when the parents share one marker). | Likely (both births: one marker from each parent) | With `panelalleles` on, compare offspring markers to the parents'. |
-| Inbreeding multiplies the **expressed** gene sliders (coat and production) by `inbredscale`. Nothing says the genes passed on are changed. | Known (Convars + Elsie: inbred Good Y makes 2.0 wool/min, the same as Santos's Ok Y) for expression; Guess for passing on | Breed an inbred animal with an unrelated one and check the offspring. |
+| Inbreeding multiplies the **expressed** gene sliders (coat and production) by `inbredscale`. Nothing says the genes passed on are changed. | Known (Convars + Elsie: inbred Good Y makes 2.0 wool/min, the same as Santos's Ok Y) for expression. **Known: it does not pass down** (Elsie junior, non-inbred Good Y from inbred Elsie, makes the full 5.3/min). | Breed an inbred animal with an unrelated one and check the offspring. |
 | Does inbreeding affect fertility or willingness to breed? | Unknown | Not mentioned in the convars. |
 | Ranch/spawned animals' two markers: same or different? | Unknown | `panelalleles`. |
 
@@ -111,7 +111,7 @@ Raw sightings. Genes are the expressed row unless noted. G = green, O = grey, B 
 | 2026-10-04 | test | Olga | sheep | F (lamb?) | bought from ranch NPC (assumed) | G O O G B / **B O B O B** | 13 / **2** | white | Good D and F. H Bad/Bad. Wool 10 per 5 min (2.0/min), no dung line. |
 | 2026-10-04 | test | Stacie | sheep | F | not one of the 8 spawns (only white spawn was Nettie); source to confirm | G O O O O / **B B B B B** | 4 (cyan) / **10 (light green)** | white | Wool 10 per 5 min (2.0/min), dung 1 per 6 min. |
 | 2026-10-04 | test | Laurie | sheep | F | spawned? (brown adult) | O G O G G / **B G O O B** | 1 (blue) / **5 (yellow)** | brown | L Good/Good. Wool 10 per 5 min (2.0/min), dung 1 per 10 min. |
-| 2026-10-04 | test | Elsie junior | sheep | ? (lamb) | **bred: Elsie (inbred 12/12) × Santos** | O O G G G / **O O O O O** | 12 / **15** | ? | Not inbred. Every gene one copy from each parent. Wool rate pending: the inbreeding-carryover test. |
+| 2026-10-04 | test | Elsie junior | sheep | ? (lamb) | **bred: Elsie (inbred 12/12) × Santos** | O O G G G / **O O O O O** | 12 / **15** | ? | Not inbred. Every gene one copy from each parent. Wool 16 per 3 min (5.3/min): full rate, so inbreeding did not carry over from Elsie. |
 
 Notes so far:
 - Where both rows are known (written top / second), the top copy is never weaker than the second: 84 genes across seventeen sheep, no exceptions. Consistent with "the stronger copy is expressed". Brenda's red H is Bad/Bad, as that rule predicts.
@@ -135,6 +135,6 @@ Notes so far:
 - **God ram / bull:** a male that is Good/Good on all five genes. Every offspring of his expresses Good on every gene, whatever the mother carries.
 - Animals are the scarce resource, so plans should **minimise purchases first and breeding cycles second**.
 - On a server without `panelalleles` the hidden copy has to be inferred, by pedigree (needs both parents recorded for every birth) or by test-breeding against a female expressing Bad. On a server with it, the hidden copy is simply read off the card.
-- Inbreeding looks safe for building the stud: per the convars it scales what an inbred animal *expresses*, not, as far as we know, what it passes on. A mate with different markers should give clean offspring. To confirm.
+- **Inbreeding is safe for building the stud** (confirmed by Elsie junior): it only scales what the inbred animal itself expresses. A mate with different markers gives clean offspring at full production.
 - Production needs condition ≥ 0.7 to keep animals breeding, so feeding and health are part of the cycle time.
 - Run experiments on sheep first (half the price), assuming cows follow the same rules.
