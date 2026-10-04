@@ -240,10 +240,9 @@ export class CaptureView extends View {
             pregnant: v.pregnant,
             ...this.cropFields()
         };
-        if (animal.origin === 'bred') {
-            changes.genes_bottom = mergeRow(animal.genes_bottom, v.genes_bottom);
-            changes.herd_bottom = v.herd_bottom ?? animal.herd_bottom;
-        }
+        // The second row is only known from the admin view; keep what is stored if it wasn't entered.
+        changes.genes_bottom = mergeRow(animal.genes_bottom, v.genes_bottom);
+        changes.herd_bottom = v.herd_bottom ?? animal.herd_bottom;
         try {
             await api.patch(`/api/animals/${animal.id}`, changes);
             toast(`Updated ${animal.code}`);

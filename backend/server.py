@@ -92,7 +92,7 @@ CHOICES = {
 
 
 def clean(data: dict) -> dict:
-    """Validate animal fields in place; ranch animals carry only one gene line and one herd number."""
+    """Validate animal fields in place. The second row is admin-only in game, so it is usually unknown (None)."""
     for field, allowed in CHOICES.items():
         if field in data and data[field] not in allowed:
             raise HTTPException(422, f"{field} must be one of {allowed}")
@@ -102,9 +102,18 @@ def clean(data: dict) -> dict:
                 data[field] = genetics.normalise_row(data[field])
     except ValueError as e:
         raise HTTPException(422, str(e))
+    if data.get("genes_bottom") == "?" * len(genetics.GENES):
+        data["genes_bottom"] = None
     if data.get("origin") == "ranch":
-        data.update(genes_bottom=None, herd_bottom=None, mother_id=None, father_id=None)
+        data.update(mother_id=None, father_id=None)
     return data
+
+
+def last_mate(session: Session, mother_id: int) -> Optional[int]:
+    """The male in the mother's most recent recorded mating."""
+    event = session.exec(select(Event).where(Event.kind == "mated", Event.animal_id == mother_id)
+                         .order_by(Event.at.desc())).first()
+    return event.other_id if event else None
 
 
 def check_animal(session: Session, animal: Animal):
@@ -181,6 +190,13 @@ def create_animal(body: AnimalIn, session: Session = Depends(get_session)):
     data = body.model_dump()
     crop = split_crop(data)
     animal = Animal(**clean(data), code=next_code(session, data["species"]))
+    if animal.origin == "bred" and animal.mother_id is not None:
+        # Both parents are needed to infer hidden genes, so fill the father from the breeding log.
+        if animal.father_id is None:
+            animal.father_id = last_mate(session, animal.mother_id)
+        mother = session.get(Animal, animal.mother_id)
+        if mother and mother.pregnant:
+            mother.pregnant = False
     session.add(animal)
     session.flush()
     check_animal(session, animal)

@@ -13,10 +13,10 @@ class Animal(SQLModel, table=True):
     code: str = Field(index=True, unique=True)  # app ID, e.g. C-01; the in-game name is only an image
     species: str  # cow | sheep
     sex: str  # M | F
-    origin: str = "ranch"  # ranch (bought, one gene line) | bred
+    origin: str = "ranch"  # ranch (bought from the NPC) | bred
     # One letter per gene in genetics.GENES order: G(ood) O(k) B(ad) or ? (unread)
     genes_top: str = "?????"
-    genes_bottom: Optional[str] = None  # None for ranch animals, which show one line
+    genes_bottom: Optional[str] = None  # hidden copy; normal players can't see it, so usually None
     herd_top: Optional[int] = None
     herd_bottom: Optional[int] = None
     pregnant: bool = False
