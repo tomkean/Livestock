@@ -189,7 +189,11 @@ export class CaptureView extends View {
         if (!parentName) return {};
         const parent = this.animals.find(a => (a.name || '').toLowerCase() === parentName.toLowerCase());
         if (!parent) return { origin: 'bred' };
-        return { origin: 'bred', species: parent.species, [parent.sex === 'F' ? 'mother_id' : 'father_id']: parent.id };
+        const out = { origin: 'bred', species: parent.species, [parent.sex === 'F' ? 'mother_id' : 'father_id']: parent.id };
+        // A lamb is named after its parent of the same sex (Jay Junior, Jay the 3rd, Taylor Junior: all rams named
+        // after their fathers), so the name sexes it at birth, long before horns show.
+        if (parent.sex === 'F' || parent.sex === 'M') out.sex = parent.sex;
+        return out;
     }
 
     /** Read the card automatically and fill in the boxes and the form; the person only checks and corrects. */
@@ -216,8 +220,8 @@ export class CaptureView extends View {
         this.drawPreviews();
         const fields = { genes_top: reading.genes_top, herd_top: reading.herd_top, name: reading.name || '' };
         if (reading.genes_bottom) Object.assign(fields, { genes_bottom: reading.genes_bottom, herd_bottom: reading.herd_bottom });
-        Object.assign(fields, this.parentageFromName(reading.name));
-        if (reading.lamb) fields.sex = '?';  // horns only show once grown
+        if (reading.lamb) fields.sex = '?';  // horns only show once grown...
+        Object.assign(fields, this.parentageFromName(reading.name));  // ...unless the name gives it away
         this.ageMinutes = reading.lamb ? reading.age_minutes : null;
         this.form.set(fields);
         this.formValues = this.form.values();
