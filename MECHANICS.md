@@ -90,7 +90,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Ranch and spawned animals are pure-bred (both copies identical). | **False** for spawned (Taylor, Brenda) and ranch-bought (Estella) | — |
 | Coat colour depends on the genes ("its coat and what it produces"). | Likely (Convars) | Compare coat against gene values. |
 | Fertility affects breeding cooldown and twin chance. | Video | Log births and twins against the mother's F. |
-| Offspring sex is 50/50. | Guess | Tally births. |
+| Offspring sex is 50/50. | **Doubtful:** of 8 bred lambs sexed on the test server, 7 were male (Jay Junior, Jay the 3rd, Taylor Junior, Milton, Aubrey, Steve, Milton Junior) and 1 female (Dale). At 50/50 that happens about 3.5% of the time. Keep tallying. | Tally births. |
 
 ## Lineage markers and inbreeding
 
