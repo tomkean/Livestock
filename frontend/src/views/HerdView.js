@@ -3,7 +3,7 @@ import { api } from '../services/api.js';
 import { AnimalForm } from '../components/animalForm.js';
 import { GENE_NAMES, animalCardHtml, animalLabel } from '../components/animalCard.js';
 import { renderParents } from '../components/parentsList.js';
-import { lambStatus } from '../components/lambTimer.js';
+import { growsUpAt, lambStatus } from '../components/lambTimer.js';
 import { esc, fmtTime, media, refreshCaptureBadge, toast } from '../ui.js';
 
 const pct = (p) => `${Math.round(p * 1000) / 10}%`;
@@ -28,8 +28,12 @@ export class HerdView extends View {
             api.get('/api/settings')
         ]);
         const alive = this.animals.filter(a => a.status === 'alive');
+        // Lambs (still growing, whatever their sex) and unsexed animals together; the ram and ewe pens hold grown animals.
+        const now = new Date();
+        const growing = (a) => { const g = growsUpAt(a); return g != null && g > now; };
+        const inPen = (a, sex) => (sex === '?' ? (a.sex === '?' || growing(a)) : (a.sex === sex && !growing(a)));
         const pen = (sex, title) => {
-            const members = this.animals.filter(a => a.sex === sex);
+            const members = this.animals.filter(a => inPen(a, sex));
             const living = members.filter(a => a.status === 'alive').length;
             if (sex === '?' && !members.length) return '';
             const capacity = this.settings.pen_capacity?.[sex];
@@ -56,7 +60,7 @@ export class HerdView extends View {
                         <label><input type="checkbox" id="show-gone" ${this.showGone ? 'checked' : ''}> Show sold / dead / missing</label>
                     </div>
                     <div id="odds"></div>
-                    <div class="pens">${pen('?', 'Lambs and unsexed')}${pen('M', 'Males')}${pen('F', 'Females')}</div>
+                    <div class="pens">${pen('?', 'Lambs (growing) and unsexed')}${pen('M', 'Males')}${pen('F', 'Females')}</div>
                 </div>
                 <aside id="detail" class="panel ${this.selectedId ? '' : 'hidden'}"></aside>
             </div>`;
