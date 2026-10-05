@@ -43,6 +43,8 @@ Thursday 2026-10-01. Fixes on **`main/Livestock_animals/livestock_hotfixes`** ar
 | #166690 | 10-03 | Cows line up with troughs to eat |
 | #166724 | 10-05 | **Personal space rework:** pen area (navmesh flood fill, m²) sets personal space directly; free-range cows stop breeding at a herd cap |
 
+**Floor test (test server, 2026-10-06):** 4 sheep in a 2×2 downstairs showed personal space 100%, 100%, 100% and 77%; one sheep in the 2×2 directly above showed 100%. So personal space is **per animal, from how close the others are** (fits the radius rule; the area-based rework isn't live), closeness costs something even below the crowded count, and **the floor above didn't feel the group below**. To confirm: pack 6+ below (crowded) and check the sheep above.
+
 **Crowding is local:** #166277 shows personal space counts animals within **3 m** (crowded 4, severe packing 6) - changed on the feature branch to 2.5 m / 5 / 9, so production is probably still 3 m / 4 / 6. Not 20 m or 200 m as some web sources say. Design for it: spread sheep out, several troughs at different points rather than one (a single trough gathers everyone), no corners to pile into; separate rooms need no gap between them.
 
 Consequences: several of our findings may be temporary bugs (starving at troughs, wrong ages, no sex on cards). The wiki's "8 herd mates within 20 m"
