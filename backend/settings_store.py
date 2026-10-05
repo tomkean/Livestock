@@ -9,6 +9,8 @@ DEFAULTS = {
     "name_box": None,
     # Unknown in game so far; only used to show a count against capacity.
     "pen_capacity": {"M": 4, "F": 8},
+    # Truck for barn trips: "single" (1 sheep or lamb) or "double" module (2 sheep/lambs, or 1 cow).
+    "vehicle": "single",
 }
 
 

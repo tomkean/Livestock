@@ -37,5 +37,17 @@ class Planner(unittest.TestCase):
         self.assertTrue(result["matings"])
 
 
+    def test_trip_keeps_last_carriers_and_respects_the_truck(self):
+        def a(i, sex, top, lamb=False):
+            return SimpleNamespace(id=i, sex=sex, genes_top=top, genes_bottom=None, name=f"a{i}", code=f"S-{i}", is_lamb=lamb)
+        herd = [a(1, "M", "OOGGG"), a(2, "M", "OGOOO"), a(3, "M", "OOOOO"), a(4, "F", "GOOOO")]
+        trip = planner.trip_plan(herd, "sheep", "double", {"F": 8})
+        self.assertEqual([s["id"] for s in trip["sell"]], [3])  # ram 2 is the only one showing green L
+        self.assertEqual(trip["buy"], ["F", "F"])
+        self.assertEqual(planner.trip_plan([], "sheep", "single", {"F": 8})["buy"], ["M"])
+        cows = planner.trip_plan(herd, "cow", "single", {"F": 8})
+        self.assertEqual((cows["sell"], cows["buy"]), ([], ["F"]))  # a single module can't carry a grown cow
+
+
 if __name__ == "__main__":
     unittest.main()

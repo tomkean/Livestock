@@ -317,3 +317,86 @@ def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None) -> d
         ],
     })
     return result
+
+
+# ---------------------------------------------------------------- barn trips
+
+# How many animals one trip carries, by vehicle and species (MECHANICS.md, transport). Calves count as sheep.
+TRUCK = {
+    "single": {"sheep": 1, "calf": 1, "cow": 0},
+    "double": {"sheep": 2, "calf": 2, "cow": 1},
+}
+RAMS_KEPT = 2
+
+
+def _visible_goods(a) -> tuple:
+    """Good copies the cards show: both rows where known, otherwise the top row (green = at least one)."""
+    out = []
+    for i in range(N_GENES):
+        top = a.genes_top[i] == "G"
+        bottom = bool(a.genes_bottom) and a.genes_bottom[i] == "G"
+        out.append(int(top) + int(bottom))
+    return tuple(out)
+
+
+def trip_plan(animals, species: str, vehicle: str, keep: dict) -> dict:
+    """What to sell and what to buy on the next trip to the barn.
+
+    Sell: grown animals the breeding project doesn't need - rams beyond the best RAMS_KEPT, then the weakest ewes
+    beyond the pen capacity - never the last animal showing green on a gene. Buy: a ram if there's none, otherwise
+    ewes until the pen is full and every gene shows green somewhere. Both limited by what the truck carries.
+    """
+    grown = [a for a in animals if not getattr(a, "is_lamb", False)]
+    herd = [SimpleBeast(a, _visible_goods(a)) for a in animals]
+    weights = [1.0 / (1 + sum(b.goods[i] for b in herd)) for i in range(N_GENES)]
+
+    def value(b):
+        return sum(w * (c + (c == 2)) for w, c in zip(weights, b.goods))
+
+    def last_carrier(b, pool):
+        return any(b.goods[i] and not any(o is not b and o.goods[i] for o in pool) for i in range(N_GENES))
+
+    adult_cap = TRUCK[vehicle]["cow" if species == "cow" else "sheep"]
+    lamb_cap = TRUCK[vehicle]["calf" if species == "cow" else "sheep"]
+
+    pool = list(herd)
+    sell = []
+    grown_ids = {a.id for a in grown}
+    for sex, limit in (("M", RAMS_KEPT), ("F", int(keep.get("F", KEEP["F"])))):
+        members = sorted((b for b in pool if b.sex == sex), key=value, reverse=True)
+        for b in reversed(members[limit:]):
+            if len(sell) >= adult_cap:
+                break
+            if b.id in grown_ids and not last_carrier(b, pool):
+                sell.append(b)
+                pool.remove(b)
+
+    missing = [genetics.GENES[i] for i in range(N_GENES) if not any(b.goods[i] for b in pool)]
+    buy = []
+    ewes = sum(b.sex == "F" for b in pool)
+    rams = sum(b.sex == "M" for b in pool)
+    ewe_target = int(keep.get("F", KEEP["F"]))
+    for _ in range(lamb_cap):
+        if rams == 0:
+            buy.append("M"); rams += 1
+        elif ewes < ewe_target or missing:
+            buy.append("F"); ewes += 1
+    return {
+        "vehicle": vehicle,
+        "sell": [{"id": b.id, "name": b.name, "sex": b.sex} for b in sell],
+        "buy": buy,
+        "missing": missing,
+        "capacity": {"adults": adult_cap, "young": lamb_cap},
+        "done_buying": not buy,
+    }
+
+
+class SimpleBeast:
+    """An animal as the trip planner sees it: what its cards show, nothing sampled."""
+    id: int
+    sex: str
+    name: str
+    goods: tuple
+
+    def __init__(self, animal, goods):
+        self.id, self.sex, self.name, self.goods = animal.id, animal.sex, animal.name or animal.code, goods

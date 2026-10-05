@@ -407,6 +407,20 @@ def breeding_plan(species: str = "sheep", runs: int = 150, session: Session = De
     return planner.plan(herd, runs=max(20, min(runs, 400)), keep=capacity)
 
 
+@app.get("/api/trip")
+def barn_trip(species: str = "sheep", session: Session = Depends(get_session)):
+    """What to sell and buy on the next trip to the barn, within what the truck carries."""
+    settings = settings_store.load()
+    now = datetime.now(timezone.utc)
+    animals = []
+    for a in session.exec(select(Animal).where(Animal.status == "alive", Animal.species == species)).all():
+        view = SimpleNamespace(**a.model_dump())
+        born = _utc(a.born_at)
+        view.is_lamb = a.sex == "?" or (born is not None and (now - born).total_seconds() < planner.GROWTH * 60)
+        animals.append(view)
+    return planner.trip_plan(animals, species, settings.get("vehicle", "single"), settings.get("pen_capacity") or {})
+
+
 @app.get("/api/events")
 def list_events(animal_id: Optional[int] = None, limit: int = 500, session: Session = Depends(get_session)):
     query = select(Event).order_by(Event.at.desc()).limit(limit)

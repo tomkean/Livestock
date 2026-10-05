@@ -27,12 +27,56 @@ export class PlanView extends View {
                 <p class="hint">Simulates the herd forward a few hundred times with the game's timings, and picks the matings
                     that reach a god male (Good/Good on every gene) soonest. Re-plan after every birth: what gets born changes the next step.</p>
                 <div id="plan-result"></div>
+            </div>
+            <div class="panel plan">
+                <div class="toolbar">
+                    <h2>Next barn trip</h2>
+                    <span class="spacer"></span>
+                    <div class="seg" id="vehicle">
+                        <button data-vehicle="single">Single module</button>
+                        <button data-vehicle="double">Double module</button>
+                    </div>
+                </div>
+                <div id="trip"></div>
             </div>`;
         this.container.querySelectorAll('[data-species]').forEach(btn => btn.addEventListener('click', () => {
             this.species = btn.dataset.species;
             this.render();
         }));
         this.container.querySelector('#btn-plan').addEventListener('click', () => this.runPlan());
+        this.container.querySelectorAll('[data-vehicle]').forEach(btn => btn.addEventListener('click', async () => {
+            await api.put('/api/settings', { vehicle: btn.dataset.vehicle });
+            this.showTrip();
+        }));
+        this.showTrip();
+    }
+
+    /** What to sell and buy at the barn this trip, within what the truck carries. */
+    async showTrip() {
+        const target = this.container.querySelector('#trip');
+        let trip, settings;
+        try {
+            [trip, settings] = await Promise.all([api.get(`/api/trip?species=${this.species}`), api.get('/api/settings')]);
+        } catch (e) {
+            target.innerHTML = `<p class="error">${esc(e.message)}</p>`;
+            return;
+        }
+        this.container.querySelectorAll('[data-vehicle]').forEach(b => b.classList.toggle('on', b.dataset.vehicle === settings.vehicle));
+        const young = this.species === 'cow' ? 'calf' : 'lamb';
+        const label = (sex) => (sex === 'M' ? (this.species === 'cow' ? 'bull' : 'ram') : (this.species === 'cow' ? 'cow' : 'ewe'));
+        const buy = trip.buy.length
+            ? trip.buy.map(sex => `<li>1 ${label(sex)} ${young}</li>`).join('')
+            : '<li class="muted">Nothing: every gene shows green and the pens are full.</li>';
+        const sell = trip.sell.length
+            ? trip.sell.map(a => `<li>${esc(a.name)} (${label(a.sex)})</li>`).join('')
+            : `<li class="muted">${trip.capacity.adults === 0 ? "A single module can't carry a grown cow." : 'Nothing to sell yet.'}</li>`;
+        target.innerHTML = `
+            <div class="trip-cols">
+                <div><h3>Take to sell</h3><ul>${sell}</ul></div>
+                <div><h3>Buy</h3><ul>${buy}</ul></div>
+            </div>
+            ${trip.missing.length ? `<p class="warn">No animal shows green on ${trip.missing.join(', ')} yet: keep buying until every gene shows green somewhere.</p>` : ''}
+            <p class="hint">Only grown animals sell. Never sold: the best ${this.species === 'cow' ? 'bulls' : 'rams'}, and any animal that is the last one showing green on a gene.</p>`;
     }
 
     async runPlan() {
