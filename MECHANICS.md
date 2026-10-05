@@ -72,7 +72,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Item | Notes | Confidence |
 |---|---|---|
 | Name | Assigned by the game, in any script (a ranch sheep had a Cyrillic name). Stored as an image. | Known |
-| Lamb names | A bred lamb is **sometimes** named after **one parent** plus "Junior": Brenda Junior and Elsie Junior after their mothers, **Jay Junior after his father** (Estella × Jay). Guess: the parent of the lamb's own sex (Jay Junior has no horns yet: recheck once grown; female would disprove it). Not always: Dale (Taylor × Elsie, Elsie junior or Nettie) got a name of her own. Any "Junior" is bred; a lamb without it may still be bred. **Generations are numbered:** Jay → Jay Junior → **Jay the third** (Jay Junior's lamb, born after Jay Junior grew up unsorted). | Known |
+| Lamb names | A bred lamb is **sometimes** named after **one parent** plus "Junior": Brenda Junior and Elsie Junior after their mothers, **Jay Junior after his father** (Estella × Jay). Guess: the parent of the lamb's own sex (Jay Junior has no horns yet: recheck once grown; female would disprove it). Not always: Dale (Taylor × Elsie, Elsie junior or Nettie) got a name of her own. Any "Junior" is bred; a lamb without it may still be bred. **Generations are numbered:** Jay → Jay Junior → **Jay the 3rd** (written with digits) (Jay Junior's lamb, born after Jay Junior grew up unsorted). | Known |
 | Sex, status (e.g. Pregnant), age | Shown on the panel; sex symbol and age depend on server settings. | Known |
 | Genes D L Y F H | **D**ung, **L**ifespan, **Y**ield (milk / wool), **F**ertility, **H**ardiness. | Known |
 | Gene colours | Green / grey / red = Good / Ok / Bad bands. | Known (colours), Video (names) |

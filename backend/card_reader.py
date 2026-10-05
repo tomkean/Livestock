@@ -161,7 +161,7 @@ def _layout(anchor):
 AGE_BOX = (400, 150, 300, 45)  # x, y, w, h of the AGE value ("9 MINUTES") from the anchor
 AGE_PATTERN = re.compile(r"(\d+)\s*(SECOND|MINUTE|HOUR|DAY)S?")
 AGE_UNIT_MINUTES = {"SECOND": 1 / 60, "MINUTE": 1, "HOUR": 60, "DAY": 1440}
-NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z '-]{0,38}$")
+NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9 '-]{0,38}$")  # digits for "Jay the 3rd"
 NAME_MIN_CONFIDENCE = 75
 WINDOWS_TESSERACT = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
 
