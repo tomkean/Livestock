@@ -14,7 +14,11 @@ export class PlanView extends View {
 
     async render() {
         if (this.target == null) {
-            try { this.target = (await api.get('/api/settings')).target_genes || 'DLYFH'; } catch (e) { this.target = 'DLYFH'; }
+            try {
+                const st = await api.get('/api/settings');
+                this.target = st.target_genes || 'DLYFH';
+                this.secondRow = !!st.second_row_visible;
+            } catch (e) { this.target = 'DLYFH'; this.secondRow = false; }
         }
         this.container.innerHTML = `
             <div class="panel plan">
@@ -27,6 +31,8 @@ export class PlanView extends View {
                         <button data-species="sheep" class="${this.species === 'sheep' ? 'on' : ''}">🐑 Sheep</button>
                         <button data-species="cow" class="${this.species === 'cow' ? 'on' : ''}">🐄 Cows</button>
                     </div>
+                    <label class="hint" title="Test servers with livestock.panelalleles show the hidden row. Leave this off to plan as on a live server: hidden copies are then inferred from top rows and family.">
+                        <input type="checkbox" id="second-row" ${this.secondRow ? 'checked' : ''}> Second row visible (test server)</label>
                     <button id="btn-plan" class="primary">Plan</button>
                 </div>
                 <p class="hint">Untick genes you don't care about (e.g. D if dung is worthless to you): every gene left out makes the
@@ -51,6 +57,13 @@ export class PlanView extends View {
             this.render();
         }));
         this.container.querySelector('#btn-plan').addEventListener('click', () => this.runPlan());
+        this.container.querySelector('#second-row').addEventListener('change', async (e) => {
+            this.secondRow = e.target.checked;
+            await api.put('/api/settings', { second_row_visible: this.secondRow });
+            this.container.querySelector('#plan-result').innerHTML = `<p class="hint">${this.secondRow
+                ? 'Test-server mode: captured second rows are used.' : 'Live mode: hidden copies are inferred from top rows and family.'} Press Plan.</p>`;
+            this.showTrip();
+        });
         this.container.querySelectorAll('[data-gene]').forEach(box => box.addEventListener('change', async () => {
             const target = GENES.filter(g => this.container.querySelector(`[data-gene="${g}"]`).checked).join('');
             if (!target) { box.checked = true; return; }  // at least one gene
@@ -142,6 +155,7 @@ export class PlanView extends View {
             </table>` : '<p class="hint">Nobody to mate right now: wait for a cooldown or a lamb to grow up.</p>'}
             <p class="hint">Females not listed should rest for now. Surplus lambs can be sold: the plan keeps at most your pen
                 capacities of each sex (Settings).</p>
+            <p class="hint">Mode: ${esc(plan.mode || '')}</p>
             <h3>Assumptions</h3>
             <ul class="hint">${plan.assumptions.map(a => `<li>${esc(a)}</li>`).join('')}</ul>`;
     }

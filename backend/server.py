@@ -15,6 +15,7 @@ from sqlmodel import Session, or_, select
 
 import card_reader
 import genetics
+import inference
 import planner
 import settings_store
 from config import BUILD_DIR, CAPTURE_DIR, CARD_DIR, DATA_DIR, NAME_DIR, PORT
@@ -298,10 +299,39 @@ class ChildIn(Observed):
     id: Optional[int] = None  # the animal itself, when it is already in the herd
 
 
+_inference_cache: dict = {}
+
+
+def live_mode() -> bool:
+    return not settings_store.load().get("second_row_visible", False)
+
+
+def visible(a):
+    """What a player sees on a live server: the card's top row and first marker, nothing underneath."""
+    view = SimpleNamespace(**(a.model_dump() if hasattr(a, "model_dump") else vars(a)))
+    if live_mode():
+        view.genes_bottom = None
+        view.herd_bottom = view.herd_top if getattr(view, "herd_bottom", None) == view.herd_top else None
+    return view
+
+
+def inferred(session: Session) -> dict | None:
+    """Inference over the whole recorded family tree (all species, all statuses), cached until anything changes.
+    None in test-server mode, where the captured second rows are used directly."""
+    if not live_mode():
+        return None
+    animals = [visible(a) for a in session.exec(select(Animal)).all()]
+    key = tuple((a.id, a.genes_top, a.mother_id, a.father_id) for a in animals)
+    if _inference_cache.get("key") != key:
+        _inference_cache.update(key=key, result=inference.infer(animals))
+    return _inference_cache["result"]
+
+
 def _parents(session: Session, child) -> list[dict]:
-    animals = session.exec(select(Animal)).all()  # sold and dead animals may still be parents
+    animals = [visible(a) for a in session.exec(select(Animal)).all()]  # sold and dead animals may still be parents
     mated = {(e.animal_id, e.other_id) for e in session.exec(select(Event).where(Event.kind == "mated"))}
-    return genetics.likely_parents(child, animals, mated)
+    inf = inferred(session)
+    return genetics.likely_parents(visible(child), animals, mated, dists=inf["posterior"] if inf else None)
 
 
 @app.post("/api/parents")
@@ -372,13 +402,15 @@ def get_pair(session: Session, mother_id: int, father_id: int) -> tuple[Animal, 
 @app.get("/api/odds")
 def mating_odds(mother_id: int, father_id: int, session: Session = Depends(get_session)):
     """Odds for one offspring of a possible mating."""
-    return genetics.mating_odds(*get_pair(session, mother_id, father_id))
+    mother, father = get_pair(session, mother_id, father_id)
+    inf = inferred(session)
+    return genetics.mating_odds(visible(mother), visible(father), inf["posterior"] if inf else None)
 
 
 @app.post("/api/matings")
 def record_mating(body: MatingIn, session: Session = Depends(get_session)):
     mother, father = get_pair(session, body.mother_id, body.father_id)
-    p_inbred = genetics.mating_odds(mother, father)["p_inbred"]
+    p_inbred = genetics.mating_odds(visible(mother), visible(father))["p_inbred"]
     note = f" [inbred chance {p_inbred:.0%}]" if p_inbred else ""
     log(session, "mated", mother.id, father.id, body.notes + note)
     session.commit()
@@ -394,7 +426,7 @@ def breeding_plan(species: str = "sheep", runs: int = 150, session: Session = De
     now = datetime.now(timezone.utc)
     herd = []
     for a in animals:
-        view = SimpleNamespace(**a.model_dump())
+        view = visible(a)
         if a.sex not in ("M", "F"):
             continue  # a lamb not yet sexed can't be planned with
         born = a.born_at
@@ -410,7 +442,7 @@ def breeding_plan(species: str = "sheep", runs: int = 150, session: Session = De
         return {"possible": False, "missing": [], "reason": "The herd needs at least one female and one male."}
     settings = settings_store.load()
     return planner.plan(herd, runs=max(20, min(runs, 400)), keep=settings.get("pen_capacity") or {},
-                        target=settings.get("target_genes") or "DLYFH")
+                        target=settings.get("target_genes") or "DLYFH", inferred=inferred(session))
 
 
 @app.get("/api/trip")
@@ -424,12 +456,13 @@ def barn_trip(species: str = "sheep", keep_ids: str = "", session: Session = Dep
     now = datetime.now(timezone.utc)
     animals = []
     for a in session.exec(select(Animal).where(Animal.status == "alive", Animal.species == species)).all():
-        view = SimpleNamespace(**a.model_dump())
+        view = visible(a)
         born = _utc(a.born_at)
         view.is_lamb = a.sex == "?" or (born is not None and (now - born).total_seconds() < planner.GROWTH * 60)
         animals.append(view)
+    inf = inferred(session)
     return planner.trip_plan(animals, species, settings.get("vehicle", "single"), settings.get("pen_capacity") or {}, planned,
-                             settings.get("target_genes") or "DLYFH")
+                             settings.get("target_genes") or "DLYFH", inf["posterior"] if inf else None)
 
 
 @app.get("/api/events")

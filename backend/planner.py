@@ -10,7 +10,7 @@ and comparing first moves across them gives the recommendation for right now.
 Alleles are ints: 2 = Good, 1 = Ok, 0 = Bad. A genotype is one (copy, copy) pair per gene.
 """
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from statistics import median
 
 import genetics
@@ -43,10 +43,15 @@ class Beast:
     adult_at: float = 0.0
     free_at: float = 0.0
     name: str = ""
-    goods: tuple = ()  # number of Good copies per gene (0, 1 or 2), filled in from genes
+    # Good copies per gene as the player believes them - what every decision is based on. With both rows visible
+    # (test server) that is the truth, filled in from genes. In live mode it is the inferred expectation, and `genes`
+    # (one consistent guess of the hidden copies) only decides inheritance and whether a god male really exists.
+    goods: tuple = ()
+    informed: bool = True
 
     def __post_init__(self):
-        self.goods = tuple((a == GOOD) + (b == GOOD) for a, b in self.genes)
+        if not self.goods:
+            self.goods = tuple((a == GOOD) + (b == GOOD) for a, b in self.genes)
 
     @property
     def inbred(self) -> bool:
@@ -56,7 +61,7 @@ class Beast:
         return F_MULT[max(self.genes[F_GENE])][1 if self.inbred else 0]
 
     def is_god(self) -> bool:
-        return all(g == 2 for g in self.goods)
+        return all(a == GOOD and b == GOOD for a, b in self.genes)  # the truth, not the belief
 
 
 def _sample_genes(top: str, bottom: str | None, rng: random.Random) -> tuple:
@@ -69,22 +74,33 @@ def _sample_genes(top: str, bottom: str | None, rng: random.Random) -> tuple:
     return tuple(out)
 
 
-def herd_from_animals(animals, now_minutes: float, rng: random.Random, target: str = "") -> list[Beast]:
+def herd_from_animals(animals, now_minutes: float, rng: random.Random, target: str = "",
+                      sample: dict | None = None, posterior: dict | None = None) -> list[Beast]:
     """Adult-or-growing members of the herd as Beasts, with times relative to now (0).
 
     Genes not in `target` are treated as already Good/Good, so every part of the search ignores them.
+    Live mode passes `sample` (one consistent guess of everyone's hidden copies, from inference.py) and `posterior`
+    (what can actually be believed about each animal); otherwise the cards' rows are taken as the truth.
     """
     ignore = [g not in target for g in genetics.GENES] if target else [False] * N_GENES
     herd = []
     for a in animals:
         markers = (a.herd_top if a.herd_top is not None else f"?{a.id}a",
                    a.herd_bottom if a.herd_bottom is not None else f"?{a.id}b")
-        genes = tuple((GOOD, GOOD) if skip else pair
-                      for skip, pair in zip(ignore, _sample_genes(a.genes_top, a.genes_bottom, rng)))
+        if sample is not None and a.id in sample:
+            sampled = sample[a.id]
+        else:
+            sampled = _sample_genes(a.genes_top, a.genes_bottom, rng)
+        genes = tuple((GOOD, GOOD) if skip else pair for skip, pair in zip(ignore, sampled))
+        belief = ()
+        if posterior is not None and a.id in posterior:
+            belief = tuple(2.0 if skip else sum(p * key.count("G") for key, p in dist.items())
+                           for skip, dist in zip(ignore, posterior[a.id]))
         age = getattr(a, "age_minutes", None)
         adult_at = GROWTH - age if age is not None and age < GROWTH else 0.0
         free_at = max(adult_at, getattr(a, "free_in_minutes", 0.0) or 0.0)  # cooldown after her last birth
-        beast = Beast(a.id, a.sex, genes, markers, adult_at=adult_at, free_at=free_at, name=a.name or a.code)
+        beast = Beast(a.id, a.sex, genes, markers, adult_at=adult_at, free_at=free_at, name=a.name or a.code,
+                      goods=belief, informed=not belief)
         if a.sex == "F" and a.pregnant:
             # Not known when she conceived: assume the birth is imminent and her cooldown follows it.
             beast.free_at = max(adult_at, GESTATION + FEMALE_COOLDOWN / beast.f_mult())
@@ -177,7 +193,20 @@ class Outcome:
 def _child(f: Beast, m: Beast, rng: random.Random, t: float, next_id: int) -> Beast:
     genes = tuple((rng.choice(fa), rng.choice(ma)) for fa, ma in zip(f.genes, m.genes))
     markers = (rng.choice(f.markers), rng.choice(m.markers))
-    return Beast(next_id, rng.choice("FM"), genes, markers, adult_at=t + GROWTH, free_at=t + GROWTH)
+    child = Beast(next_id, rng.choice("FM"), genes, markers, adult_at=t + GROWTH, free_at=t + GROWTH)
+    if not (f.informed and m.informed):
+        # A live-server player sees only the lamb's top row: green means at least one Good copy. Its expected Good
+        # copies follow from what is believed about each parent (q = chance that parent passes a Good copy).
+        belief = []
+        for (a, b), cf, cm in zip(genes, f.goods, m.goods):
+            if max(a, b) != GOOD:
+                belief.append(0.0)
+                continue
+            qf, qm = cf / 2, cm / 2
+            seen = 1 - (1 - qf) * (1 - qm)
+            belief.append((qf + qm) / seen if seen > 0 else 1.0)
+        child.goods, child.informed = tuple(belief), False
+    return child
 
 
 def breeding_value(b: Beast, weights: list[float]) -> float:
@@ -198,7 +227,7 @@ def _cull(herd: list[Beast], keep: dict):
 
 
 def simulate(herd: list[Beast], rng: random.Random, fixed: dict | None = None) -> Outcome:
-    herd = [Beast(b.id, b.sex, b.genes, b.markers, b.adult_at, b.free_at, b.name) for b in herd]
+    herd = [replace(b) for b in herd]
     keep = {sex: max(n, sum(b.sex == sex for b in herd)) for sex, n in KEEP.items()}
     births: list[tuple[float, Beast, Beast]] = []
     t, next_id, born = 0.0, -1, 0
@@ -255,7 +284,8 @@ def _summary(times: list, runs: int) -> dict:
     }
 
 
-def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None, target: str = "DLYFH") -> dict:
+def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None, target: str = "DLYFH",
+         inferred: dict | None = None) -> dict:
     """Recommended matings for now, and how long a god male is expected to take.
 
     `keep` caps the simulated herd per sex (the pen capacities): surplus animals are assumed sold.
@@ -271,8 +301,12 @@ def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None, targ
                 "reason": "No animal in the herd carries a Good copy of " + ", ".join(missing)
                           + ", so no breeding plan can produce a god male. Bring in an animal showing Good on it."}
 
-    def herd():
-        return herd_from_animals(animals, 0, rng, target)
+    samples = (inferred or {}).get("samples") or []
+    posterior = (inferred or {}).get("posterior")
+
+    def herd(k: int = 0, r: random.Random = rng):
+        sample = samples[k % len(samples)] if samples else None
+        return herd_from_animals(animals, 0, r, target, sample=sample, posterior=posterior)
 
     def futures(n: int, fixed: dict | None = None) -> list[Outcome]:
         # Common random numbers: run k of every option sees the same luck (hidden copies, litters, sexes,
@@ -280,7 +314,7 @@ def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None, targ
         out = []
         for k in range(n):
             r = random.Random(seed * 100003 + k)
-            out.append(simulate(herd_from_animals(animals, 0, r, target), r, fixed=fixed))
+            out.append(simulate(herd(k, r), r, fixed=fixed))
         return out
 
     # The greedy policy on its own.
@@ -318,9 +352,11 @@ def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None, targ
         "expected": _summary([o.god_at for o in final], runs),
         "births": median(o.births for o in final),
         "runs": runs,
+        "mode": "live (top rows + inference)" if posterior is not None else "both rows visible",
         "assumptions": [
             f"Growth to adult {GROWTH:.0f} min (test server)",
-            "Second rows taken from the cards where known; otherwise drawn from the even prior",
+            ("Hidden copies inferred from top rows and family (live mode); decisions use only what a player can see"
+             if posterior is not None else "Second rows taken from the cards (test-server mode)"),
             "A female's cooldown runs from her last recorded lamb; unrecorded births aren't known",
         ],
     })
@@ -338,7 +374,7 @@ TRUCK = {
 RAMS_KEPT = 2
 
 
-def _visible_goods(a, target: str = "DLYFH") -> tuple:
+def _visible_goods(a, target: str = "DLYFH", posterior: dict | None = None) -> tuple:
     """Good copies the cards show: both rows where known, otherwise the top row (green = at least one).
     Genes outside the target count as fully Good, so they never decide anything."""
     out = []
@@ -346,13 +382,17 @@ def _visible_goods(a, target: str = "DLYFH") -> tuple:
         if genetics.GENES[i] not in target:
             out.append(2)
             continue
+        if posterior is not None and a.id in posterior:
+            out.append(sum(p * key.count("G") for key, p in posterior[a.id][i].items()))
+            continue
         top = a.genes_top[i] == "G"
         bottom = bool(a.genes_bottom) and a.genes_bottom[i] == "G"
         out.append(int(top) + int(bottom))
     return tuple(out)
 
 
-def trip_plan(animals, species: str, vehicle: str, keep: dict, planned: set = frozenset(), target: str = "DLYFH") -> dict:
+def trip_plan(animals, species: str, vehicle: str, keep: dict, planned: set = frozenset(), target: str = "DLYFH",
+              posterior: dict | None = None) -> dict:
     """What to sell and what to buy on the next trip to the barn.
 
     Sell: grown animals the breeding project doesn't need - rams beyond the best RAMS_KEPT, then the weakest ewes
@@ -361,14 +401,14 @@ def trip_plan(animals, species: str, vehicle: str, keep: dict, planned: set = fr
     ewes until the pen is full and every gene shows green somewhere. Both limited by what the truck carries.
     """
     grown = [a for a in animals if not getattr(a, "is_lamb", False)]
-    herd = [SimpleBeast(a, _visible_goods(a, target)) for a in animals]
+    herd = [SimpleBeast(a, _visible_goods(a, target, posterior)) for a in animals]
     weights = [1.0 / (1 + sum(b.goods[i] for b in herd)) for i in range(N_GENES)]
 
     def value(b):
         return sum(w * (c + (c == 2)) for w, c in zip(weights, b.goods))
 
     def last_carrier(b, pool):
-        return any(b.goods[i] and not any(o is not b and o.goods[i] for o in pool) for i in range(N_GENES))
+        return any(b.goods[i] > 0.5 and not any(o is not b and o.goods[i] > 0.5 for o in pool) for i in range(N_GENES))
 
     adult_cap = TRUCK[vehicle]["cow" if species == "cow" else "sheep"]
     lamb_cap = TRUCK[vehicle]["calf" if species == "cow" else "sheep"]
@@ -389,7 +429,7 @@ def trip_plan(animals, species: str, vehicle: str, keep: dict, planned: set = fr
                 pool.remove(b)
                 surplus -= 1
 
-    missing = [genetics.GENES[i] for i in range(N_GENES) if not any(b.goods[i] for b in pool)]
+    missing = [genetics.GENES[i] for i in range(N_GENES) if not any(b.goods[i] > 0.5 for b in pool)]
     buy = []
     ewes = sum(b.sex == "F" for b in pool)
     rams = sum(b.sex == "M" for b in pool)

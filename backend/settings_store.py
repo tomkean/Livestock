@@ -15,6 +15,9 @@ DEFAULTS = {
     # Genes the breeding target needs Good/Good on. Leave out ones you don't care about (e.g. D if dung is worthless
     # to you): the plan gets much faster. A full god animal is all five.
     "target_genes": "DLYFH",
+    # False = live server: only the top row is visible, so every calculation infers hidden copies from top rows and
+    # family. True = test server with livestock.panelalleles: use captured second rows (debugging and validation only).
+    "second_row_visible": False,
 }
 
 

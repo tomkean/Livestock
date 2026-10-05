@@ -78,7 +78,7 @@ def _markers(animal, tag: str) -> list:
             animal.herd_bottom if animal.herd_bottom is not None else f"{tag}?bottom"]
 
 
-def mating_odds(mother, father) -> dict:
+def mating_odds(mother, father, dists: dict | None = None) -> dict:
     """Odds for one offspring of a mating, under the rules in MECHANICS.md.
 
     Per gene: chance of each genotype and of each expressed colour. Overall: chance the offspring is inbred
@@ -89,8 +89,15 @@ def mating_odds(mother, father) -> dict:
     p_all_good = 1.0
     p_god = 1.0
     for i, name in enumerate(GENES):
-        mg = _gametes(gene_genotypes(mother.genes_top[i], (mother.genes_bottom or "")[i:i + 1] or None))
-        fg = _gametes(gene_genotypes(father.genes_top[i], (father.genes_bottom or "")[i:i + 1] or None))
+        # Live mode: what inference believes about each parent's copies; otherwise read from the cards.
+        if dists is not None and mother.id in dists:
+            mg = _gametes(dists[mother.id][i])
+        else:
+            mg = _gametes(gene_genotypes(mother.genes_top[i], (mother.genes_bottom or "")[i:i + 1] or None))
+        if dists is not None and father.id in dists:
+            fg = _gametes(dists[father.id][i])
+        else:
+            fg = _gametes(gene_genotypes(father.genes_top[i], (father.genes_bottom or "")[i:i + 1] or None))
         genotypes: dict[str, float] = {}
         for a, pa in mg.items():
             for b, pb in fg.items():
@@ -151,13 +158,13 @@ def _marker_chance(parent_markers: list, value) -> float:
     return p
 
 
-def parentage_likelihood(child, mother, father) -> float:
+def parentage_likelihood(child, mother, father, dists: dict | None = None) -> float:
     """How likely this mother and father are to produce exactly what the child's card shows (0 = impossible).
 
     Genes: the chance of the child's genotype when both rows are known, or of its top row when only that is.
     Markers: one comes from each parent, in either order.
     """
-    odds = mating_odds(mother, father)
+    odds = mating_odds(mother, father, dists)
     p = 1.0
     for i, g in enumerate(odds["genes"]):
         top = child.genes_top[i]
@@ -195,7 +202,7 @@ def _could_parent(parent, child) -> bool:
     return (c - p).total_seconds() / 60 >= CONCEPTION_LEAD_MIN
 
 
-def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 5) -> list[dict]:
+def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 5, dists: dict | None = None) -> list[dict]:
     """Mother × father pairs that could have produced the child, most likely first, with relative chances.
 
     A pair with a recorded mating is weighted 10× (it's where lambs usually come from); the chances are relative
@@ -211,7 +218,7 @@ def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 
         for f in (a for a in pool if a.sex in ("M", "?")):
             if m is f:
                 continue
-            p = parentage_likelihood(child, m, f)
+            p = parentage_likelihood(child, m, f, dists)
             if p > 0:
                 if (m.id, f.id) in mated_pairs:
                     p *= 10
