@@ -10,22 +10,41 @@ Sources:
 
 Confidence: **Known** · **Likely** · **Guess** · **Unknown**
 
-## Facepunch commit notes (livestock development branch)
+## Facepunch commit notes
 
-From the public commit feed (`commits.facepunch.com`, repo rust_reboot, branch main/Livestock_animals). These are the developers' own notes;
-when each reaches live servers isn't stated, so retest after Rust updates.
+From the public commit feed (`commits.facepunch.com/?format=json&repo=rust_reboot&branch=...`). **Only what reached production matters right now.**
+The production and staging branches aren't public; `main` is the trunk and `main/Livestock_animals` the feature branch. The wipe build went live
+Thursday 2026-10-01. Fixes on **`main/Livestock_animals/livestock_hotfixes`** are the candidates for mid-month hotfixes. Whatever a commit says,
+**what's live is what we observe** - retest after every Rust update or hotfix.
+
+**Hotfix branch** (may already be live, or arrive as a hotfix):
+
+| Commit | Date | Note | Matches our observation |
+|---|---|---|---|
+| #166061 | 09-28 | Led livestock match the player's speed | |
+| #166339 | 09-30 | Potential fix for cows dying of hunger in a well set-up farm | Sheep starving beside a full trough |
+| #166352 | 09-30 | Taming decays unless fully bonded; sleepers can't tame passively; calves start with some familiarity | |
+| #166368 | 09-30 | Wild livestock can't die from unmet needs (HP floors at 50%) | |
+| #166384 | 09-30 | Rebalance how much food livestock needs (undoing an earlier halving) | 960 pumpkins eaten overnight |
+| #166385 | 09-30 | Garage doors no longer block the navmesh above them when closed | Garage door oddities |
+| #166495 | 10-01 | Livestock in safe zones can't be damaged | |
+| #166540 | 10-01 | Less clipping when leading several, and at troughs | Heads through walls, sheep heaps |
+| #166666 | 10-02 | Livestock outside the navmesh kill themselves like other AI | Possibly the lamb lost upstairs |
+| #166737 | 10-05 | Lead break distance 7 → 15 m; **familiarity and gender shown by default** | No sex on the card |
+| #166780 | 10-05 | Fix age regressing when grown, and growing error over time | "0 SECONDS" and wrong adult ages |
+
+**Feature branch** (more likely next monthly update):
 
 | Commit | Date | Note |
 |---|---|---|
-| #166138 | 2026-09-29 | Cows and sheep get **double fullness when eating from a trough**. |
-| #166139 | 2026-09-29 | GrazeDayShare 0.4 → 0.3: they spend less of the day eating and **need less food**. |
-| #166277 | 2026-09-30 | **Crowding: packing radius 2.5 m; crowded at 5 animals, severe packing at 9** (was 3 m, 4, 6). |
-| #166284 | 2026-09-30 | Genetics shown on the cow panel too. |
-| #166690 | 2026-10-03 | **Cows actually line up with troughs to eat** (likely the fix for animals starving beside a trough). |
-| #166724 | 2026-10-05 | **Personal space rework:** in a pen, navmesh flood fill measures the enclosed area in m² and personal space comes directly from it (same for every animal, reacts at once to building). **Free-range cows stop reproducing when the herd reaches a cap.** |
+| #166138 | 09-29 | Double fullness when eating from a trough |
+| #166139 | 09-29 | GrazeDayShare 0.4 → 0.3: less time eating, less food |
+| #166277 | 09-30 | Crowding: packing radius 2.5 m; crowded at 5, severe at 9 (was 3 m, 4, 6) |
+| #166690 | 10-03 | Cows line up with troughs to eat |
+| #166724 | 10-05 | **Personal space rework:** pen area (navmesh flood fill, m²) sets personal space directly; free-range cows stop breeding at a herd cap |
 
-Consequences: the wiki's "8 herd mates within 20 m" looks outdated. Now: avoid bunching (2.5 m packing). After #166724: enclosed floor area per animal
-is what counts - measure personal space against m² per animal once it ships.
+Consequences: several of our findings may be temporary bugs (starving at troughs, wrong ages, no sex on cards). The wiki's "8 herd mates within 20 m"
+looks outdated; for the build we tested, bunching (packing within a few metres) is the likelier mechanism. After #166724, enclosed floor area per animal decides it.
 
 ## Published figures (RustHelp wiki, Facepunch, hosting guides, 2026-10-04)
 
