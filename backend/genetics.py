@@ -21,24 +21,45 @@ def _pair(a: str, b: str) -> str:
     return a + b if STRENGTH[a] >= STRENGTH[b] else b + a
 
 
+# Wild and bought animals roll each copy independently (published): Good 20%, Ok 50%, Bad 30%.
+WILD_COPY = {"G": 0.2, "O": 0.5, "B": 0.3}
+
+
+def _wild_pair(a: str, b: str) -> float:
+    """Chance a wild animal has this unordered pair of copies."""
+    p = WILD_COPY[a] * WILD_COPY[b]
+    return p if a == b else 2 * p
+
+
 def gene_genotypes(top: str, bottom: str | None) -> dict[str, float]:
     """Possible genotypes of one gene, with probabilities.
 
-    The card shows the stronger copy on top. When the second copy is unknown it can be anything no stronger
-    than the top one, and each possibility is taken as equally likely. That is a placeholder prior: inferring
-    the hidden copy from relatives will replace it.
+    The card shows the stronger copy on top. When the second copy is unknown, it is any copy no stronger than the
+    top one, weighted by how often wild animals carry each pair. E.g. a green gene with an unknown second copy is
+    Good/Good 11%, Good/Ok 56%, Good/Bad 33%. Bred animals' hidden copies would be better inferred from their
+    parents; this prior is what is known without that.
     """
     tops = [top] if top in STRENGTH else list(STRENGTH)
     out: dict[str, float] = {}
     for t in tops:
-        if bottom in STRENGTH:
-            bottoms = [bottom]
-        else:
-            bottoms = [a for a in STRENGTH if STRENGTH[a] <= STRENGTH[t]]
+        bottoms = [bottom] if bottom in STRENGTH else [a for a in STRENGTH if STRENGTH[a] <= STRENGTH[t]]
         for b in bottoms:
             g = _pair(t, b)
-            out[g] = out.get(g, 0.0) + 1.0 / (len(tops) * len(bottoms))
-    return out
+            out[g] = out.get(g, 0.0) + _wild_pair(t, b)
+    total = sum(out.values())
+    return {g: p / total for g, p in out.items()}
+
+
+F_MULT = {"G": 1.6, "O": 1.0, "B": 0.65}  # Fertility multiplier on cooldowns, by expressed F (published)
+F_MULT_INBRED = {"G": 1.0, "O": 0.825, "B": 0.6}  # inbreeding halves the slider: Good acts as Ok
+FEMALE_COOLDOWN_MIN = 66.0  # after a birth, for Ok F
+MALE_COOLDOWN_MIN = 10.0  # after mating, for Ok F
+
+
+def fertility_multiplier(animal) -> float:
+    f = animal.genes_top[GENES.index("F")]
+    inbred = animal.herd_top is not None and animal.herd_top == animal.herd_bottom
+    return (F_MULT_INBRED if inbred else F_MULT).get(f, 1.0)
 
 
 def _gametes(genotypes: dict[str, float]) -> dict[str, float]:

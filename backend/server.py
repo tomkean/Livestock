@@ -202,12 +202,33 @@ def set_birth(session: Session, animal: Animal, crop: dict):
 
 # ---------------------------------------------------------------- animals
 
+def _utc(dt):
+    return dt if dt is None or dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def free_again_at(session: Session, animal: Animal):
+    """When a female can breed again: her last recorded birth plus her F-based cooldown. None if not known."""
+    if animal.sex != "F":
+        return None
+    births = [_utc(c.born_at or c.created_at) for c in
+              session.exec(select(Animal).where(Animal.mother_id == animal.id)).all()]
+    if not births:
+        return None
+    return max(births) + timedelta(minutes=genetics.FEMALE_COOLDOWN_MIN / genetics.fertility_multiplier(animal))
+
+
 @app.get("/api/animals")
 def list_animals(include_gone: bool = False, session: Session = Depends(get_session)):
     query = select(Animal).order_by(Animal.code)
     if not include_gone:
         query = query.where(Animal.status == "alive")
-    return session.exec(query).all()
+    out = []
+    for a in session.exec(query).all():
+        row = a.model_dump(mode="json")
+        free = free_again_at(session, a)
+        row["free_again_at"] = free.isoformat() if free else None
+        out.append(row)
+    return out
 
 
 @app.post("/api/animals")
@@ -375,6 +396,8 @@ def breeding_plan(species: str = "sheep", runs: int = 150, session: Session = De
         if born is not None and born.tzinfo is None:
             born = born.replace(tzinfo=timezone.utc)
         view.age_minutes = (now - born).total_seconds() / 60 if born else None
+        free = free_again_at(session, a)
+        view.free_in_minutes = max(0.0, (free - now).total_seconds() / 60) if free else 0.0
         herd.append(view)
     if not any(a.sex == "F" for a in herd) or not any(a.sex == "M" for a in herd):
         return {"possible": False, "missing": [], "reason": "The herd needs at least one female and one male."}

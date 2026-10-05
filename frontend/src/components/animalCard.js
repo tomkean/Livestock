@@ -1,5 +1,5 @@
 import { esc, media } from '../ui.js';
-import { lambStatus } from './lambTimer.js';
+import { lambStatus, parseTime } from './lambTimer.js';
 
 export const GENES = ['D', 'L', 'Y', 'F', 'H'];
 export const GENE_NAMES = { D: 'Dung', L: 'Lifespan', Y: 'Yield', F: 'Fertility', H: 'Hardiness' };
@@ -32,8 +32,11 @@ export function animalLabel(a) {
 }
 
 export function animalCardHtml(a) {
+    const free = parseTime(a.free_again_at);
+    const cooling = a.status === 'alive' && !a.pregnant && free && free > new Date();
     const badges = [
         a.pregnant ? '<span class="tag pregnant">Pregnant</span>' : '',
+        cooling ? `<span class="tag free" title="Cooldown after her last lamb">Free again ${free.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>` : '',
         a.origin === 'ranch' ? '<span class="tag">Ranch</span>' : '',
         a.status !== 'alive' ? `<span class="tag gone">${esc(a.status)}</span>` : ''
     ].join('');

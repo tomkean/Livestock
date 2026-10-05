@@ -91,8 +91,11 @@ class MatingOdds(unittest.TestCase):
         self.assertEqual(genetics.mating_odds(a, b)["p_god_male"], 0.5)
 
     def test_unknown_second_row_uses_prior(self):
-        # Good on top with nothing known underneath: G, O or B equally likely.
-        self.assertEqual(genetics.gene_genotypes("G", None), {"GG": 1 / 3, "GO": 1 / 3, "GB": 1 / 3})
+        # Good on top with nothing known underneath: weighted by the wild odds (Good 20%, Ok 50%, Bad 30%).
+        dist = genetics.gene_genotypes("G", None)
+        self.assertAlmostEqual(dist["GG"], 0.04 / 0.36)
+        self.assertAlmostEqual(dist["GO"], 0.20 / 0.36)
+        self.assertAlmostEqual(dist["GB"], 0.12 / 0.36)
         self.assertEqual(genetics.gene_genotypes("B", None), {"BB": 1.0})
         unknown = sheep("GGGGG", None, 1, None)
         odds = genetics.mating_odds(unknown, TAYLOR)

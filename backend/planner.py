@@ -78,7 +78,8 @@ def herd_from_animals(animals, now_minutes: float, rng: random.Random) -> list[B
         genes = _sample_genes(a.genes_top, a.genes_bottom, rng)
         age = getattr(a, "age_minutes", None)
         adult_at = GROWTH - age if age is not None and age < GROWTH else 0.0
-        beast = Beast(a.id, a.sex, genes, markers, adult_at=adult_at, free_at=adult_at, name=a.name or a.code)
+        free_at = max(adult_at, getattr(a, "free_in_minutes", 0.0) or 0.0)  # cooldown after her last birth
+        beast = Beast(a.id, a.sex, genes, markers, adult_at=adult_at, free_at=free_at, name=a.name or a.code)
         if a.sex == "F" and a.pregnant:
             # Not known when she conceived: assume the birth is imminent and her cooldown follows it.
             beast.free_at = max(adult_at, GESTATION + FEMALE_COOLDOWN / beast.f_mult())
@@ -312,7 +313,7 @@ def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None) -> d
         "assumptions": [
             f"Growth to adult {GROWTH:.0f} min (test server)",
             "Second rows taken from the cards where known; otherwise drawn from the even prior",
-            "Every female free now is available; cooldowns from earlier births are not tracked yet",
+            "A female's cooldown runs from her last recorded lamb; unrecorded births aren't known",
         ],
     })
     return result

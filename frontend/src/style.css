@@ -142,6 +142,7 @@ main { padding: 16px 20px; }
 .card-tags { display: flex; gap: 4px; margin-top: 6px; min-height: 20px; }
 .tag { font-size: 12px; padding: 1px 6px; border-radius: 8px; border: 1px solid var(--panel-border); color: var(--muted); }
 .tag.pregnant { border-color: var(--good); color: var(--good); }
+.tag.free { border-color: #c070d0; color: #d090e0; }
 .tag.gone { border-color: var(--bad); color: var(--bad); }
 
 #detail { width: 440px; flex: none; }
