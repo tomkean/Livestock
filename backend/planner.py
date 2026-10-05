@@ -365,13 +365,17 @@ def trip_plan(animals, species: str, vehicle: str, keep: dict, planned: set = fr
     sell = []
     grown_ids = {a.id for a in grown}
     for sex, limit in (("M", RAMS_KEPT), ("F", int(keep.get("F", KEEP["F"])))):
-        members = sorted((b for b in pool if b.sex == sex), key=value, reverse=True)
-        for b in reversed(members[limit:]):
-            if len(sell) >= adult_cap:
+        members = sorted((b for b in pool if b.sex == sex), key=value)  # weakest first
+        surplus = len(members) - limit
+        # Sell the weakest that may be sold; if one can't (pregnant, still a lamb, needed by the plan, last carrier
+        # of a green), move on to the next weakest rather than giving up.
+        for b in members:
+            if surplus <= 0 or len(sell) >= adult_cap:
                 break
             if b.id in grown_ids and b.id not in planned and not b.pregnant and not last_carrier(b, pool):
                 sell.append(b)
                 pool.remove(b)
+                surplus -= 1
 
     missing = [genetics.GENES[i] for i in range(N_GENES) if not any(b.goods[i] for b in pool)]
     buy = []

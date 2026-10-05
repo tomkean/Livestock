@@ -49,5 +49,14 @@ class Planner(unittest.TestCase):
         self.assertEqual((cows["sell"], cows["buy"]), ([], ["F"]))  # a single module can't carry a grown cow
 
 
+    def test_trip_skips_a_pregnant_ewe_for_the_next_weakest(self):
+        def a(i, sex, top, pregnant=False):
+            return SimpleNamespace(id=i, sex=sex, genes_top=top, genes_bottom=None, name=f"a{i}", code=f"S-{i}",
+                                   is_lamb=False, pregnant=pregnant)
+        herd = [a(1, "M", "GGGGG"), a(2, "F", "GGGGO"), a(3, "F", "GOOOO"), a(4, "F", "OOOOO", pregnant=True)]
+        trip = planner.trip_plan(herd, "sheep", "double", {"F": 2})
+        self.assertEqual([s["id"] for s in trip["sell"]], [3])
+
+
 if __name__ == "__main__":
     unittest.main()
