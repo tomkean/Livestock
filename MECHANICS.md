@@ -128,7 +128,9 @@ The list continued with a "Commands:" section that has not been captured yet.
 |---|---|---|
 | Sheep from ranch NPC | 150 scrap | Known |
 | Cow from ranch NPC | 300 scrap | Known |
-| Can genes be seen before buying? Can sex be chosen? | Unknown | — |
+| Can genes be seen before buying? Can sex be chosen? | **Genes: no**, you only see them after buying. **Sex: yes**, you ask for a male or a female (May and Jeremy, bought as one of each). | Known |
+| Selling a lamb back | The vendor wasn't interested in two just-bought lambs. Most likely because only grown animals sell (as published); to confirm when they're grown. | Seen |
+| Choosing founders | The stronger copy always shows, so **the top row says exactly whether an animal carries a Good copy of each gene**: green = at least one, grey or red = none. An all-grey animal carries no Good copies at all and can't help breed a god male (still fine as a production mother). Rule for buying blind: keep buying until every gene shows green on at least one animal and you have both sexes; about 6 lambs on average. | Known |
 | Trips to the ranch are dangerous and often fail, so animals are scarce. | Known | — |
 | **The map spawns wild sheep in grassland** (near barns). If they can be tamed and led home, they are a free alternative to buying. Wild rams near the base are also a risk of unseen, unplanned matings. **Taming:** adults are briefly hostile on approach; stand still, wait 30–60 s nearby, then they can be led. Easy on the test server, exposed on a busy one. Pick by coat from a distance (white = Good D) and read the card while waiting. **Wild sheep in a safe zone can't be tamed:** standing next to one for a long time never gave the Lead prompt. Wild genes/markers vs bought: unknown. | Known | — |
 | Wool value | Shearing about 5 ewes that had gone unsheared for an hour or more gave ~100 wool (~20 each), worth next to nothing. **Wool is capped at about one batch per sheep:** it doesn't build up, so it only pays with shearing every few minutes. Y matters little in sheep. Value is more likely in dung (fertilizer, if it piles up unattended), milk (cows) or selling animals. | Known |
