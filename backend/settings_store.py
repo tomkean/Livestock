@@ -18,6 +18,8 @@ DEFAULTS = {
     # False = live server: only the top row is visible, so every calculation infers hidden copies from top rows and
     # family. True = test server with livestock.panelalleles: use captured second rows (debugging and validation only).
     "second_row_visible": False,
+    # Pools mode rooms: harems (one ram each, mating freely) and a holding room. Names are free text.
+    "pools": {"harems": ["Harem #1", "Harem #2"], "holding": "Death Row", "harem_ewes": 8},
 }
 
 

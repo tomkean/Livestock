@@ -17,6 +17,7 @@ import card_reader
 import genetics
 import inference
 import planner
+import pools
 import settings_store
 from config import BUILD_DIR, CAPTURE_DIR, CARD_DIR, DATA_DIR, NAME_DIR, PORT
 from database import get_session, init_db
@@ -60,6 +61,7 @@ class AnimalIn(CaptureCrop):
 
 class AnimalPatch(CaptureCrop):
     name: Optional[str] = None
+    pen: Optional[str] = None
     species: Optional[str] = None
     sex: Optional[str] = None
     origin: Optional[str] = None
@@ -488,6 +490,46 @@ def barn_trip(species: str = "sheep", keep_ids: str = "", session: Session = Dep
     inf = inferred(session)
     return planner.trip_plan(animals, species, settings.get("vehicle", "single"), settings.get("pen_capacity") or {}, planned,
                              settings.get("target_genes") or "DLYFH", inf["posterior"] if inf else None)
+
+
+def _pools_view(session: Session, species: str) -> tuple[list, dict]:
+    settings = settings_store.load()
+    cfg = settings.get("pools") or {}
+    now = datetime.now(timezone.utc)
+    animals = []
+    for a in session.exec(select(Animal).where(Animal.status == "alive", Animal.species == species)).all():
+        view = visible(a)
+        born = _utc(a.born_at)
+        view.is_lamb = a.sex == "?" or (born is not None and (now - born).total_seconds() < planner.GROWTH * 60)
+        animals.append(view)
+    inf = inferred(session)
+    result = pools.arrange(animals, settings.get("target_genes") or "DLYFH", inf["posterior"] if inf else None,
+                           cfg.get("harems") or ["Harem #1", "Harem #2"], cfg.get("holding") or "Death Row",
+                           int(cfg.get("harem_ewes") or 8))
+    return animals, {**result, "config": cfg}
+
+
+@app.get("/api/pools")
+def pools_plan(species: str = "sheep", session: Session = Depends(get_session)):
+    """Suggested rooms for every animal (harems + holding), the moves from where they are now, and verdicts."""
+    animals, result = _pools_view(session, species)
+    current = {a.id: a.pen for a in animals}
+    result["moves"] = [{"id": a.id, "name": a.name or a.code, "from": current[a.id] or None, "to": result["pen"][a.id]}
+                       for a in animals if current[a.id] != result["pen"][a.id]]
+    return result
+
+
+@app.post("/api/pools/apply")
+def pools_apply(species: str = "sheep", session: Session = Depends(get_session)):
+    """Record the suggested rooms as where every animal now is (do the moves in game first)."""
+    _, result = _pools_view(session, species)
+    for animal_id, pen in result["pen"].items():
+        a = session.get(Animal, animal_id)
+        if a.pen != pen:
+            log(session, "moved", a.id, notes=f"{a.pen or 'unplaced'} -> {pen}")
+            a.pen = pen
+    session.commit()
+    return {"ok": True}
 
 
 @app.get("/api/events")

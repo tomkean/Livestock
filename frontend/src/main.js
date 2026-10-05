@@ -7,10 +7,11 @@ import { HerdView } from './views/HerdView.js';
 import { CaptureView } from './views/CaptureView.js';
 import { LogView } from './views/LogView.js';
 import { PlanView } from './views/PlanView.js';
+import { PoolsView } from './views/PoolsView.js';
 import { api } from './services/api.js';
 import { lambStatus } from './components/lambTimer.js';
 
-const VIEWS = { herd: HerdView, capture: CaptureView, plan: PlanView, log: LogView };
+const VIEWS = { herd: HerdView, capture: CaptureView, pools: PoolsView, plan: PlanView, log: LogView };
 let currentView = null;
 let sharers = 0;
 

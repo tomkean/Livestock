@@ -18,6 +18,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 ADDED_COLUMNS = [
     ("animal", "name", "VARCHAR NOT NULL DEFAULT ''"),
     ("animal", "born_at", "DATETIME"),
+    ("animal", "pen", "VARCHAR NOT NULL DEFAULT ''"),
 ]
 
 

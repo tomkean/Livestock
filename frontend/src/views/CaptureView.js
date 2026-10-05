@@ -322,11 +322,22 @@ export class CaptureView extends View {
     async saveNew() {
         try {
             const animal = await api.post('/api/animals', { ...this.form.values(), ...this.cropFields() });
-            toast(`Saved as ${animal.code}`);
+            toast(`Saved as ${animal.name || animal.code}`);
+            this.showVerdict(animal);
             this.afterSave();
         } catch (e) {
             toast(e.message, 'error');
         }
+    }
+
+    /** Pools mode verdict for a newly saved animal: promote, keep, cull or sell. */
+    async showVerdict(animal) {
+        try {
+            const pools = await api.get(`/api/pools?species=${animal.species}`);
+            const v = pools.verdicts[animal.id];
+            if (v) toast(`${animal.name || animal.code}: ${v.verdict.toUpperCase()} - ${v.reason}`, v.verdict === 'cull' ? 'warn' : 'info');
+            else if (pools.pen[animal.id]) toast(`${animal.name || animal.code}: goes to ${pools.pen[animal.id]}`);
+        } catch (e) { /* the verdict is a convenience; saving already worked */ }
     }
 
     async updateExisting(animal) {

@@ -218,6 +218,15 @@ main { padding: 16px 20px; }
 .target-genes { display: flex; gap: 14px; flex-wrap: wrap; }
 .target-genes label { white-space: nowrap; }
 
+/* Pools */
+.pools { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.pool-card { display: flex; flex-direction: column; gap: 4px; width: 230px; }
+.verdict { font-size: 13px; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--panel-border); }
+.verdict.v-promote { border-color: var(--good); color: var(--good); }
+.verdict.v-keep { color: var(--text); }
+.verdict.v-sell { border-color: #e0a030; color: #e0a030; }
+.verdict.v-cull { border-color: var(--bad); color: var(--bad); }
+
 /* Log */
 .log table { width: 100%; border-collapse: collapse; }
 .log th { text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--panel-border); padding: 4px 8px; }
