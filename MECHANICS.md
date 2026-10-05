@@ -10,6 +10,23 @@ Sources:
 
 Confidence: **Known** · **Likely** · **Guess** · **Unknown**
 
+## Facepunch commit notes (livestock development branch)
+
+From the public commit feed (`commits.facepunch.com`, repo rust_reboot, branch main/Livestock_animals). These are the developers' own notes;
+when each reaches live servers isn't stated, so retest after Rust updates.
+
+| Commit | Date | Note |
+|---|---|---|
+| #166138 | 2026-09-29 | Cows and sheep get **double fullness when eating from a trough**. |
+| #166139 | 2026-09-29 | GrazeDayShare 0.4 → 0.3: they spend less of the day eating and **need less food**. |
+| #166277 | 2026-09-30 | **Crowding: packing radius 2.5 m; crowded at 5 animals, severe packing at 9** (was 3 m, 4, 6). |
+| #166284 | 2026-09-30 | Genetics shown on the cow panel too. |
+| #166690 | 2026-10-03 | **Cows actually line up with troughs to eat** (likely the fix for animals starving beside a trough). |
+| #166724 | 2026-10-05 | **Personal space rework:** in a pen, navmesh flood fill measures the enclosed area in m² and personal space comes directly from it (same for every animal, reacts at once to building). **Free-range cows stop reproducing when the herd reaches a cap.** |
+
+Consequences: the wiki's "8 herd mates within 20 m" looks outdated. Now: avoid bunching (2.5 m packing). After #166724: enclosed floor area per animal
+is what counts - measure personal space against m² per animal once it ships.
+
 ## Published figures (RustHelp wiki, Facepunch, hosting guides, 2026-10-04)
 
 These match everything we measured where we overlap (wool, dung, inbred ×0.8, gestation), so they are treated as reliable.
