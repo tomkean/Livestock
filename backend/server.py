@@ -225,13 +225,38 @@ def list_animals(include_gone: bool = False, session: Session = Depends(get_sess
     query = select(Animal).order_by(Animal.code)
     if not include_gone:
         query = query.where(Animal.status == "alive")
+    inf = inferred(session)
+    target = settings_store.load().get("target_genes") or "DLYFH"
     out = []
     for a in session.exec(query).all():
         row = a.model_dump(mode="json")
         free = free_again_at(session, a)
         row["free_again_at"] = free.isoformat() if free else None
+        row["good_good"], row["target_chance"] = target_chance(a, target, inf)
         out.append(row)
     return out
+
+
+def target_chance(a, target: str, inf: dict | None):
+    """Chance of Good/Good on each target gene, and on all of them at once (genes are inherited independently).
+
+    Live mode: from the inference. Test-server mode: read straight off the captured rows (0 or 1)."""
+    per_gene = {}
+    for i, g in enumerate(genetics.GENES):
+        if g not in target:
+            continue
+        if inf is not None:
+            per_gene[g] = round(inf["posterior"].get(a.id, [{}] * 5)[i].get("GG", 0.0), 3)
+        elif a.genes_bottom:
+            per_gene[g] = float(a.genes_top[i] == "G" and a.genes_bottom[i] == "G")
+        else:
+            per_gene[g] = None
+    if any(v is None for v in per_gene.values()):
+        return per_gene, None
+    total = 1.0
+    for v in per_gene.values():
+        total *= v
+    return per_gene, round(total, 4)
 
 
 @app.post("/api/animals")

@@ -198,6 +198,9 @@ main { padding: 16px 20px; }
 .parents-table td { padding: 4px 8px 4px 0; }
 
 .lamb-timer { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.god-chance { font-size: 13px; margin-top: 4px; }
+.god-chance b { color: #fff; }
+.god-chance.high b { color: var(--good); }
 .lamb-timer.due, .pill.due { color: #e0a030; border-color: #e0a030; font-weight: 700; }
 
 /* Plan */

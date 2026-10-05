@@ -42,6 +42,14 @@ export function animalCardHtml(a) {
     ].join('');
     const lamb = a.status === 'alive' ? lambStatus(a) : null;
     const timer = lamb ? `<div class="lamb-timer${lamb.due ? ' due' : ''}" data-animal="${a.id}">${esc(lamb.text)}</div>` : '';
+    // Chance of Good/Good on every target gene - on a live server the only way to know a god animal when you have one.
+    const gg = a.good_good || {};
+    const godChance = a.target_chance == null ? '' : `
+        <div class="god-chance${a.target_chance >= 0.9 ? ' high' : ''}" title="Chance of Good/Good, per target gene: ${
+            esc(Object.entries(gg).map(([g, p]) => `${g} ${Math.round(p * 100)}%`).join(', '))}">
+            God chance <b>${a.target_chance >= 0.995 ? '100' : a.target_chance < 0.005 && a.target_chance > 0 ? '<1' : Math.round(a.target_chance * 100)}%</b>
+            <span class="muted">${esc(Object.entries(gg).map(([g, p]) => `${g}${Math.round(p * 100)}`).join(' '))}</span>
+        </div>`;
     // The name image is what matches the animal in game, in whatever script its name is written.
     const nameImage = a.name_image ? `<img class="name-img" src="${media(a.name_image)}" alt="">` : '';
     return `
@@ -52,6 +60,7 @@ export function animalCardHtml(a) {
             </div>
             <div class="card-name">${nameImage}${a.name && a.name !== a.code ? `<span class="tag id">${esc(a.code)}</span>` : ''}</div>
             ${geneDots(a)}
+            ${godChance}
             ${timer}
             <div class="card-tags">${badges}</div>
         </div>`;
