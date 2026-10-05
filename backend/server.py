@@ -285,6 +285,9 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
     if crop.get("capture_id"):
         apply_capture(session, animal, crop)
         log(session, "captured", animal.id)
+        if animal.status == "missing":  # seen again
+            animal.status = "alive"
+            log(session, "alive", animal.id, notes="found")
     set_birth(session, animal, crop)
     session.commit()
     session.refresh(animal)
@@ -345,8 +348,10 @@ def delete_animal(animal_id: int, session: Session = Depends(get_session)):
 @app.post("/api/animals/match")
 def match_animals(observed: Observed, session: Session = Depends(get_session)):
     """Existing animals a captured card could belong to, best first."""
+    # A lamb is captured as unsexed and a wandered-off animal is marked missing, so neither may rule out a match.
+    sexes = ["M", "F", "?"] if observed.sex == "?" else [observed.sex, "?"]
     animals = session.exec(select(Animal).where(
-        Animal.status == "alive", Animal.species == observed.species, Animal.sex == observed.sex)).all()
+        Animal.status.in_(["alive", "missing"]), Animal.species == observed.species, Animal.sex.in_(sexes))).all()
     scored = [(genetics.match_score(a, observed), a) for a in animals]
     scored = sorted(((s, a) for s, a in scored if s), key=lambda sa: -sa[0])
     return [{"score": s, "animal": a} for s, a in scored[:5]]

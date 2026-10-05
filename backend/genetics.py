@@ -1,4 +1,5 @@
 """Livestock genetics rules. MECHANICS.md records which of these are confirmed and which are guesses."""
+from datetime import timezone
 
 GENES = ("D", "L", "Y", "F", "H")  # dung, lifespan, yield, fertility, hardiness
 ALLELES = "GOB?"  # good, ok, bad, unknown
@@ -181,6 +182,19 @@ def parentage_likelihood(child, mother, father) -> float:
     return p
 
 
+CONCEPTION_LEAD_MIN = 60 + 10  # a parent must have grown up (60 min) before the 10-minute pregnancy began
+
+
+def _could_parent(parent, child) -> bool:
+    """False only when both birth times are known and the parent was too young to be a parent."""
+    p, c = getattr(parent, "born_at", None), getattr(child, "born_at", None)
+    if p is None or c is None:
+        return True
+    p = p if p.tzinfo else p.replace(tzinfo=timezone.utc)
+    c = c if c.tzinfo else c.replace(tzinfo=timezone.utc)
+    return (c - p).total_seconds() / 60 >= CONCEPTION_LEAD_MIN
+
+
 def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 5) -> list[dict]:
     """Mother × father pairs that could have produced the child, most likely first, with relative chances.
 
@@ -188,7 +202,8 @@ def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 
     to the other candidates, not absolute.
     """
     child_id = getattr(child, "id", None)
-    pool = [a for a in animals if a.species == child.species and getattr(a, "id", None) != child_id]
+    pool = [a for a in animals if a.species == child.species and getattr(a, "id", None) != child_id
+            and _could_parent(a, child)]
     scored = []
     # An unsexed animal (a lamb that grew up before anyone saw horns) can be either parent; being found as one
     # reveals its sex.

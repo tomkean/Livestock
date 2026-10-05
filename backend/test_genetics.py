@@ -69,6 +69,17 @@ class MatingOdds(unittest.TestCase):
         found = genetics.likely_parents(dale, herd, mated_pairs={(2, 10)})
         self.assertEqual((found[0]["mother_id"], found[0]["father_id"]), (2, 10))
 
+    def test_parent_finder_skips_parents_too_young(self):
+        from datetime import datetime, timedelta, timezone
+        t = datetime(2026, 10, 5, 1, 0, tzinfo=timezone.utc)
+        ewe = SimpleNamespace(id=1, species="sheep", sex="F", genes_top="GGGGG", genes_bottom="GGGGG", herd_top=1, herd_bottom=2, born_at=t)
+        ram = SimpleNamespace(id=2, species="sheep", sex="M", genes_top="GGGGG", genes_bottom="GGGGG", herd_top=3, herd_bottom=4, born_at=None)
+        lamb = SimpleNamespace(id=3, species="sheep", genes_top="GGGGG", genes_bottom="GGGGG", herd_top=1, herd_bottom=3,
+                               born_at=t + timedelta(minutes=30))
+        self.assertEqual(genetics.likely_parents(lamb, [ewe, ram]), [])  # the ewe was 30 minutes old
+        lamb.born_at = t + timedelta(minutes=75)
+        self.assertEqual(len(genetics.likely_parents(lamb, [ewe, ram])), 1)
+
     def test_taylor_estella(self):
         odds = genetics.mating_odds(ESTELLA, TAYLOR)
         self.assertEqual(self.expressed(odds), {
