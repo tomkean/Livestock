@@ -136,7 +136,9 @@ def check_animal(session: Session, animal: Animal):
         parent = session.get(Animal, parent_id)
         if not parent or parent.id == animal.id:
             raise HTTPException(422, f"{field} {parent_id} is not a valid animal")
-        if parent.sex != sex or parent.species != animal.species:
+        if parent.sex == "?" and parent.species == animal.species:
+            parent.sex = sex  # a parent's role settles its sex (a lamb sexed by having a lamb of its own)
+        elif parent.sex != sex or parent.species != animal.species:
             raise HTTPException(422, f"{field} must be a {'female' if sex == 'F' else 'male'} {animal.species}")
 
 

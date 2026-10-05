@@ -190,8 +190,12 @@ def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 
     child_id = getattr(child, "id", None)
     pool = [a for a in animals if a.species == child.species and getattr(a, "id", None) != child_id]
     scored = []
-    for m in (a for a in pool if a.sex == "F"):
-        for f in (a for a in pool if a.sex == "M"):
+    # An unsexed animal (a lamb that grew up before anyone saw horns) can be either parent; being found as one
+    # reveals its sex.
+    for m in (a for a in pool if a.sex in ("F", "?")):
+        for f in (a for a in pool if a.sex in ("M", "?")):
+            if m is f:
+                continue
             p = parentage_likelihood(child, m, f)
             if p > 0:
                 if (m.id, f.id) in mated_pairs:
@@ -199,5 +203,6 @@ def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 
                 scored.append((p, m, f))
     total = sum(p for p, _, _ in scored)
     scored.sort(key=lambda s: -s[0])
-    return [{"mother_id": m.id, "father_id": f.id, "chance": p / total, "mated": (m.id, f.id) in mated_pairs}
+    return [{"mother_id": m.id, "father_id": f.id, "chance": p / total, "mated": (m.id, f.id) in mated_pairs,
+             "reveals": [x.id for x in (m, f) if x.sex == "?"]}
             for p, m, f in scored[:limit]]
