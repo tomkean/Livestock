@@ -58,5 +58,15 @@ class Planner(unittest.TestCase):
         self.assertEqual([s["id"] for s in trip["sell"]], [3])
 
 
+    def test_ignored_genes_dont_block_the_plan(self):
+        # Nobody carries a Good H, so a full god male is impossible - but not if H is left out of the target.
+        herd = [animal(1, "F", "GGGGO", "GGGGO"), animal(2, "M", "GGGGO", "OOOOO", (3, 4))]
+        self.assertFalse(planner.plan(herd, runs=10)["possible"])
+        result = planner.plan(herd, runs=30, target="DLYF")
+        self.assertTrue(result["possible"])
+        self.assertEqual(result["target"], "DLYF")
+        self.assertGreater(result["expected"]["success"], 0.9)
+
+
 if __name__ == "__main__":
     unittest.main()

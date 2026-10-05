@@ -212,6 +212,9 @@ main { padding: 16px 20px; }
 .trip-cols { display: flex; gap: 48px; flex-wrap: wrap; }
 .trip-cols ul { margin: 0; padding-left: 20px; }
 
+.target-genes { display: flex; gap: 14px; flex-wrap: wrap; }
+.target-genes label { white-space: nowrap; }
+
 /* Log */
 .log table { width: 100%; border-collapse: collapse; }
 .log th { text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--panel-border); padding: 4px 8px; }

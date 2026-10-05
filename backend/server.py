@@ -408,8 +408,9 @@ def breeding_plan(species: str = "sheep", runs: int = 150, session: Session = De
         herd.append(view)
     if not any(a.sex == "F" for a in herd) or not any(a.sex == "M" for a in herd):
         return {"possible": False, "missing": [], "reason": "The herd needs at least one female and one male."}
-    capacity = settings_store.load().get("pen_capacity") or {}
-    return planner.plan(herd, runs=max(20, min(runs, 400)), keep=capacity)
+    settings = settings_store.load()
+    return planner.plan(herd, runs=max(20, min(runs, 400)), keep=settings.get("pen_capacity") or {},
+                        target=settings.get("target_genes") or "DLYFH")
 
 
 @app.get("/api/trip")
@@ -427,7 +428,8 @@ def barn_trip(species: str = "sheep", keep_ids: str = "", session: Session = Dep
         born = _utc(a.born_at)
         view.is_lamb = a.sex == "?" or (born is not None and (now - born).total_seconds() < planner.GROWTH * 60)
         animals.append(view)
-    return planner.trip_plan(animals, species, settings.get("vehicle", "single"), settings.get("pen_capacity") or {}, planned)
+    return planner.trip_plan(animals, species, settings.get("vehicle", "single"), settings.get("pen_capacity") or {}, planned,
+                             settings.get("target_genes") or "DLYFH")
 
 
 @app.get("/api/events")

@@ -1,6 +1,6 @@
 import { View } from './View.js';
 import { api } from '../services/api.js';
-import { SPECIES_ICON } from '../components/animalCard.js';
+import { GENES, GENE_NAMES, SPECIES_ICON } from '../components/animalCard.js';
 import { esc, media } from '../ui.js';
 
 const hours = (minutes) => (minutes == null ? '—' : `${(minutes / 60).toFixed(1)} h`);
@@ -13,10 +13,15 @@ export class PlanView extends View {
     }
 
     async render() {
+        if (this.target == null) {
+            try { this.target = (await api.get('/api/settings')).target_genes || 'DLYFH'; } catch (e) { this.target = 'DLYFH'; }
+        }
         this.container.innerHTML = `
             <div class="panel plan">
                 <div class="toolbar">
-                    <h2>Plan to a god male</h2>
+                    <h2>Plan to a male Good/Good on</h2>
+                    <div class="target-genes">${GENES.map(g => `<label title="${GENE_NAMES[g]}">
+                        <input type="checkbox" data-gene="${g}" ${this.target.includes(g) ? 'checked' : ''}> ${g} <span class="muted">${GENE_NAMES[g]}</span></label>`).join('')}</div>
                     <span class="spacer"></span>
                     <div class="seg">
                         <button data-species="sheep" class="${this.species === 'sheep' ? 'on' : ''}">🐑 Sheep</button>
@@ -24,8 +29,9 @@ export class PlanView extends View {
                     </div>
                     <button id="btn-plan" class="primary">Plan</button>
                 </div>
-                <p class="hint">Simulates the herd forward a few hundred times with the game's timings, and picks the matings
-                    that reach a god male (Good/Good on every gene) soonest. Re-plan after every birth: what gets born changes the next step.</p>
+                <p class="hint">Untick genes you don't care about (e.g. D if dung is worthless to you): every gene left out makes the
+                    target much quicker to reach. All five ticked is a full god animal, which may sell better at the barn.
+                    Simulates the herd forward a few hundred times with the game's timings, and picks the matings that get there soonest. Re-plan after every birth: what gets born changes the next step.</p>
                 <div id="plan-result"></div>
             </div>
             <div class="panel plan">
@@ -45,6 +51,14 @@ export class PlanView extends View {
             this.render();
         }));
         this.container.querySelector('#btn-plan').addEventListener('click', () => this.runPlan());
+        this.container.querySelectorAll('[data-gene]').forEach(box => box.addEventListener('change', async () => {
+            const target = GENES.filter(g => this.container.querySelector(`[data-gene="${g}"]`).checked).join('');
+            if (!target) { box.checked = true; return; }  // at least one gene
+            this.target = target;
+            await api.put('/api/settings', { target_genes: target });
+            this.container.querySelector('#plan-result').innerHTML = '<p class="hint">Target changed: press Plan.</p>';
+            this.showTrip();
+        }));
         this.container.querySelectorAll('[data-vehicle]').forEach(btn => btn.addEventListener('click', async () => {
             await api.put('/api/settings', { vehicle: btn.dataset.vehicle });
             this.showTrip();
@@ -116,7 +130,7 @@ export class PlanView extends View {
         const e = plan.expected;
         target.innerHTML = `
             <div class="plan-summary">
-                <div><span class="muted">Typical time to a god male</span><b>${hours(e.median)}</b></div>
+                <div><span class="muted">Typical time to a male Good/Good on ${esc(plan.target || 'DLYFH')}</span><b>${hours(e.median)}</b></div>
                 <div><span class="muted">Worst 1 in 10</span><b>${hours(e.p90)}</b></div>
                 <div><span class="muted">Reached within 48 h</span><b>${Math.round(e.success * 100)}%</b></div>
                 <div><span class="muted">Births along the way</span><b>~${Math.round(plan.births)}</b></div>

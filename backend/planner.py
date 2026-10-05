@@ -69,13 +69,18 @@ def _sample_genes(top: str, bottom: str | None, rng: random.Random) -> tuple:
     return tuple(out)
 
 
-def herd_from_animals(animals, now_minutes: float, rng: random.Random) -> list[Beast]:
-    """Adult-or-growing members of the herd as Beasts, with times relative to now (0)."""
+def herd_from_animals(animals, now_minutes: float, rng: random.Random, target: str = "") -> list[Beast]:
+    """Adult-or-growing members of the herd as Beasts, with times relative to now (0).
+
+    Genes not in `target` are treated as already Good/Good, so every part of the search ignores them.
+    """
+    ignore = [g not in target for g in genetics.GENES] if target else [False] * N_GENES
     herd = []
     for a in animals:
         markers = (a.herd_top if a.herd_top is not None else f"?{a.id}a",
                    a.herd_bottom if a.herd_bottom is not None else f"?{a.id}b")
-        genes = _sample_genes(a.genes_top, a.genes_bottom, rng)
+        genes = tuple((GOOD, GOOD) if skip else pair
+                      for skip, pair in zip(ignore, _sample_genes(a.genes_top, a.genes_bottom, rng)))
         age = getattr(a, "age_minutes", None)
         adult_at = GROWTH - age if age is not None and age < GROWTH else 0.0
         free_at = max(adult_at, getattr(a, "free_in_minutes", 0.0) or 0.0)  # cooldown after her last birth
@@ -229,13 +234,14 @@ def simulate(herd: list[Beast], rng: random.Random, fixed: dict | None = None) -
 
 # ---------------------------------------------------------------- plan
 
-def missing_genes(animals) -> list[str]:
+def missing_genes(animals, target: str = "DLYFH") -> list[str]:
     """Genes with no Good copy anywhere in the herd: no plan can produce a god male without new animals.
 
     The stronger copy is always the one on top, so a gene has a Good copy somewhere exactly when some animal shows
     Good (or an unread '?') on top.
     """
-    return [name for i, name in enumerate(genetics.GENES) if not any(a.genes_top[i] in "G?" for a in animals)]
+    return [name for i, name in enumerate(genetics.GENES)
+            if name in target and not any(a.genes_top[i] in "G?" for a in animals)]
 
 
 def _summary(times: list, runs: int) -> dict:
@@ -249,7 +255,7 @@ def _summary(times: list, runs: int) -> dict:
     }
 
 
-def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None) -> dict:
+def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None, target: str = "DLYFH") -> dict:
     """Recommended matings for now, and how long a god male is expected to take.
 
     `keep` caps the simulated herd per sex (the pen capacities): surplus animals are assumed sold.
@@ -258,14 +264,15 @@ def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None) -> d
     if keep:
         KEEP = {"F": int(keep.get("F", KEEP["F"])), "M": int(keep.get("M", KEEP["M"]))}
     rng = random.Random(seed)
-    missing = missing_genes(animals)
+    target = "".join(g for g in genetics.GENES if g in (target or "")) or "".join(genetics.GENES)
+    missing = missing_genes(animals, target)
     if missing:
         return {"possible": False, "missing": missing,
                 "reason": "No animal in the herd carries a Good copy of " + ", ".join(missing)
                           + ", so no breeding plan can produce a god male. Bring in an animal showing Good on it."}
 
     def herd():
-        return herd_from_animals(animals, 0, rng)
+        return herd_from_animals(animals, 0, rng, target)
 
     def futures(n: int, fixed: dict | None = None) -> list[Outcome]:
         # Common random numbers: run k of every option sees the same luck (hidden copies, litters, sexes,
@@ -273,7 +280,7 @@ def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None) -> d
         out = []
         for k in range(n):
             r = random.Random(seed * 100003 + k)
-            out.append(simulate(herd_from_animals(animals, 0, r), r, fixed=fixed))
+            out.append(simulate(herd_from_animals(animals, 0, r, target), r, fixed=fixed))
         return out
 
     # The greedy policy on its own.
@@ -306,6 +313,7 @@ def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None) -> d
                 "p_god_male": p_god_male(next(b for b in sample if b.id == f_id), next(b for b in sample if b.id == m_id))}
                for (f_id, m_id), n in sorted(first_counts.items(), key=lambda kv: -kv[1]) if n >= runs / 2]
     result.update({
+        "target": target,
         "matings": matings,
         "expected": _summary([o.god_at for o in final], runs),
         "births": median(o.births for o in final),
@@ -330,17 +338,21 @@ TRUCK = {
 RAMS_KEPT = 2
 
 
-def _visible_goods(a) -> tuple:
-    """Good copies the cards show: both rows where known, otherwise the top row (green = at least one)."""
+def _visible_goods(a, target: str = "DLYFH") -> tuple:
+    """Good copies the cards show: both rows where known, otherwise the top row (green = at least one).
+    Genes outside the target count as fully Good, so they never decide anything."""
     out = []
     for i in range(N_GENES):
+        if genetics.GENES[i] not in target:
+            out.append(2)
+            continue
         top = a.genes_top[i] == "G"
         bottom = bool(a.genes_bottom) and a.genes_bottom[i] == "G"
         out.append(int(top) + int(bottom))
     return tuple(out)
 
 
-def trip_plan(animals, species: str, vehicle: str, keep: dict, planned: set = frozenset()) -> dict:
+def trip_plan(animals, species: str, vehicle: str, keep: dict, planned: set = frozenset(), target: str = "DLYFH") -> dict:
     """What to sell and what to buy on the next trip to the barn.
 
     Sell: grown animals the breeding project doesn't need - rams beyond the best RAMS_KEPT, then the weakest ewes
@@ -349,7 +361,7 @@ def trip_plan(animals, species: str, vehicle: str, keep: dict, planned: set = fr
     ewes until the pen is full and every gene shows green somewhere. Both limited by what the truck carries.
     """
     grown = [a for a in animals if not getattr(a, "is_lamb", False)]
-    herd = [SimpleBeast(a, _visible_goods(a)) for a in animals]
+    herd = [SimpleBeast(a, _visible_goods(a, target)) for a in animals]
     weights = [1.0 / (1 + sum(b.goods[i] for b in herd)) for i in range(N_GENES)]
 
     def value(b):

@@ -12,6 +12,9 @@ DEFAULTS = {
     # How animals get to the barn: "lead" on foot (one at a time), or a truck with a "single" module
     # (1 sheep or lamb) or "double" module (2 sheep/lambs, or 1 cow).
     "vehicle": "single",
+    # Genes the breeding target needs Good/Good on. Leave out ones you don't care about (e.g. D if dung is worthless
+    # to you): the plan gets much faster. A full god animal is all five.
+    "target_genes": "DLYFH",
 }
 
 
