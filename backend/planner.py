@@ -344,7 +344,7 @@ def trip_plan(animals, species: str, vehicle: str, keep: dict, planned: set = fr
     """What to sell and what to buy on the next trip to the barn.
 
     Sell: grown animals the breeding project doesn't need - rams beyond the best RAMS_KEPT, then the weakest ewes
-    beyond the pen capacity - never the last animal showing green on a gene, nor one the plan wants to mate now
+    beyond the pen capacity - never the last animal showing green on a gene, nor a pregnant female, nor one the plan wants to mate now
     (`planned`). Buy: a ram if there's none, otherwise
     ewes until the pen is full and every gene shows green somewhere. Both limited by what the truck carries.
     """
@@ -369,7 +369,7 @@ def trip_plan(animals, species: str, vehicle: str, keep: dict, planned: set = fr
         for b in reversed(members[limit:]):
             if len(sell) >= adult_cap:
                 break
-            if b.id in grown_ids and b.id not in planned and not last_carrier(b, pool):
+            if b.id in grown_ids and b.id not in planned and not b.pregnant and not last_carrier(b, pool):
                 sell.append(b)
                 pool.remove(b)
 
@@ -402,3 +402,4 @@ class SimpleBeast:
 
     def __init__(self, animal, goods):
         self.id, self.sex, self.name, self.goods = animal.id, animal.sex, animal.name or animal.code, goods
+        self.pregnant = bool(getattr(animal, "pregnant", False))  # never sold: her lamb is on the way

@@ -78,7 +78,7 @@ export class PlanView extends View {
                 <div><h3>Buy</h3><ul>${buy}</ul></div>
             </div>
             ${trip.missing.length ? `<p class="warn">No animal shows green on ${trip.missing.join(', ')} yet: keep buying until every gene shows green somewhere.</p>` : ''}
-            <p class="hint">Only grown animals sell. Never sold: the best ${this.species === 'cow' ? 'bulls' : 'rams'}, any animal that is the last one showing green on a gene,
+            <p class="hint">Only grown animals sell. Never sold: the best ${this.species === 'cow' ? 'bulls' : 'rams'}, pregnant females (mark them Pregnant), any animal that is the last one showing green on a gene,
                 and${this.planned ? '' : ' (once you press Plan)'} any animal the plan wants to mate now.</p>`;
     }
 
