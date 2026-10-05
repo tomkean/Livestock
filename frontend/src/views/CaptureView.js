@@ -174,10 +174,20 @@ export class CaptureView extends View {
      * depending on its sex. The parent finder suggests the other parent.
      */
     parentageFromName(name) {
-        const match = /^(.+?)\s+junior$/i.exec((name || '').trim());
-        if (!match) return {};
-        const parentName = match[1].toLowerCase();
-        const parent = this.animals.find(a => (a.name || '').toLowerCase() === parentName);
+        // "X Junior" names its parent X; "X the third" names X Junior; "X the fourth" names X the third; and so on.
+        const ORDINALS = ['third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
+        const text = (name || '').trim();
+        let parentName = null;
+        const junior = /^(.+?)\s+junior$/i.exec(text);
+        const nth = /^(.+?)\s+the\s+(\w+)$/i.exec(text);
+        if (junior) {
+            parentName = junior[1];
+        } else if (nth && ORDINALS.includes(nth[2].toLowerCase())) {
+            const k = ORDINALS.indexOf(nth[2].toLowerCase());
+            parentName = k === 0 ? `${nth[1]} Junior` : `${nth[1]} the ${ORDINALS[k - 1]}`;
+        }
+        if (!parentName) return {};
+        const parent = this.animals.find(a => (a.name || '').toLowerCase() === parentName.toLowerCase());
         if (!parent) return { origin: 'bred' };
         return { origin: 'bred', species: parent.species, [parent.sex === 'F' ? 'mother_id' : 'father_id']: parent.id };
     }
