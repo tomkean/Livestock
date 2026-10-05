@@ -189,7 +189,7 @@ Notes so far:
 
 ## Overnight experiment (test server)
 
-Started 2026-10-05 04:56 (local): one pen, **9 adults, no lambs** - rams Taylor, Steve, Milton Junior; ewes Lou, Dale, Terri, Marie, Lori, Nettie. Left unattended about 12 hours with full troughs, rams and ewes together. Questions: how many lambs, does crowding stop breeding by itself (overall < 70%), starvation and trough use, sex ratio. Result: to record next session.
+Started 2026-10-05 04:56 (local): one pen, **9 adults, no lambs** - rams Taylor, Steve, Milton Junior; ewes Lou, Dale, Terri, Marie, Lori, Nettie. Left unattended about 12 hours with full troughs, rams and ewes together. Questions: how many lambs, does crowding stop breeding by itself (overall < 70%), starvation and trough use, sex ratio. **Result: every sheep starved and despawned.** An entire barrel of pumpkins feeding the trough was eaten, then they starved; bodies were gone, so how many lambs were born overnight is unknown. Lessons: a herd can't be left for ~12 h on one barrel of feed; unattended breeding adds mouths; dead animals despawn, so losses can't be counted afterwards. Feed per sheep per hour: to work out from the barrel's size.
 
 ## Goal and strategy (provisional)
 
