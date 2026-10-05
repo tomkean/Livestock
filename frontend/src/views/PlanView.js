@@ -33,6 +33,7 @@ export class PlanView extends View {
                     <h2>Next barn trip</h2>
                     <span class="spacer"></span>
                     <div class="seg" id="vehicle">
+                        <button data-vehicle="lead">Lead on foot</button>
                         <button data-vehicle="single">Single module</button>
                         <button data-vehicle="double">Double module</button>
                     </div>

@@ -323,6 +323,7 @@ def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None) -> d
 
 # How many animals one trip carries, by vehicle and species (MECHANICS.md, transport). Calves count as sheep.
 TRUCK = {
+    "lead": {"sheep": 1, "calf": 1, "cow": 1},  # on foot, e.g. a base beside the barn; one animal at a time assumed
     "single": {"sheep": 1, "calf": 1, "cow": 0},
     "double": {"sheep": 2, "calf": 2, "cow": 1},
 }
