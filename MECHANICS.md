@@ -187,6 +187,10 @@ Notes so far:
 - **Markers are not unique:** Nettie and Taylor both carry 15; Marcella and Brenda both carry 14. 15 has turned up on four of seven sheep (Taylor, Nettie, Santos, Jay), so markers are not a uniform 0-15 draw.
 - Marker circles may be coloured (the video showed a red 0 over a blue 1; Jay's second marker was reported as "red"). **Each number has its own colour, and some look alike.** Seen: 0 red, 1 blue (video, and Laurie), 2 light green, 4 cyan, 5 yellow, 10 light green, 13 orange, 14 purple, 15 green. A "number mod 8" pattern was ruled out by 5 (yellow) vs 13 (orange); 2 and 10 are probably two close shades. Read the number, not the colour. Jay's "red" second marker: number still to read.
 
+## Overnight experiment (test server)
+
+Started 2026-10-05 04:56 (local): one pen, **9 adults, no lambs** - rams Taylor, Steve, Milton Junior; ewes Lou, Dale, Terri, Marie, Lori, Nettie. Left unattended about 12 hours with full troughs, rams and ewes together. Questions: how many lambs, does crowding stop breeding by itself (overall < 70%), starvation and trough use, sex ratio. Result: to record next session.
+
 ## Goal and strategy (provisional)
 
 - **God ram / bull:** a male that is Good/Good on all five genes. Every offspring of his expresses Good on every gene, whatever the mother carries.
