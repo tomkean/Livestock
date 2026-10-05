@@ -57,7 +57,8 @@ export class PlanView extends View {
         const target = this.container.querySelector('#trip');
         let trip, settings;
         try {
-            [trip, settings] = await Promise.all([api.get(`/api/trip?species=${this.species}`), api.get('/api/settings')]);
+            const keep = (this.planned || []).join(',');
+            [trip, settings] = await Promise.all([api.get(`/api/trip?species=${this.species}&keep_ids=${keep}`), api.get('/api/settings')]);
         } catch (e) {
             target.innerHTML = `<p class="error">${esc(e.message)}</p>`;
             return;
@@ -77,7 +78,8 @@ export class PlanView extends View {
                 <div><h3>Buy</h3><ul>${buy}</ul></div>
             </div>
             ${trip.missing.length ? `<p class="warn">No animal shows green on ${trip.missing.join(', ')} yet: keep buying until every gene shows green somewhere.</p>` : ''}
-            <p class="hint">Only grown animals sell. Never sold: the best ${this.species === 'cow' ? 'bulls' : 'rams'}, and any animal that is the last one showing green on a gene.</p>`;
+            <p class="hint">Only grown animals sell. Never sold: the best ${this.species === 'cow' ? 'bulls' : 'rams'}, any animal that is the last one showing green on a gene,
+                and${this.planned ? '' : ' (once you press Plan)'} any animal the plan wants to mate now.</p>`;
     }
 
     async runPlan() {
@@ -97,6 +99,9 @@ export class PlanView extends View {
             return;
         }
         button.disabled = false;
+        // Animals the plan wants to mate now are never offered for sale on the barn trip.
+        this.planned = (plan.matings || []).flatMap(m => [m.female_id, m.male_id]);
+        this.showTrip();
         if (!plan.possible) {
             target.innerHTML = `<p class="warn">${esc(plan.reason || 'No plan is possible with this herd.')}</p>`;
             return;

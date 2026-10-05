@@ -408,8 +408,12 @@ def breeding_plan(species: str = "sheep", runs: int = 150, session: Session = De
 
 
 @app.get("/api/trip")
-def barn_trip(species: str = "sheep", session: Session = Depends(get_session)):
-    """What to sell and buy on the next trip to the barn, within what the truck carries."""
+def barn_trip(species: str = "sheep", keep_ids: str = "", session: Session = Depends(get_session)):
+    """What to sell and buy on the next trip to the barn, within what the truck carries.
+
+    keep_ids: comma-separated animals the latest plan wants to mate, which are never offered for sale.
+    """
+    planned = {int(x) for x in keep_ids.split(",") if x.strip().isdigit()}
     settings = settings_store.load()
     now = datetime.now(timezone.utc)
     animals = []
@@ -418,7 +422,7 @@ def barn_trip(species: str = "sheep", session: Session = Depends(get_session)):
         born = _utc(a.born_at)
         view.is_lamb = a.sex == "?" or (born is not None and (now - born).total_seconds() < planner.GROWTH * 60)
         animals.append(view)
-    return planner.trip_plan(animals, species, settings.get("vehicle", "single"), settings.get("pen_capacity") or {})
+    return planner.trip_plan(animals, species, settings.get("vehicle", "single"), settings.get("pen_capacity") or {}, planned)
 
 
 @app.get("/api/events")
