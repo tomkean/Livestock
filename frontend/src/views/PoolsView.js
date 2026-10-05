@@ -55,7 +55,8 @@ export class PoolsView extends View {
                 </div>
             </div>
             <p class="hint">Each harem's ram mates his ewes by himself: no arranging matings. Keep each harem to ${cfg.harem_ewes || 8} ewes
-                (crowding stops breeding) and keep the harems more than 20 m apart, or check that walls separate them.
+                (crowding stops breeding). Crowding counts sheep within about 3 m, so spread them out: several troughs
+                at different spots, no corners to pile into. Separate rooms need no gap between them.
                 Capture every newborn: it gets a verdict here straight away.</p>
             <div class="panel">
                 <h3>Moves to make</h3>
