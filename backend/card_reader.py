@@ -265,19 +265,35 @@ PORTRAIT_BOX = (-10, -140, 110, 110)  # x, y, w, h of the card's portrait from t
 LAMB_MAX_SCORE = 0.9  # adult portraits matched the adult template at >= 0.98, lambs at <= 0.75
 
 
-def is_lamb(image: np.ndarray, anchor) -> bool:
-    """Lambs have their own portrait; every adult (ram or ewe) shares one."""
+# Every adult of a species shares one portrait; a cow's scored 0.14 against the sheep's.
+ADULT_PORTRAITS = {"sheep": "adult_portrait.png", "cow": "adult_portrait_cow.png"}
+
+
+def adult_species(image: np.ndarray, anchor) -> str | None:
+    """The species whose adult portrait the card shows, or None (a lamb or calf, or no portrait found)."""
     x, y, s, _ = anchor
     px, py, pw, ph = (int(round(v * s)) for v in PORTRAIT_BOX)
     crop = image[max(y + py, 0):y + py + ph, max(x + px, 0):x + px + pw]
-    tpl = cv2.imread(str(TEMPLATE_DIR / "adult_portrait.png"), cv2.IMREAD_GRAYSCALE)
-    if s != 1:
-        tpl = cv2.resize(tpl, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
-    tpl = tpl[5:-5, 5:-5]
+    if crop.size == 0:
+        return None
     gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-    if gray.shape[0] < tpl.shape[0] or gray.shape[1] < tpl.shape[1]:
-        return False
-    return float(cv2.matchTemplate(gray, tpl, cv2.TM_CCOEFF_NORMED).max()) < LAMB_MAX_SCORE
+    best, best_score = None, LAMB_MAX_SCORE
+    for species, name in ADULT_PORTRAITS.items():
+        tpl = cv2.imread(str(TEMPLATE_DIR / name), cv2.IMREAD_GRAYSCALE)
+        if s != 1:
+            tpl = cv2.resize(tpl, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
+        tpl = tpl[5:-5, 5:-5]
+        if gray.shape[0] < tpl.shape[0] or gray.shape[1] < tpl.shape[1]:
+            continue
+        score = float(cv2.matchTemplate(gray, tpl, cv2.TM_CCOEFF_NORMED).max())
+        if score >= best_score:
+            best, best_score = species, score
+    return best
+
+
+def is_lamb(image: np.ndarray, anchor) -> bool:
+    """Lambs have their own portrait; every adult of a species shares one."""
+    return adult_species(image, anchor) is None
 
 
 def read_card(image: np.ndarray) -> dict:
@@ -325,7 +341,8 @@ def read_card(image: np.ndarray) -> dict:
         "name": read_name(image, name_box),
         # The AGE line is only trustworthy on lambs: adult cards have shown "0 SECONDS" and ages far too low.
         "conditions": read_conditions(image, anchor),
-        "lamb": (lamb := is_lamb(image, anchor)),
+        "species": (species := adult_species(image, anchor)),  # None for lambs: their portrait isn't known per species
+        "lamb": (lamb := species is None),
         "age_minutes": read_age(image, anchor) if lamb else None,
     }
 

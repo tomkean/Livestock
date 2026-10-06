@@ -220,6 +220,7 @@ export class CaptureView extends View {
         this.drawPreviews();
         const fields = { genes_top: reading.genes_top, herd_top: reading.herd_top, name: reading.name || '' };
         if (reading.genes_bottom) Object.assign(fields, { genes_bottom: reading.genes_bottom, herd_bottom: reading.herd_bottom });
+        if (reading.species) fields.species = reading.species;
         if (reading.lamb) fields.sex = '?';  // horns only show once grown...
         Object.assign(fields, this.parentageFromName(reading.name));  // ...unless the name gives it away
         this.ageMinutes = reading.lamb ? reading.age_minutes : null;
