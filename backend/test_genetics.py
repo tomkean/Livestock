@@ -68,10 +68,11 @@ class MatingOdds(unittest.TestCase):
         # A recorded mating tips the balance.
         found = genetics.likely_parents(dale, herd, mated_pairs={(2, 10)})
         self.assertEqual((found[0]["mother_id"], found[0]["father_id"]), (2, 10))
-        # So does being in the lamb's building: Elsie and Taylor were in the harem, Nettie wasn't.
-        found = genetics.likely_parents(dale, herd, present={1, 10})
+        # So does where they were: Elsie was in Taylor's harem when the lamb was conceived, Nettie wasn't.
+        pens = {1: "H1", 2: "H2", 10: "H1", 11: "H2"}
+        found = genetics.likely_parents(dale, herd, places=lambda m, f: (pens.get(m.id) == pens.get(f.id), True))
         self.assertEqual((found[0]["mother_id"], found[0]["father_id"]), (1, 10))
-        self.assertTrue(found[0]["same_building"])
+        self.assertTrue(found[0]["together"])
         self.assertGreater(found[0]["chance"], 0.9)
 
     def test_parent_finder_skips_parents_too_young(self):

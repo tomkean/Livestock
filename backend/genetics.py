@@ -202,17 +202,17 @@ def _could_parent(parent, child) -> bool:
     return (c - p).total_seconds() / 60 >= CONCEPTION_LEAD_MIN
 
 
-ELSEWHERE = 0.05  # weight for a parent that wasn't in the lamb's building when it was conceived
+ELSEWHERE = 0.05  # weight for each place rule a pair breaks (see likely_parents)
 
 
 def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 5, dists: dict | None = None,
-                   present: set | None = None) -> list[dict]:
+                   places=None) -> list[dict]:
     """Mother × father pairs that could have produced the child, most likely first, with relative chances.
 
-    A pair with a recorded mating is weighted 10× (it's where lambs usually come from). `present` is the animals that
-    were in the lamb's building when it was conceived: in a harem the parents are almost always among them, so each
-    parent from elsewhere costs a factor of 20 (not ruled out: the building records can be wrong). The chances are
-    relative to the other candidates, not absolute.
+    A pair with a recorded mating is weighted 10× (it's where lambs usually come from). `places(mother, father)` says
+    whether the pair were together when the lamb was conceived and whether the mother was in the lamb's building at
+    its birth (a ewe moved while pregnant conceived in her old harem, by its ram). Each rule broken costs a factor of
+    20, not a veto: the building records can be wrong. The chances are relative to the other candidates.
     """
     child_id = getattr(child, "id", None)
     pool = [a for a in animals if a.species == child.species and getattr(a, "id", None) != child_id
@@ -228,12 +228,13 @@ def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 
             if p > 0:
                 if (m.id, f.id) in mated_pairs:
                     p *= 10
-                if present is not None:
-                    p *= (1 if m.id in present else ELSEWHERE) * (1 if f.id in present else ELSEWHERE)
-                scored.append((p, m, f))
-    total = sum(p for p, _, _ in scored)
+                together = None
+                if places is not None:
+                    together, mother_there = places(m, f)
+                    p *= (1 if together else ELSEWHERE) * (1 if mother_there else ELSEWHERE)
+                scored.append((p, m, f, together))
+    total = sum(s[0] for s in scored)
     scored.sort(key=lambda s: -s[0])
     return [{"mother_id": m.id, "father_id": f.id, "chance": p / total, "mated": (m.id, f.id) in mated_pairs,
-             "reveals": [x.id for x in (m, f) if x.sex == "?"],
-             "same_building": present is not None and m.id in present and f.id in present}
-            for p, m, f in scored[:limit]]
+             "reveals": [x.id for x in (m, f) if x.sex == "?"], "together": bool(together)}
+            for p, m, f, together in scored[:limit]]

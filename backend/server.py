@@ -388,14 +388,19 @@ def _parents(session: Session, child) -> list[dict]:
                if a.status not in ("sold", "dead") or gone_at.get(a.id, conceived) >= conceived]
     mated = {(e.animal_id, e.other_id) for e in session.exec(select(Event).where(Event.kind == "mated"))}
     inf = inferred(session)
-    present = None
+    # Where everyone was when it was conceived (the father was with the mother then) and when it was born (beside its
+    # mother). A ewe moved between harems while pregnant still points at her old harem's ram.
+    then, now_pens = pens_at(session, conceived), pens_at(session, born)
     pen = getattr(child, "pen", "") or ""
-    if pen:
-        present = {i for i, p in pens_at(session, conceived).items() if p == pen}
+
+    def places(m, f):
+        together = bool(then.get(m.id)) and then.get(m.id) == then.get(f.id)
+        mother_there = not pen or now_pens.get(m.id) == pen
+        return together, mother_there
     child_view = visible(child)
     child_view.born_at = born  # so parents too young for it are ruled out, even for a lamb just captured
     return genetics.likely_parents(child_view, animals, mated, dists=inf["posterior"] if inf else None,
-                                   present=present)
+                                   places=places)
 
 
 @app.post("/api/parents")

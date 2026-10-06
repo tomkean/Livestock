@@ -14,7 +14,7 @@ export function renderParents(target, candidates, animalsById, onUse) {
     target.innerHTML = `<table class="parents-table">${candidates.map((c, i) => `
         <tr>
             <td>♀ <b>${name(c.mother_id)}</b> × ♂ <b>${name(c.father_id)}</b></td>
-            <td class="muted">${Math.round(c.chance * 100)}%${c.mated ? ' · mating recorded' : ''}${c.same_building ? ' · both in its building' : ''}</td>
+            <td class="muted">${Math.round(c.chance * 100)}%${c.mated ? ' · mating recorded' : ''}${c.together ? ' · together when it was conceived' : ''}</td>
             <td><button data-use="${i}">Use</button></td>
         </tr>`).join('')}</table>
         <p class="hint">Chances are relative to the other pairs that fit.</p>`;
