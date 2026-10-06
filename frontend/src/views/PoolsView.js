@@ -101,11 +101,14 @@ export class PoolsView extends View {
             const young = inside.filter(a => (a.sex !== 'M' && a.sex !== 'F') || growing(a));
             const rams = inside.filter(a => a.sex === 'M' && !young.includes(a)).sort((x, y) => heads.has(y.id) - heads.has(x.id));
             const ewes = inside.filter(a => a.sex === 'F');
+            const planned = kind === 'harem' ? byId[plan.harems[name]?.ram] : null;
+            const waiting = planned && planned.pen !== name ? planned : null;  // its ram is elsewhere (e.g. overnight)
             const sorted = (list) => list.sort((x, y) => (order[plan.verdicts[x.id]?.verdict] ?? -1) - (order[plan.verdicts[y.id]?.verdict] ?? -1));
             return `
                 <section class="pen pool${kind === 'holding' ? ' holding' : ''}">
                     <h2>${esc(name)} <span class="muted">(${kind})</span> <span class="count">${inside.length} / ${cfg.site_cap || 9}</span></h2>
-                    ${rams.length ? `<h3>Rams</h3>${grid(rams)}` : kind === 'harem' ? '<h3>Rams</h3><p class="empty">No ram</p>' : ''}
+                    ${waiting ? `<p class="warn">Harem ram: <b>${esc(waiting.name || waiting.code)}</b>, now in ${esc(waiting.pen || 'no building')} - move him here</p>` : ''}
+                    ${rams.length ? `<h3>Rams</h3>${grid(rams)}` : kind === 'harem' && !waiting ? '<h3>Rams</h3><p class="empty">No ram</p>' : ''}
                     ${ewes.filter(a => !young.includes(a)).length ? `<h3>Ewes</h3>${grid(sorted(ewes.filter(a => !young.includes(a))))}` : ''}
                     ${young.length ? `<h3>Lambs and unsexed</h3>${grid(sorted(young))}` : ''}
                     ${inside.length ? '' : '<p class="empty">Empty</p>'}
