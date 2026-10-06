@@ -54,10 +54,15 @@ export class PoolsView extends View {
         }).join('');
         const overflow = (plan.overflow || []).length
             ? `<p class="warn">Holding is full: ${plan.overflow.map(id => esc(byId[id]?.name || id)).join(', ')} won't fit - sell or cull.</p>` : '';
-        // More than about 9 within 20 m and every one drops to ~30% personal space, too low to breed (floors don't help).
-        const herdSize = Object.keys(plan.pen).length;
-        const crowded = herdSize > (cfg.site_cap || 9)
-            ? `<p class="warn">${herdSize} in the herd: over ${cfg.site_cap || 9} and they all lose personal space and stop breeding. Sell, cull or move some over 4 foundations away.</p>` : '';
+        // Each harem and holding area is its own building, 5+ foundations from the others. Past 9 of a species in one
+        // (lambs and wild ones included) personal space falls ~17 points per animal: 10 still breeds, 11 doesn't.
+        const cap = cfg.site_cap || 9;
+        const here = animals.filter(a => a.species === this.species && a.status === 'alive');
+        const crowded = [...Object.keys(plan.harems), ...rooms].map(site => {
+            const n = here.filter(a => a.pen === site).length;
+            return n > cap ? `<p class="warn">${esc(site)} has ${n}: over ${cap} they lose personal space (${n === cap + 1 ? 'about 83%, still breeding' : 'too low to breed'}). Move, sell or cull ${n - cap}.</p>` : '';
+        }).join('');
+        const loggingOff = `<p class="hint">Logging off: move every harem ram to ${esc(rooms[0] || 'holding')}, or the ewes keep lambing overnight and the harem overcrowds and starves.</p>`;
 
         this.container.innerHTML = `
             <div class="toolbar">
@@ -79,7 +84,7 @@ export class PoolsView extends View {
                 ${plan.moves.length ? `<ul>${plan.moves.map(m => `<li><b>${esc(m.name)}</b>: ${esc(m.from || 'not placed')} → ${esc(m.to)}</li>`).join('')}</ul>
                     <button id="btn-apply" class="primary">I've moved them - record it</button>` : '<p class="hint">Everyone is where they should be.</p>'}
             </div>
-            ${crowded}${overflow}
+            ${crowded}${overflow}${loggingOff}
             <div class="pools">${harems}${holdingHtml}</div>`;
 
         this.container.querySelectorAll('[data-species]').forEach(btn => btn.addEventListener('click', () => {
