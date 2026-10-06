@@ -377,8 +377,8 @@ def pens_at(session: Session, when: datetime) -> dict[int, str]:
 
 
 def _parents(session: Session, child) -> list[dict]:
-    # Conceived 10 minutes before birth; a lamb just captured was born around now.
-    born = _utc(getattr(child, "born_at", None) or datetime.now(timezone.utc))
+    # Conceived 10 minutes before birth. Birth time unknown: when it was first registered, or now for a fresh capture.
+    born = _utc(getattr(child, "born_at", None) or getattr(child, "created_at", None) or datetime.now(timezone.utc))
     conceived = born - timedelta(minutes=planner.GESTATION)
     # Sold and dead animals can be parents of lambs conceived before they went, but not after.
     gone_at = {}
@@ -392,7 +392,9 @@ def _parents(session: Session, child) -> list[dict]:
     pen = getattr(child, "pen", "") or ""
     if pen:
         present = {i for i, p in pens_at(session, conceived).items() if p == pen}
-    return genetics.likely_parents(visible(child), animals, mated, dists=inf["posterior"] if inf else None,
+    child_view = visible(child)
+    child_view.born_at = born  # so parents too young for it are ruled out, even for a lamb just captured
+    return genetics.likely_parents(child_view, animals, mated, dists=inf["posterior"] if inf else None,
                                    present=present)
 
 
