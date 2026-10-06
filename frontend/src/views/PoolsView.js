@@ -54,6 +54,10 @@ export class PoolsView extends View {
         }).join('');
         const overflow = (plan.overflow || []).length
             ? `<p class="warn">Holding is full: ${plan.overflow.map(id => esc(byId[id]?.name || id)).join(', ')} won't fit - sell or cull.</p>` : '';
+        // More than about 9 within 20 m and every one drops to ~30% personal space, too low to breed (floors don't help).
+        const herdSize = Object.keys(plan.pen).length;
+        const crowded = herdSize > (cfg.site_cap || 9)
+            ? `<p class="warn">${herdSize} in the herd: over ${cfg.site_cap || 9} and they all lose personal space and stop breeding. Sell, cull or move some over 4 foundations away.</p>` : '';
 
         this.container.innerHTML = `
             <div class="toolbar">
@@ -74,7 +78,7 @@ export class PoolsView extends View {
                 ${plan.moves.length ? `<ul>${plan.moves.map(m => `<li><b>${esc(m.name)}</b>: ${esc(m.from || 'not placed')} → ${esc(m.to)}</li>`).join('')}</ul>
                     <button id="btn-apply" class="primary">I've moved them - record it</button>` : '<p class="hint">Everyone is where they should be.</p>'}
             </div>
-            ${overflow}
+            ${crowded}${overflow}
             <div class="pools">${harems}${holdingHtml}</div>`;
 
         this.container.querySelectorAll('[data-species]').forEach(btn => btn.addEventListener('click', () => {
