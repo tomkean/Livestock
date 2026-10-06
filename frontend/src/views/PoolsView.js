@@ -16,6 +16,14 @@ function skippedMoves() {
     try { return new Set(JSON.parse(localStorage.getItem(SKIPPED_KEY) || '[]')); } catch (e) { return new Set(); }
 }
 
+// A lamb can't usefully be moved into a harem until it's grown: say how long that is.
+function growingNote(a) {
+    if (!a?.born_at) return '';
+    const born = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(a.born_at) ? a.born_at : a.born_at + 'Z');
+    const left = Math.ceil(60 - (Date.now() - born) / 60000);
+    return left > 0 ? ` <span class="muted">(lamb: grown in ${left} min)</span>` : '';
+}
+
 function saveSkipped(set) {
     try { localStorage.setItem(SKIPPED_KEY, JSON.stringify([...set])); } catch (e) { /* only a convenience */ }
 }
@@ -141,7 +149,8 @@ export class PoolsView extends View {
             <div class="panel">
                 <h3>Moves to make</h3>
                 <p class="hint">Easier by day: at night sleeping sheep break off the lead.</p>
-                ${moves.length ? `<ul class="moves">${moves.map(m => `<li><b>${esc(m.name)}</b>: ${esc(m.from || 'not placed')} → ${esc(m.to)}
+                ${moves.length ? `<ul class="moves">${moves.map(m => `<li><b>${esc(m.name)}</b>: ${esc(m.from || 'not placed')} → ${esc(m.to)}${growingNote(byId[m.id])}
+                        <button class="done" data-done="${m.id}" title="Done: record this move">✓</button>
                         <button class="skip" data-skip="${m.id}>${esc(m.to)}" title="Can't do this one: skip it">✕</button></li>`).join('')}</ul>
                     <button id="btn-apply" class="primary">I've made these moves - record them</button>
                     <button id="btn-skip-all">Skip them all</button>` : `<p class="hint">${plan.moves.length ? 'All suggested moves skipped.' : 'Everyone is where they should be.'}</p>`}
@@ -165,6 +174,14 @@ export class PoolsView extends View {
             document.getElementById('moves-badge')?.classList.add('hidden');
             this.render();
         });
+        this.container.querySelectorAll('[data-done]').forEach(btn => btn.addEventListener('click', async () => {
+            try {
+                await api.post(`/api/pools/apply?species=${this.species}`, { ids: [Number(btn.dataset.done)] });
+                this.render();
+            } catch (e) {
+                toast(e.message, 'error');
+            }
+        }));
         this.container.querySelectorAll('[data-skip]').forEach(btn => btn.addEventListener('click', () => {
             const set = skippedMoves();
             set.add(btn.dataset.skip);
