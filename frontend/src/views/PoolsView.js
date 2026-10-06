@@ -69,43 +69,54 @@ export class PoolsView extends View {
             return;
         }
         const byId = Object.fromEntries(animals.map(a => [a.id, a]));
-        const card = (id) => {
-            const a = byId[id];
-            if (!a) return '';
-            const v = plan.verdicts[id];
-            const verdict = v ? `<div class="verdict v-${v.verdict}"><b>${VERDICT_LABEL[v.verdict]}</b> ${esc(v.reason)}</div>` : '';
-            const moving = a.pen !== plan.pen[id] ? `<div class="hint">now: ${esc(a.pen || 'not placed')}</div>` : '';
-            return `<div class="pool-card">${animalCardHtml(a)}${moving}${verdict}</div>`;
-        };
         const cfg = plan.config || {};
         const skipped = skippedMoves();
         const moves = plan.moves.filter(m => !skipped.has(`${m.id}>${m.to}`));
         const skippedHere = plan.moves.filter(m => skipped.has(`${m.id}>${m.to}`));
-        const harems = Object.entries(plan.harems).map(([name, h]) => `
-            <section class="pen pool">
-                <h2>${esc(name)} <span class="count">${h.ewes.length} / ${cfg.harem_ewes || 8} ewes</span></h2>
-                <h3>Ram</h3>
-                <div class="pen-grid">${h.ram ? card(h.ram) : '<p class="empty">No ram yet</p>'}</div>
-                <h3>Ewes</h3>
-                <div class="pen-grid">${h.ewes.map(card).join('') || '<p class="empty">None</p>'}</div>
-            </section>`).join('');
-        const order = { promote: 0, keep: 1, sell: 2, cull: 3 };
+        const here = animals.filter(a => a.species === this.species && a.status === 'alive');
         const rooms = plan.holding_rooms || [cfg.holding];
-        const holdingHtml = rooms.map(room => {
-            const ids = Object.entries(plan.pen).filter(([, pen]) => pen === room).map(([id]) => Number(id));
-            ids.sort((a, b) => order[plan.verdicts[a]?.verdict] - order[plan.verdicts[b]?.verdict]);
+        const heads = new Set(Object.values(plan.harems).map(h => h.ram).filter(Boolean));
+        const order = { promote: 0, keep: 1, sell: 2, cull: 3 };
+        // Each card sits in the building the animal is in now; the plan shows as a note.
+        const card = (a) => {
+            const v = plan.verdicts[a.id];
+            const verdict = v ? `<div class="verdict v-${v.verdict}"><b>${VERDICT_LABEL[v.verdict]}</b> ${esc(v.reason)}</div>` : '';
+            const to = plan.pen[a.id];
+            const moving = to && to !== a.pen && !skipped.has(`${a.id}>${to}`) ? `<div class="hint move">→ move to <b>${esc(to)}</b></div>` : '';
+            const role = heads.has(a.id) ? `<div class="hint">harem ram${to && to !== a.pen ? ` for ${esc(to)}` : ''}</div>` : '';
+            return `<div class="pool-card">${animalCardHtml(a)}${role}${moving}${verdict}</div>`;
+        };
+        const grid = (list) => `<div class="pen-grid">${list.map(card).join('') || '<p class="empty">None</p>'}</div>`;
+        const section = (name, kind) => {
+            const inside = here.filter(a => a.pen === name);
+            const growing = (a) => { const t = a.born_at && new Date(/[zZ]|[+-]\d\d:\d\d$/.test(a.born_at) ? a.born_at : a.born_at + 'Z'); return t && Date.now() - t < 60 * 60000; };
+            const young = inside.filter(a => (a.sex !== 'M' && a.sex !== 'F') || growing(a));
+            const rams = inside.filter(a => a.sex === 'M' && !young.includes(a)).sort((x, y) => heads.has(y.id) - heads.has(x.id));
+            const ewes = inside.filter(a => a.sex === 'F');
+            const sorted = (list) => list.sort((x, y) => (order[plan.verdicts[x.id]?.verdict] ?? -1) - (order[plan.verdicts[y.id]?.verdict] ?? -1));
             return `
-                <section class="pen pool holding">
-                    <h2>${esc(room)} <span class="muted">(holding)</span> <span class="count">${ids.length} / ${cfg.holding_size || 4}</span></h2>
-                    <div class="pen-grid">${ids.map(card).join('') || '<p class="empty">Empty</p>'}</div>
+                <section class="pen pool${kind === 'holding' ? ' holding' : ''}">
+                    <h2>${esc(name)} <span class="muted">(${kind})</span> <span class="count">${inside.length} / ${cfg.site_cap || 9}</span></h2>
+                    ${rams.length ? `<h3>Rams</h3>${grid(rams)}` : kind === 'harem' ? '<h3>Rams</h3><p class="empty">No ram</p>' : ''}
+                    ${ewes.filter(a => !young.includes(a)).length ? `<h3>Ewes</h3>${grid(sorted(ewes.filter(a => !young.includes(a))))}` : ''}
+                    ${young.length ? `<h3>Lambs and unsexed</h3>${grid(sorted(young))}` : ''}
+                    ${inside.length ? '' : '<p class="empty">Empty</p>'}
                 </section>`;
-        }).join('');
+        };
+        const harems = Object.keys(plan.harems).map(name => section(name, 'harem')).join('');
+        const holdingHtml = rooms.map(room => section(room, 'holding')).join('');
+        const known = new Set([...Object.keys(plan.harems), ...rooms]);
+        const unplaced = here.filter(a => !known.has(a.pen));
+        const unplacedHtml = unplaced.length ? `
+                <section class="pen pool">
+                    <h2>Not placed <span class="muted">(set the building on the Herd tab, or use Where I am)</span> <span class="count">${unplaced.length}</span></h2>
+                    ${grid(unplaced)}
+                </section>` : '';
         const overflow = (plan.overflow || []).length
             ? `<p class="warn">Holding is full: ${plan.overflow.map(id => esc(byId[id]?.name || id)).join(', ')} won't fit - sell or cull.</p>` : '';
         // Each harem and holding area is its own building, 5+ foundations from the others. Past 9 of a species in one
         // (lambs and wild ones included) personal space falls ~17 points per animal: 10 still breeds, 11 doesn't.
         const cap = cfg.site_cap || 9;
-        const here = animals.filter(a => a.species === this.species && a.status === 'alive');
         const crowded = [...Object.keys(plan.harems), ...rooms].map(site => {
             const n = here.filter(a => a.pen === site).length;
             return n > cap ? `<p class="warn">${esc(site)} has ${n}: over ${cap} they lose personal space (${n === cap + 1 ? 'about 83%, still breeding' : 'too low to breed'}). Move, sell or cull ${n - cap}.</p>` : '';
@@ -142,7 +153,7 @@ export class PoolsView extends View {
                 <ul>${headcount}</ul>
             </div>
             ${crowded}${overflow}${loggingOff}
-            <div class="pools">${harems}${holdingHtml}</div>`;
+            <div class="pools">${harems}${holdingHtml}${unplacedHtml}</div>`;
 
         this.container.querySelectorAll('[data-species]').forEach(btn => btn.addEventListener('click', () => {
             this.species = btn.dataset.species;
