@@ -41,9 +41,19 @@ export class PoolsView extends View {
                 <h3>Ewes</h3>
                 <div class="pen-grid">${h.ewes.map(card).join('') || '<p class="empty">None</p>'}</div>
             </section>`).join('');
-        const holding = Object.entries(plan.pen).filter(([, pen]) => pen === cfg.holding).map(([id]) => Number(id));
         const order = { promote: 0, keep: 1, sell: 2, cull: 3 };
-        holding.sort((a, b) => order[plan.verdicts[a]?.verdict] - order[plan.verdicts[b]?.verdict]);
+        const rooms = plan.holding_rooms || [cfg.holding];
+        const holdingHtml = rooms.map(room => {
+            const ids = Object.entries(plan.pen).filter(([, pen]) => pen === room).map(([id]) => Number(id));
+            ids.sort((a, b) => order[plan.verdicts[a]?.verdict] - order[plan.verdicts[b]?.verdict]);
+            return `
+                <section class="pen pool holding">
+                    <h2>${esc(room)} <span class="muted">(holding)</span> <span class="count">${ids.length} / ${cfg.holding_size || 4}</span></h2>
+                    <div class="pen-grid">${ids.map(card).join('') || '<p class="empty">Empty</p>'}</div>
+                </section>`;
+        }).join('');
+        const overflow = (plan.overflow || []).length
+            ? `<p class="warn">Holding is full: ${plan.overflow.map(id => esc(byId[id]?.name || id)).join(', ')} won't fit - sell or cull.</p>` : '';
 
         this.container.innerHTML = `
             <div class="toolbar">
@@ -63,12 +73,8 @@ export class PoolsView extends View {
                 ${plan.moves.length ? `<ul>${plan.moves.map(m => `<li><b>${esc(m.name)}</b>: ${esc(m.from || 'not placed')} → ${esc(m.to)}</li>`).join('')}</ul>
                     <button id="btn-apply" class="primary">I've moved them - record it</button>` : '<p class="hint">Everyone is where they should be.</p>'}
             </div>
-            <div class="pools">${harems}
-                <section class="pen pool">
-                    <h2>${esc(cfg.holding || 'Holding')} <span class="count">${holding.length}</span></h2>
-                    <div class="pen-grid">${holding.map(card).join('') || '<p class="empty">Empty</p>'}</div>
-                </section>
-            </div>`;
+            ${overflow}
+            <div class="pools">${harems}${holdingHtml}</div>`;
 
         this.container.querySelectorAll('[data-species]').forEach(btn => btn.addEventListener('click', () => {
             this.species = btn.dataset.species;

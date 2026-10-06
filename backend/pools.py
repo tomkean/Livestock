@@ -46,8 +46,14 @@ def _value(goods, weights) -> float:
     return sum(w * (c + max(0.0, c - 1)) for w, c in zip(weights, goods))
 
 
-def arrange(animals, target: str, posterior: dict | None, harems: list[str], holding: str, harem_ewes: int = 8) -> dict:
-    """Suggested pen for every animal, plus a verdict and a reason for each one in holding."""
+def arrange(animals, target: str, posterior: dict | None, harems: list[str], holding, harem_ewes: int = 8,
+            holding_size: int = 4) -> dict:
+    """Suggested pen for every animal, plus a verdict and a reason for each one in holding.
+
+    `holding` is one room name or a list of them; animals waiting there fill the rooms in order, `holding_size` each
+    (best first, so the ones most worth keeping get a place and any overflow is the least valuable)."""
+    holding_rooms = [holding] if isinstance(holding, str) else list(holding)
+    holding = holding_rooms[0]
     belief = beliefs(animals, target, posterior)
     weights = _weights(list(belief.values()))
     value = {a.id: _value(belief[a.id], weights) for a in animals}
@@ -120,7 +126,22 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
                 verdict, reason = "cull", "no better than what the harems have, whatever its sex"
         verdicts[a.id] = {"verdict": verdict, "reason": reason}
 
+    # Spread the animals waiting in holding across the holding rooms, most valuable first.
+    order = {"promote": 0, "keep": 1, "sell": 2, "cull": 3}
+    waiting = sorted((a for a in animals if pen[a.id] == holding),
+                     key=lambda a: (order[verdicts[a.id]["verdict"]], -value[a.id]))
+    overflow = []
+    for k, a in enumerate(waiting):
+        room = k // max(1, holding_size)
+        if room < len(holding_rooms):
+            pen[a.id] = holding_rooms[room]
+        else:
+            pen[a.id] = holding_rooms[-1]
+            overflow.append(a.id)
+
     return {
+        "holding_rooms": holding_rooms,
+        "overflow": overflow,
         "pen": pen,
         "harems": {h: {"ram": head_of[h].id if h in head_of else None, "ewes": [e.id for e in members[h]]} for h in harems},
         "verdicts": verdicts,

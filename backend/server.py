@@ -506,7 +506,7 @@ def _pools_view(session: Session, species: str) -> tuple[list, dict]:
     inf = inferred(session)
     result = pools.arrange(animals, settings.get("target_genes") or "DLYFH", inf["posterior"] if inf else None,
                            cfg.get("harems") or ["Harem #1", "Harem #2"], cfg.get("holding") or "Death Row",
-                           int(cfg.get("harem_ewes") or 8))
+                           int(cfg.get("harem_ewes") or 5), int(cfg.get("holding_size") or 4))
     return animals, {**result, "config": cfg}
 
 
