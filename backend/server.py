@@ -644,6 +644,10 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
 
     animal = _match_reading(session, reading)
     if animal is None:
+        # A card caught while opening, blurred or half off-screen reads as unknown genes: wait for a clean look rather
+        # than filing a "new" animal that is really a bad read of one already seen.
+        if "?" in reading["genes_top"] or reading.get("herd_top") is None or not reading.get("conditions"):
+            return {"card": True, "unclear": True}
         filed = _auto_seen.get("new:" + sig)
         if filed and (now - filed[0]).total_seconds() < AUTO_NEW_COOLDOWN_SECONDS:
             return {"card": True, "new": True, "filed": False}
