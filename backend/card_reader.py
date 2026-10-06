@@ -226,6 +226,41 @@ def read_age(image: np.ndarray, anchor) -> float | None:
     return int(match.group(1)) * AGE_UNIT_MINUTES[match.group(2)]
 
 
+# Conditions: located by the "CONDITIONS" heading (its height on the card depends on which lines sit above it), then
+# each bar's filled length is read along a thin band under the text. Matched the printed values within ~1 point.
+CONDITION_SEARCH = (0, 200, 260, 800)  # x, y, w, h below the anchor to look for the heading
+CONDITION_ROWS = {"food": 70, "water": 135, "personal_space": 200, "overall": 262}  # bar centre below the heading
+BAR_X = (384, 710)  # bar start and end, from the anchor
+BAR_BAND = (20, 26)  # rows below each bar's centre: below the printed number
+BAR_FILLED = 110  # grey level: the filled part of a bar is light, the empty part dark
+
+
+def read_conditions(image: np.ndarray, anchor) -> dict | None:
+    """Food, water, personal space and overall as percentages, measured from the bars."""
+    tpl = cv2.imread(str(TEMPLATE_DIR / "conditions.png"), cv2.IMREAD_GRAYSCALE)
+    x, y, s, _ = anchor
+    if s != 1:
+        tpl = cv2.resize(tpl, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
+    sx, sy, sw, sh = (int(round(v * s)) for v in CONDITION_SEARCH)
+    region = cv2.cvtColor(image[y + sy:y + sy + sh, x + sx:x + sx + sw], cv2.COLOR_BGR2GRAY)
+    if region.shape[0] < tpl.shape[0] or region.shape[1] < tpl.shape[1]:
+        return None
+    _, score, _, (_, hy) = cv2.minMaxLoc(cv2.matchTemplate(region, tpl, cv2.TM_CCOEFF_NORMED))
+    if score < 0.7:
+        return None
+    top = y + sy + hy
+    b0, b1 = (int(round(v * s)) for v in BAR_BAND)
+    x0, x1 = (int(round(v * s)) for v in BAR_X)
+    out = {}
+    for name, dy in CONDITION_ROWS.items():
+        row = top + int(round(dy * s))
+        band = image[row + b0:row + b1, x + x0:x + x1]
+        if band.size == 0:
+            return None
+        out[name] = round(100 * float((cv2.cvtColor(band, cv2.COLOR_BGR2GRAY).mean(axis=0) > BAR_FILLED).mean()))
+    return out
+
+
 PORTRAIT_BOX = (-10, -140, 110, 110)  # x, y, w, h of the card's portrait from the anchor
 LAMB_MAX_SCORE = 0.9  # adult portraits matched the adult template at >= 0.98, lambs at <= 0.75
 
@@ -289,6 +324,7 @@ def read_card(image: np.ndarray) -> dict:
         "name_box": name_box,
         "name": read_name(image, name_box),
         # The AGE line is only trustworthy on lambs: adult cards have shown "0 SECONDS" and ages far too low.
+        "conditions": read_conditions(image, anchor),
         "lamb": (lamb := is_lamb(image, anchor)),
         "age_minutes": read_age(image, anchor) if lamb else None,
     }

@@ -24,7 +24,13 @@ class Animal(SQLModel, table=True):
     herd_bottom: Optional[int] = None
     pregnant: bool = False
     born_at: Optional[datetime] = None
-    pen: str = ""  # Pools mode: which room it lives in (e.g. Harem #1, Death Row); empty if not placed  # from the card's AGE line at capture; lambs grow up 60 min later
+    pen: str = ""
+    # Latest conditions read off its card (automatic capture), and when.
+    food: Optional[int] = None
+    water: Optional[int] = None
+    personal_space: Optional[int] = None
+    overall: Optional[int] = None
+    seen_at: Optional[datetime] = None  # Pools mode: which room it lives in (e.g. Harem #1, Death Row); empty if not placed  # from the card's AGE line at capture; lambs grow up 60 min later
     status: str = "alive"  # alive | sold | dead | missing
     mother_id: Optional[int] = Field(default=None, foreign_key="animal.id")
     father_id: Optional[int] = Field(default=None, foreign_key="animal.id")

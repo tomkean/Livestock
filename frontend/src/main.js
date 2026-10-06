@@ -1,5 +1,5 @@
 import './style.css';
-import { connect, on, setCapturer } from './services/socket.js';
+import { connect, on, send, setCapturer } from './services/socket.js';
 import { ScreenCaptureService } from './services/ScreenCaptureService.js';
 import { captureLocal, requestCapture } from './services/captureActions.js';
 import { refreshCaptureBadge, toast } from './ui.js';
@@ -10,6 +10,7 @@ import { PlanView } from './views/PlanView.js';
 import { PoolsView } from './views/PoolsView.js';
 import { api } from './services/api.js';
 import { lambStatus } from './components/lambTimer.js';
+import { isAutoOn, onAutoChange, startAuto, stopAuto } from './services/autoCapture.js';
 
 const VIEWS = { herd: HerdView, capture: CaptureView, pools: PoolsView, plan: PlanView, log: LogView };
 let currentView = null;
@@ -44,8 +45,47 @@ function updateShareStatus() {
 document.querySelectorAll('#tabs button').forEach(btn => btn.addEventListener('click', () => showTab(btn.dataset.tab)));
 document.getElementById('btn-capture').addEventListener('click', () => requestCapture());
 
+// Automatic capture runs on the browser sharing the screen; any device can switch it on or off.
+let autoRemote = false;
+function showAuto(on) {
+    const btn = document.getElementById('btn-auto');
+    btn.textContent = on ? 'Auto: on' : 'Auto: off';
+    btn.classList.toggle('primary', on);
+}
+document.getElementById('btn-auto').addEventListener('click', () => {
+    if (ScreenCaptureService.isCapturing()) {
+        isAutoOn() ? stopAuto() : startAuto();
+    } else if (!send({ type: 'auto_capture', enabled: !autoRemote })) {
+        toast('Not connected to the backend', 'error');
+    } else if (sharers === 0) {
+        toast('No browser is sharing the gaming PC screen', 'warn');
+    }
+});
+onAutoChange(on => {
+    showAuto(on);
+    send({ type: 'auto_status', enabled: on });
+});
+on('auto_capture', msg => {
+    if (!ScreenCaptureService.isCapturing()) return;
+    msg.enabled ? startAuto() : stopAuto();
+});
+on('auto_status', msg => {
+    autoRemote = msg.enabled;
+    if (!ScreenCaptureService.isCapturing()) showAuto(msg.enabled);
+});
+let lastSeenToast = 0;
+on('auto_seen', msg => {
+    currentView?.onAutoSeen?.(msg);
+    if (Date.now() - lastSeenToast > 4000) {
+        lastSeenToast = Date.now();
+        const low = msg.overall != null && msg.overall < 70;
+        toast(`${msg.name}: food ${msg.food ?? '?'}%, overall ${msg.overall ?? '?'}%`, low ? 'warn' : 'info');
+    }
+});
+
 ScreenCaptureService.onStatusChange(status => {
     setCapturer(status === 'active');
+    if (status !== 'active') stopAuto();
     updateShareStatus();
 });
 

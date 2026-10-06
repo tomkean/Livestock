@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from typing import Optional
 
 import cv2
+import numpy as np
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -591,6 +592,86 @@ def read_capture(capture_id: int, session: Session = Depends(get_session)):
     return card_reader.read_card(image)
 
 
+_auto_seen: dict = {}  # card signature -> (time, conditions): skip repeats of the same view
+AUTO_REPEAT_SECONDS = 30
+AUTO_NEW_COOLDOWN_SECONDS = 600  # a new, unmatched animal is filed as a capture at most this often
+
+
+def _signature(reading: dict) -> str:
+    return f"{reading.get('name') or ''}|{reading['genes_top']}|{reading.get('herd_top')}"
+
+
+def _match_reading(session: Session, reading: dict) -> Optional[Animal]:
+    """The herd animal a card belongs to: same name (when read) and same top row and first marker."""
+    candidates = session.exec(select(Animal).where(Animal.status.in_(["alive", "missing"]))).all()
+    name = (reading.get("name") or "").lower()
+    top, herd = reading["genes_top"], reading.get("herd_top")
+
+    def fits(a):
+        same_genes = all(r == "?" or r == g for r, g in zip(top, a.genes_top))
+        return same_genes and (herd is None or a.herd_top is None or a.herd_top == herd)
+    named = [a for a in candidates if name and (a.name or "").lower() == name and fits(a)]
+    if len(named) == 1:
+        return named[0]
+    unnamed = [a for a in candidates if fits(a) and "?" not in top and herd is not None and a.herd_top == herd]
+    return unnamed[0] if len(unnamed) == 1 and not name else None
+
+
+@app.post("/api/autocapture")
+async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_height: int = 0, crop_x: int = 0,
+                      crop_y: int = 0, session: Session = Depends(get_session)):
+    """A strip of screen sent every few seconds by the browser sharing the gaming PC's screen.
+
+    No card: ignored. A known animal: its conditions (and pregnancy, lamb age) are updated quietly. A new animal: the
+    frame is filed as a pending capture for the player to confirm, at most once every few minutes."""
+    data = np.frombuffer(await file.read(), np.uint8)
+    strip = cv2.imdecode(data, cv2.IMREAD_COLOR)
+    if strip is None:
+        raise HTTPException(422, "not an image")
+    h, w = strip.shape[:2]
+    full_width, full_height = max(full_width, crop_x + w), max(full_height, crop_y + h)
+    frame = np.zeros((full_height, full_width, 3), np.uint8)
+    frame[crop_y:crop_y + h, crop_x:crop_x + w] = strip
+    reading = card_reader.read_card(frame)
+    if not reading.get("found"):
+        return {"card": False}
+    now = datetime.now(timezone.utc)
+    sig = _signature(reading)
+    last = _auto_seen.get(sig)
+    if last and (now - last[0]).total_seconds() < AUTO_REPEAT_SECONDS and last[1] == reading.get("conditions"):
+        return {"card": True, "repeat": True}
+    _auto_seen[sig] = (now, reading.get("conditions"))
+
+    animal = _match_reading(session, reading)
+    if animal is None:
+        filed = _auto_seen.get("new:" + sig)
+        if filed and (now - filed[0]).total_seconds() < AUTO_NEW_COOLDOWN_SECONDS:
+            return {"card": True, "new": True, "filed": False}
+        _auto_seen["new:" + sig] = (now, None)
+        name = f"{now:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}.jpg"
+        cv2.imwrite(str(CAPTURE_DIR / name), frame)
+        capture = Capture(path=name, width=full_width, height=full_height)
+        session.add(capture)
+        session.commit()
+        session.refresh(capture)
+        await hub.broadcast({"type": "capture_ready", "capture": capture.model_dump(mode="json"), "auto": True})
+        return {"card": True, "new": True, "filed": True, "name": reading.get("name")}
+
+    cond = reading.get("conditions") or {}
+    for key in ("food", "water", "personal_space", "overall"):
+        if cond.get(key) is not None:
+            setattr(animal, key, cond[key])
+    animal.seen_at = now
+    if animal.status == "missing":
+        animal.status = "alive"
+        log(session, "alive", animal.id, notes="found (automatic capture)")
+    if reading.get("lamb") and reading.get("age_minutes") is not None and animal.born_at is None:
+        animal.born_at = now - timedelta(minutes=reading["age_minutes"])
+    session.commit()
+    await hub.broadcast({"type": "auto_seen", "id": animal.id, "name": animal.name or animal.code, **cond})
+    return {"card": True, "id": animal.id, "name": animal.name or animal.code, "conditions": cond}
+
+
 @app.delete("/api/captures/{capture_id}")
 def dismiss_capture(capture_id: int, session: Session = Depends(get_session)):
     capture = session.get(Capture, capture_id)
@@ -651,6 +732,11 @@ async def websocket_endpoint(ws: WebSocket):
             if msg.get("type") == "hello":
                 hub.clients[ws] = bool(msg.get("capturer"))
                 await hub.broadcast_status()
+            elif msg.get("type") == "auto_capture":
+                # Turn automatic capture on or off on the browser sharing the screen, from any device.
+                await hub.broadcast({"type": "auto_capture", "enabled": bool(msg.get("enabled"))}, capturers_only=True)
+            elif msg.get("type") == "auto_status":
+                await hub.broadcast({"type": "auto_status", "enabled": bool(msg.get("enabled"))})
             elif msg.get("type") == "request_capture":
                 if not await hub.request_capture():
                     await ws.send_json({"type": "capture_warning",

@@ -42,6 +42,14 @@ export function animalCardHtml(a) {
     ].join('');
     const lamb = a.status === 'alive' ? lambStatus(a) : null;
     const timer = lamb ? `<div class="lamb-timer${lamb.due ? ' due' : ''}" data-animal="${a.id}">${esc(lamb.text)}</div>` : '';
+    // Latest conditions from automatic capture. Below 70% overall it won't breed; low food is the starvation warning.
+    const seen = a.seen_at ? new Date(/[zZ]|[+-]\d\d:\d\d$/.test(a.seen_at) ? a.seen_at : a.seen_at + 'Z') : null;
+    const ago = seen ? Math.max(0, Math.round((Date.now() - seen) / 60000)) : null;
+    const conditions = a.overall == null ? '' : `
+        <div class="conditions${a.overall < 70 || (a.food != null && a.food < 50) ? ' low' : ''}">
+            Food ${a.food ?? '?'}% · Space ${a.personal_space ?? '?'}% · Overall <b>${a.overall}%</b>
+            <span class="muted">${ago == null ? '' : ago < 1 ? 'just now' : ago < 120 ? `${ago} min ago` : `${Math.round(ago / 60)} h ago`}</span>
+        </div>`;
     // Chance of Good/Good on every target gene - on a live server the only way to know a god animal when you have one.
     const gg = a.good_good || {};
     const godChance = a.target_chance == null ? '' : `
@@ -61,6 +69,7 @@ export function animalCardHtml(a) {
             <div class="card-name">${nameImage}${a.name && a.name !== a.code ? `<span class="tag id">${esc(a.code)}</span>` : ''}</div>
             ${geneDots(a)}
             ${godChance}
+            ${conditions}
             ${timer}
             <div class="card-tags">${badges}</div>
         </div>`;

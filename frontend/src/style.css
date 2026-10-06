@@ -199,6 +199,9 @@ main { padding: 16px 20px; }
 
 .lamb-timer { font-size: 13px; color: var(--muted); margin-top: 4px; }
 .god-chance { font-size: 13px; margin-top: 4px; }
+.conditions { font-size: 13px; margin-top: 4px; }
+.conditions b { color: #fff; }
+.conditions.low, .conditions.low b { color: var(--bad); }
 .god-chance b { color: #fff; }
 .god-chance.high b { color: var(--good); }
 .lamb-timer.due, .pill.due { color: #e0a030; border-color: #e0a030; font-weight: 700; }

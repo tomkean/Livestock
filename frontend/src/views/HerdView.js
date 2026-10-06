@@ -226,6 +226,11 @@ This is for mistakes and duplicates: its history is removed and `
             </div>`;
     }
 
+    // Automatic capture saw an animal: refresh the pens (cheap) unless the detail panel is open for editing.
+    onAutoSeen() {
+        if (!this.selectedId) this.render();
+    }
+
     async recordMating() {
         const mother_id = Number(this.container.querySelector('#mate-f').value);
         const father_id = Number(this.container.querySelector('#mate-m').value);

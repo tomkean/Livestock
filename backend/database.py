@@ -19,6 +19,11 @@ ADDED_COLUMNS = [
     ("animal", "name", "VARCHAR NOT NULL DEFAULT ''"),
     ("animal", "born_at", "DATETIME"),
     ("animal", "pen", "VARCHAR NOT NULL DEFAULT ''"),
+    ("animal", "food", "INTEGER"),
+    ("animal", "water", "INTEGER"),
+    ("animal", "personal_space", "INTEGER"),
+    ("animal", "overall", "INTEGER"),
+    ("animal", "seen_at", "DATETIME"),
 ]
 
 
