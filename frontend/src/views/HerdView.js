@@ -23,10 +23,14 @@ export class HerdView extends View {
     }
 
     async render() {
-        [this.animals, this.settings] = await Promise.all([
-            api.get(`/api/animals?include_gone=${this.showGone}`),
+        let everyone;
+        [everyone, this.settings] = await Promise.all([
+            api.get('/api/animals?include_gone=true'),
             api.get('/api/settings')
         ]);
+        // Missing animals always show, in their own strip, so one that turns up can be put straight back.
+        const missing = everyone.filter(a => a.status === 'missing');
+        this.animals = this.showGone ? everyone : everyone.filter(a => a.status === 'alive');
         const alive = this.animals.filter(a => a.status === 'alive');
         // Lambs (still growing, whatever their sex) and unsexed animals together; the ram and ewe pens hold grown animals.
         const now = new Date();
@@ -60,11 +64,30 @@ export class HerdView extends View {
                         <label><input type="checkbox" id="show-gone" ${this.showGone ? 'checked' : ''}> Show sold / dead / missing</label>
                     </div>
                     <div id="odds"></div>
+                    ${missing.length ? `
+                    <section class="pen missing">
+                        <h2>Missing <span class="count">${missing.length}</span> <span class="muted">found one? press Found</span></h2>
+                        <ul class="missing-list">${missing.map(a => `<li><b>${esc(a.name || a.code)}</b> ${esc(a.genes_top)}
+                            <span class="muted">${esc(a.pen ? 'last in ' + a.pen : '')}</span>
+                            <button data-found="${a.id}">Found</button></li>`).join('')}</ul>
+                    </section>` : ''}
                     <div class="pens">${pen('?', 'Lambs (growing) and unsexed')}${pen('M', 'Males')}${pen('F', 'Females')}</div>
                 </div>
                 <aside id="detail" class="panel ${this.selectedId ? '' : 'hidden'}"></aside>
             </div>`;
 
+        this.container.querySelectorAll('[data-found]').forEach(btn => btn.addEventListener('click', async () => {
+            const a = missing.find(m => m.id === Number(btn.dataset.found));
+            const where = prompt(`Where did you find ${a.name || a.code}? (building name; blank keeps ${a.pen || 'unplaced'})`, a.pen || '');
+            if (where === null) return;
+            try {
+                await api.patch(`/api/animals/${a.id}`, { status: 'alive', ...(where.trim() ? { pen: where.trim() } : {}) });
+                toast(`${a.name || a.code} is back`);
+                this.render();
+            } catch (e) {
+                toast(e.message, 'error');
+            }
+        }));
         this.container.querySelectorAll('.animal-card').forEach(el =>
             el.addEventListener('click', () => this.select(Number(el.dataset.id))));
         this.container.querySelector('#show-gone').addEventListener('change', e => {
