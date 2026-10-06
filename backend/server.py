@@ -521,11 +521,18 @@ def pools_plan(species: str = "sheep", session: Session = Depends(get_session)):
     return result
 
 
+class ApplyIn(BaseModel):
+    ids: Optional[list[int]] = None  # only these animals' moves (the ones the player made); None = all
+
+
 @app.post("/api/pools/apply")
-def pools_apply(species: str = "sheep", session: Session = Depends(get_session)):
-    """Record the suggested rooms as where every animal now is (do the moves in game first)."""
+def pools_apply(species: str = "sheep", body: Optional[ApplyIn] = None, session: Session = Depends(get_session)):
+    """Record the suggested rooms as where the moved animals now are (do the moves in game first)."""
     _, result = _pools_view(session, species)
+    only = set(body.ids) if body and body.ids is not None else None
     for animal_id, pen in result["pen"].items():
+        if only is not None and animal_id not in only:
+            continue
         a = session.get(Animal, animal_id)
         if a.pen != pen:
             log(session, "moved", a.id, notes=f"{a.pen or 'unplaced'} -> {pen}")

@@ -137,8 +137,11 @@ async function refreshMoves() {
     const badge = document.getElementById('moves-badge');
     try {
         const plan = await api.get('/api/pools?species=sheep');
-        badge.textContent = plan.moves.length;
-        badge.classList.toggle('hidden', plan.moves.length === 0);
+        let skipped = new Set();
+        try { skipped = new Set(JSON.parse(localStorage.getItem('livestock.skippedMoves') || '[]')); } catch (e) {}
+        const open = plan.moves.filter(m => !skipped.has(`${m.id}>${m.to}`)).length;
+        badge.textContent = open;
+        badge.classList.toggle('hidden', open === 0);
     } catch (e) {
         badge.classList.add('hidden');
     }

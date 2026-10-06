@@ -10,6 +10,15 @@ const VERDICT_LABEL = { promote: 'Promote', keep: 'Keep', cull: 'Cull', sell: 'S
  * the moves to get there, and a verdict for everything in holding.
  */
 const RECENT_MIN = 15;
+const SKIPPED_KEY = 'livestock.skippedMoves';  // moves the player said can't be done right now ("id>to")
+
+function skippedMoves() {
+    try { return new Set(JSON.parse(localStorage.getItem(SKIPPED_KEY) || '[]')); } catch (e) { return new Set(); }
+}
+
+function saveSkipped(set) {
+    try { localStorage.setItem(SKIPPED_KEY, JSON.stringify([...set])); } catch (e) { /* only a convenience */ }
+}
 const PS_PER_ANIMAL = 17.5;  // personal space lost per animal over the cap: 10 = 83%, 11 = 65%, 12 = 48%, 13+ = 30%
 
 function seenAt(a) {
@@ -24,7 +33,7 @@ function siteHeadcount(site, animals, cap) {
         .filter(a => a.personal_space != null && seenAt(a) && Date.now() - seenAt(a) < RECENT_MIN * 60000)
         .map(a => a.personal_space)
         .sort((x, y) => x - y);
-    const known = `${members.length} registered`;
+    const known = `${members.length} registered${members.length ? ` (${members.map(a => esc(a.name || a.code)).join(', ')})` : ''}`;
     if (!readings.length) return `<li><b>${esc(site)}</b>: ${known}, no recent cards</li>`;
     const ps = readings[Math.floor(readings.length / 2)];
     let inRange, text;
@@ -69,6 +78,9 @@ export class PoolsView extends View {
             return `<div class="pool-card">${animalCardHtml(a)}${moving}${verdict}</div>`;
         };
         const cfg = plan.config || {};
+        const skipped = skippedMoves();
+        const moves = plan.moves.filter(m => !skipped.has(`${m.id}>${m.to}`));
+        const skippedHere = plan.moves.filter(m => skipped.has(`${m.id}>${m.to}`));
         const harems = Object.entries(plan.harems).map(([name, h]) => `
             <section class="pen pool">
                 <h2>${esc(name)} <span class="count">${h.ewes.length} / ${cfg.harem_ewes || 8} ewes</span></h2>
@@ -118,8 +130,11 @@ export class PoolsView extends View {
             <div class="panel">
                 <h3>Moves to make</h3>
                 <p class="hint">Easier by day: at night sleeping sheep break off the lead.</p>
-                ${plan.moves.length ? `<ul>${plan.moves.map(m => `<li><b>${esc(m.name)}</b>: ${esc(m.from || 'not placed')} → ${esc(m.to)}</li>`).join('')}</ul>
-                    <button id="btn-apply" class="primary">I've moved them - record it</button>` : '<p class="hint">Everyone is where they should be.</p>'}
+                ${moves.length ? `<ul class="moves">${moves.map(m => `<li><b>${esc(m.name)}</b>: ${esc(m.from || 'not placed')} → ${esc(m.to)}
+                        <button class="skip" data-skip="${m.id}>${esc(m.to)}" title="Can't do this one: skip it">✕</button></li>`).join('')}</ul>
+                    <button id="btn-apply" class="primary">I've made these moves - record them</button>
+                    <button id="btn-skip-all">Skip them all</button>` : `<p class="hint">${plan.moves.length ? 'All suggested moves skipped.' : 'Everyone is where they should be.'}</p>`}
+                ${skippedHere.length ? `<p class="hint">${skippedHere.length} skipped. <button id="btn-unskip">Show them again</button></p>` : ''}
             </div>
             <div class="panel">
                 <h3>Headcount</h3>
@@ -134,9 +149,27 @@ export class PoolsView extends View {
             this.render();
         }));
         this.container.querySelector('#btn-apply')?.addEventListener('click', async () => {
-            await api.post(`/api/pools/apply?species=${this.species}`);
-            toast('Rooms recorded');
+            await api.post(`/api/pools/apply?species=${this.species}`, { ids: moves.map(m => m.id) });
+            toast('Moves recorded');
             document.getElementById('moves-badge')?.classList.add('hidden');
+            this.render();
+        });
+        this.container.querySelectorAll('[data-skip]').forEach(btn => btn.addEventListener('click', () => {
+            const set = skippedMoves();
+            set.add(btn.dataset.skip);
+            saveSkipped(set);
+            this.render();
+        }));
+        this.container.querySelector('#btn-skip-all')?.addEventListener('click', () => {
+            const set = skippedMoves();
+            moves.forEach(m => set.add(`${m.id}>${m.to}`));
+            saveSkipped(set);
+            this.render();
+        });
+        this.container.querySelector('#btn-unskip')?.addEventListener('click', () => {
+            const set = skippedMoves();
+            skippedHere.forEach(m => set.delete(`${m.id}>${m.to}`));
+            saveSkipped(set);
             this.render();
         });
     }
