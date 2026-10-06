@@ -386,6 +386,9 @@ def _parents(session: Session, child) -> list[dict]:
         gone_at[e.animal_id] = max(gone_at.get(e.animal_id, _utc(e.at)), _utc(e.at))
     animals = [visible(a) for a in session.exec(select(Animal)).all()
                if a.status not in ("sold", "dead") or gone_at.get(a.id, conceived) >= conceived]
+    for a in animals:  # bred here and captured as a lamb: registered within the hour it was born
+        if a.born_at is None and a.origin == "bred":
+            a.born_at = a.created_at
     mated = {(e.animal_id, e.other_id) for e in session.exec(select(Event).where(Event.kind == "mated"))}
     inf = inferred(session)
     # Where everyone was when it was conceived (the father was with the mother then) and when it was born (beside its
