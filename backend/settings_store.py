@@ -20,6 +20,9 @@ DEFAULTS = {
     "second_row_visible": False,
     # Pools mode rooms: harems (one ram each, mating freely) and a holding room. Names are free text.
     # 5 ewes: a clump of 6 sheep bottomed out at 73% personal space, just above the 70% breeding threshold.
+    # Where the player is (picked on the Capture tab until Rust+ can tell): a building name, "Vendor" or "".
+    # Automatic capture files every animal it recognises under this building, and captures are tagged with it.
+    "location": "",
     "pools": {"harems": ["Harem #1", "Harem #2"], "holding": "Death Row", "harem_ewes": 7, "holding_size": 7, "site_cap": 9},
 }
 

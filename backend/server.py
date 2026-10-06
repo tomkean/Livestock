@@ -573,7 +573,7 @@ async def upload_capture(file: UploadFile = File(...), session: Session = Depend
     except Exception:
         path.unlink(missing_ok=True)
         raise HTTPException(422, "upload is not an image")
-    capture = Capture(path=name, width=width, height=height)
+    capture = Capture(path=name, width=width, height=height, location=settings_store.load().get("location") or "")
     session.add(capture)
     session.commit()
     session.refresh(capture)
@@ -655,7 +655,7 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
         _auto_seen["new:" + sig] = (now, None)
         name = f"{now:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}.jpg"
         cv2.imwrite(str(CAPTURE_DIR / name), frame)
-        capture = Capture(path=name, width=full_width, height=full_height)
+        capture = Capture(path=name, width=full_width, height=full_height, location=settings_store.load().get("location") or "")
         session.add(capture)
         session.commit()
         session.refresh(capture)
@@ -672,6 +672,15 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
         log(session, "alive", animal.id, notes="found (automatic capture)")
     if reading.get("lamb") and reading.get("age_minutes") is not None and animal.born_at is None:
         animal.born_at = now - timedelta(minutes=reading["age_minutes"])
+    # Seen while the player says they're in a building: that's where it is.
+    settings = settings_store.load()
+    pools_cfg = settings.get("pools") or {}
+    holding = pools_cfg.get("holding") or []
+    buildings = list(pools_cfg.get("harems") or []) + ([holding] if isinstance(holding, str) else list(holding))
+    here = settings.get("location") or ""
+    if here in buildings and animal.pen != here:
+        log(session, "moved", animal.id, notes=f"{animal.pen or 'not placed'} -> {here} (seen there)")
+        animal.pen = here
     session.commit()
     await hub.broadcast({"type": "auto_seen", "id": animal.id, "name": animal.name or animal.code, **cond})
     return {"card": True, "id": animal.id, "name": animal.name or animal.code, "conditions": cond}

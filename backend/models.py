@@ -59,3 +59,4 @@ class Capture(SQLModel, table=True):
     height: int
     animal_id: Optional[int] = Field(default=None, foreign_key="animal.id")
     dismissed: bool = False
+    location: str = ""  # where the player said they were (a building, or "Vendor" for offer screens)

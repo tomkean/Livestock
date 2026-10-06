@@ -162,6 +162,7 @@ main { padding: 16px 20px; }
 .capture-layout { display: flex; gap: 16px; align-items: flex-start; }
 .capture-list { width: 240px; flex: none; }
 .share-controls { display: flex; flex-direction: column; gap: 6px; }
+.where { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; font-weight: 600; }
 .captures { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .captures li { display: flex; align-items: center; gap: 6px; padding: 4px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; }
 .captures li.selected { border-color: var(--accent); }
