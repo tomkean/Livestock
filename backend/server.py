@@ -377,15 +377,20 @@ def pens_at(session: Session, when: datetime) -> dict[int, str]:
 
 
 def _parents(session: Session, child) -> list[dict]:
-    animals = [visible(a) for a in session.exec(select(Animal)).all()]  # sold and dead animals may still be parents
+    # Conceived 10 minutes before birth; a lamb just captured was born around now.
+    born = _utc(getattr(child, "born_at", None) or datetime.now(timezone.utc))
+    conceived = born - timedelta(minutes=planner.GESTATION)
+    # Sold and dead animals can be parents of lambs conceived before they went, but not after.
+    gone_at = {}
+    for e in session.exec(select(Event).where(Event.kind.in_(["sold", "dead"]))):
+        gone_at[e.animal_id] = max(gone_at.get(e.animal_id, _utc(e.at)), _utc(e.at))
+    animals = [visible(a) for a in session.exec(select(Animal)).all()
+               if a.status not in ("sold", "dead") or gone_at.get(a.id, conceived) >= conceived]
     mated = {(e.animal_id, e.other_id) for e in session.exec(select(Event).where(Event.kind == "mated"))}
     inf = inferred(session)
     present = None
     pen = getattr(child, "pen", "") or ""
     if pen:
-        # Conceived 10 minutes before birth; a lamb just captured was born around now.
-        born = _utc(getattr(child, "born_at", None) or datetime.now(timezone.utc))
-        conceived = born - timedelta(minutes=planner.GESTATION)
         present = {i for i, p in pens_at(session, conceived).items() if p == pen}
     return genetics.likely_parents(visible(child), animals, mated, dists=inf["posterior"] if inf else None,
                                    present=present)
