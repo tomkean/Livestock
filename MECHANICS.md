@@ -44,7 +44,7 @@ Thursday 2026-10-01. Fixes on **`main/Livestock_animals/livestock_hotfixes`** ar
 | #166724 | 10-05 | **Personal space rework:** pen area (navmesh flood fill, m²) sets personal space directly; free-range cows stop breeding at a herd cap |
 
 **Two crowding rules, confirmed 2026-10-06 - the worse one sets personal space:**
-1. **Herd count within 20 m** (wiki: comfortable with up to 8 herd mates, crowded beyond 12). In the new 2-floor 5×5 farm (≈15 m across) every sheep had the whole herd within 20 m: with 36 sheep and with 16, every one showed 29-30%, in its pen, in the corridor and just outside the building. Halving the sheep per pen changed nothing. A sheep led well away from the building rose gradually to 100% (the stat moves over time, it doesn't jump). Stacking floors doesn't help (3 m up is still within 20 m).
+1. **Herd count within 20 m** (wiki: comfortable with up to 8 herd mates, crowded beyond 12). In the new 2-floor 5×5 farm (≈15 m across) every sheep had the whole herd within 20 m: with 36 sheep and with 16, every one showed 29-30%, in its pen, in the corridor and just outside the building. Halving the sheep per pen changed nothing. A sheep led about 10 foundations (~30 m) from the building rose gradually to 100%; the minimum distance wasn't measured (the stat moves over time, it doesn't jump). Stacking floors doesn't help (3 m up is still within 20 m).
 2. **Close packing within ~3 m** (commit #166277): the sheep in the middle of a clump loses some (77%, 73%) even when the herd count is fine.
 
 **Design consequence:** about 9 sheep per site (one plus 8 herd mates) at full personal space; separate sites at least 20 m apart. How personal space falls between 9 and 16 is still to measure (breeding needs 70%). The area-based rework (#166724) may replace rule 1 for penned animals when it ships.
@@ -54,7 +54,7 @@ Thursday 2026-10-01. Fixes on **`main/Livestock_animals/livestock_hotfixes`** ar
 **Crowding is local:** #166277 shows personal space counts animals within **3 m** (crowded 4, severe packing 6) - changed on the feature branch to 2.5 m / 5 / 9, so production is probably still 3 m / 4 / 6. Not 20 m or 200 m as some web sources say. Design for it: spread sheep out, several troughs at different points rather than one (a single trough gathers everyone), no corners to pile into; separate rooms need no gap between them.
 
 Consequences: several of our findings may be temporary bugs (starving at troughs, wrong ages, no sex on cards). The wiki's "8 herd mates within 20 m"
-looks outdated; for the build we tested, bunching (packing within a few metres) is the likelier mechanism. After #166724, enclosed floor area per animal decides it.
+is live (confirmed 2026-10-06, see the crowding rules below), alongside packing within ~3 m. After #166724, enclosed floor area per animal decides it.
 
 ## Published figures (RustHelp wiki, Facepunch, hosting guides, 2026-10-04)
 
