@@ -14,8 +14,8 @@ class Pools(unittest.TestCase):
         self.herd = [a(1, "M", "GGGGG", "GGOOO"), a(2, "M", "GOOOO", "OOOOO"), a(3, "M", "OOOOO", "OOOOO"),
                      a(4, "F", "GGGOO", "GOOOO"), a(5, "F", "OOOGG", "OOOGG"), a(6, "F", "OOOOO", "OOOOO")]
 
-    def arrange(self, herd, ewes=8):
-        return pools.arrange(herd, "DLYFH", None, ["H1", "H2"], "Row", ewes)
+    def arrange(self, herd, ewes=8, holding_size=4):
+        return pools.arrange(herd, "DLYFH", None, ["H1", "H2"], "Row", ewes, holding_size)
 
     def test_best_rams_head_the_harems_and_the_rest_wait(self):
         r = self.arrange(self.herd)
@@ -23,12 +23,18 @@ class Pools(unittest.TestCase):
         self.assertEqual(r["pen"][3], "Row")
         self.assertEqual(r["verdicts"][3]["verdict"], "sell")
 
-    def test_a_good_lamb_is_promoted_and_a_hopeless_one_culled(self):
+    def test_a_good_lamb_is_promoted_and_a_hopeless_one_grown_to_sell(self):
         herd = self.herd + [a(7, "?", "GGGGG", "GGGGG", lamb=True), a(8, "?", "BBBBB", "BBBBB", lamb=True)]
         r = self.arrange(herd, ewes=1)
         self.assertEqual(r["verdicts"][7]["verdict"], "promote")
         self.assertIn("if a ram", r["verdicts"][7]["reason"])
+        self.assertEqual(r["verdicts"][8]["verdict"], "sell")
+
+    def test_a_hopeless_lamb_is_culled_when_holding_is_full(self):
+        herd = self.herd + [a(8, "?", "BBBBB", "BBBBB", lamb=True)]
+        r = self.arrange(herd, ewes=1, holding_size=1)
         self.assertEqual(r["verdicts"][8]["verdict"], "cull")
+        self.assertIn("full", r["verdicts"][8]["reason"])
 
     def test_harems_never_exceed_their_size(self):
         r = self.arrange(self.herd, ewes=1)

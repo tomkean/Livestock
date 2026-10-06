@@ -126,6 +126,20 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
                 verdict, reason = "cull", "no better than what the harems have, whatever its sex"
         verdicts[a.id] = {"verdict": verdict, "reason": reason}
 
+    # A lamb not worth keeping is still worth selling once grown (an hour), so it only gets culled when holding has no
+    # room to grow it. Best lambs get the free places first.
+    places = max(1, holding_size) * len(holding_rooms)
+    taken = sum(1 for a in animals if a.id in verdicts and verdicts[a.id]["verdict"] in ("promote", "keep", "sell"))
+    unwanted = sorted((a for a in animals if verdicts.get(a.id, {}).get("verdict") == "cull"), key=lambda a: -value[a.id])
+    for a in unwanted:
+        if taken >= places:
+            break
+        verdicts[a.id] = {"verdict": "sell", "reason": f"not needed for breeding: grow it in {holding_rooms[0]} for an hour, then sell"}
+        taken += 1
+    for a in unwanted:
+        if verdicts[a.id]["verdict"] == "cull":
+            verdicts[a.id]["reason"] += f" - and {holding_rooms[0]} is full"
+
     # Spread the animals waiting in holding across the holding rooms, most valuable first.
     order = {"promote": 0, "keep": 1, "sell": 2, "cull": 3}
     waiting = sorted((a for a in animals if pen[a.id] == holding),
