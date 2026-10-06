@@ -70,6 +70,7 @@ export function animalCardHtml(a) {
             ${geneDots(a)}
             ${godChance}
             ${conditions}
+            ${a.wool_per_hour ? `<div class="hint">Wool ${Math.round(a.wool_per_hour)} an hour</div>` : ''}
             ${timer}
             <div class="card-tags">${badges}</div>
         </div>`;

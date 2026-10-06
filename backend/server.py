@@ -717,6 +717,8 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
         if cond.get(key) is not None:
             setattr(animal, key, cond[key])
     animal.seen_at = now
+    if (reading.get("yield") or {}).get("per_hour"):
+        animal.wool_per_hour = reading["yield"]["per_hour"]
     if animal.status == "missing":
         animal.status = "alive"
         log(session, "alive", animal.id, notes="found (automatic capture)")

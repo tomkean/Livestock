@@ -30,7 +30,9 @@ class Animal(SQLModel, table=True):
     water: Optional[int] = None
     personal_space: Optional[int] = None
     overall: Optional[int] = None
-    seen_at: Optional[datetime] = None  # Pools mode: which room it lives in (e.g. Harem #1, Death Row); empty if not placed  # from the card's AGE line at capture; lambs grow up 60 min later
+    seen_at: Optional[datetime] = None
+    # From the card's YIELD line: set by the expressed Y gene (Good 320, Ok 120, Bad 45 an hour; inbred one grade less).
+    wool_per_hour: Optional[float] = None  # Pools mode: which room it lives in (e.g. Harem #1, Death Row); empty if not placed  # from the card's AGE line at capture; lambs grow up 60 min later
     status: str = "alive"  # alive | sold | dead | missing
     mother_id: Optional[int] = Field(default=None, foreign_key="animal.id")
     father_id: Optional[int] = Field(default=None, foreign_key="animal.id")

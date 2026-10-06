@@ -226,6 +226,35 @@ def read_age(image: np.ndarray, anchor) -> float | None:
     return int(match.group(1)) * AGE_UNIT_MINUTES[match.group(2)]
 
 
+# The YIELD line sits under AGE: "16 Wool per 3 minutes". White text over a part-filled light bar, so only the
+# near-white pixels are text.
+YIELD_BOX = (380, 213, 380, 48)  # x, y, w, h of the YIELD value from the anchor
+YIELD_PATTERN = re.compile(r"(\d+)\s*W\w*\s*PER\s*(\d+)\s*(SEC|MIN|HOU)")
+YIELD_UNIT_MINUTES = {"SEC": 1 / 60, "MIN": 1, "HOU": 60}
+YIELD_TEXT = 225  # grey level: text is near-white, the bar behind it light grey
+
+
+def read_yield(image: np.ndarray, anchor) -> dict | None:
+    """Wool (or milk) per period from the YIELD line, as {"amount", "minutes", "per_hour"}."""
+    if not _tesseract_ready():
+        return None
+    x, y, s, _ = anchor
+    bx, by, bw, bh = (int(round(v * s)) for v in YIELD_BOX)
+    crop = image[y + by:y + by + bh, x + bx:x + bx + bw]
+    if crop.size == 0:
+        return None
+    gray = cv2.resize(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY), None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    _, ink = cv2.threshold(gray, YIELD_TEXT, 255, cv2.THRESH_BINARY_INV)
+    text = pytesseract.image_to_string(ink, config="--psm 7").upper()
+    match = YIELD_PATTERN.search(text)
+    if not match:
+        return None
+    amount, period = int(match.group(1)), int(match.group(2)) * YIELD_UNIT_MINUTES[match.group(3)]
+    if not period:
+        return None
+    return {"amount": amount, "minutes": period, "per_hour": round(amount * 60 / period, 1)}
+
+
 # Conditions: located by the "CONDITIONS" heading (its height on the card depends on which lines sit above it), then
 # each bar's filled length is read along a thin band under the text. Matched the printed values within ~1 point.
 CONDITION_SEARCH = (0, 200, 260, 800)  # x, y, w, h below the anchor to look for the heading
@@ -341,6 +370,7 @@ def read_card(image: np.ndarray) -> dict:
         "name": read_name(image, name_box),
         # The AGE line is only trustworthy on lambs: adult cards have shown "0 SECONDS" and ages far too low.
         "conditions": read_conditions(image, anchor),
+        "yield": read_yield(image, anchor),
         "species": (species := adult_species(image, anchor)),  # None for lambs: their portrait isn't known per species
         "lamb": (lamb := species is None),
         "age_minutes": read_age(image, anchor) if lamb else None,

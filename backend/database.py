@@ -25,6 +25,7 @@ ADDED_COLUMNS = [
     ("animal", "personal_space", "INTEGER"),
     ("animal", "overall", "INTEGER"),
     ("animal", "seen_at", "DATETIME"),
+    ("animal", "wool_per_hour", "FLOAT"),
 ]
 
 
