@@ -65,9 +65,9 @@ export class PoolsView extends View {
                 </div>
             </div>
             <p class="hint">Each harem's ram mates his ewes by himself: no arranging matings. Keep each harem to ${cfg.harem_ewes || 8} ewes
-                (crowding stops breeding). Crowding has two rules: about 9 sheep at most within 20 m of each other (walls
-                and floors don't count, so a bigger herd needs a second site at least 20 m away), and no clumps within
-                about 3 m (several troughs at different spots, no corners to pile into).
+                (crowding stops breeding). Crowding has two rules: about 6 sheep at most per floor (floors count separately;
+                walls between rooms don't), and no clumps within about 3 m (several troughs at different spots, no
+                corners to pile into).
                 Capture every newborn: it gets a verdict here straight away.</p>
             <div class="panel">
                 <h3>Moves to make</h3>
