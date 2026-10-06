@@ -75,6 +75,7 @@ export class PoolsView extends View {
                 Capture every newborn: it gets a verdict here straight away.</p>
             <div class="panel">
                 <h3>Moves to make</h3>
+                <p class="hint">Easier by day: at night sleeping sheep break off the lead.</p>
                 ${plan.moves.length ? `<ul>${plan.moves.map(m => `<li><b>${esc(m.name)}</b>: ${esc(m.from || 'not placed')} → ${esc(m.to)}</li>`).join('')}</ul>
                     <button id="btn-apply" class="primary">I've moved them - record it</button>` : '<p class="hint">Everyone is where they should be.</p>'}
             </div>
