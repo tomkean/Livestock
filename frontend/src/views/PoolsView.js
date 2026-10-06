@@ -9,6 +9,42 @@ const VERDICT_LABEL = { promote: 'Promote', keep: 'Keep', cull: 'Cull', sell: 'S
  * Pools mode: harems where each ram mates his ewes freely, plus a holding room. Shows where every animal should be,
  * the moves to get there, and a verdict for everything in holding.
  */
+const RECENT_MIN = 15;
+const PS_PER_ANIMAL = 17.5;  // personal space lost per animal over the cap: 10 = 83%, 11 = 65%, 12 = 48%, 13+ = 30%
+
+function seenAt(a) {
+    if (!a.seen_at) return null;
+    return new Date(/[zZ]|[+-]\d\d:\d\d$/.test(a.seen_at) ? a.seen_at : a.seen_at + 'Z');
+}
+
+// How many of the species the cards say are in range of a site, against how many are registered there.
+function siteHeadcount(site, animals, cap) {
+    const members = animals.filter(a => a.pen === site);
+    const readings = members
+        .filter(a => a.personal_space != null && seenAt(a) && Date.now() - seenAt(a) < RECENT_MIN * 60000)
+        .map(a => a.personal_space)
+        .sort((x, y) => x - y);
+    const known = `${members.length} registered`;
+    if (!readings.length) return `<li><b>${esc(site)}</b>: ${known}, no recent cards</li>`;
+    const ps = readings[Math.floor(readings.length / 2)];
+    let inRange, text;
+    if (ps >= 99) {
+        inRange = null;
+        text = `${cap} or fewer in range (${ps}%)`;
+    } else if (ps <= 31) {
+        inRange = cap + 4;
+        text = `${cap + 4} or more in range (${ps}%)`;
+    } else {
+        inRange = Math.round(cap + (100 - ps) / PS_PER_ANIMAL);
+        text = `about ${inRange} in range (${ps}%)`;
+    }
+    const extra = inRange == null ? 0 : inRange - members.length;
+    const verdict = extra > 0
+        ? ` <span class="warn">- ${extra}${ps <= 31 ? '+' : ''} unaccounted for: a wild one nearby or an uncaptured lamb</span>`
+        : '';
+    return `<li><b>${esc(site)}</b>: ${known}, cards say ${text}${verdict}</li>`;
+}
+
 export class PoolsView extends View {
     constructor() {
         super();
@@ -62,6 +98,7 @@ export class PoolsView extends View {
             const n = here.filter(a => a.pen === site).length;
             return n > cap ? `<p class="warn">${esc(site)} has ${n}: over ${cap} they lose personal space (${n === cap + 1 ? 'about 83%, still breeding' : 'too low to breed'}). Move, sell or cull ${n - cap}.</p>` : '';
         }).join('');
+        const headcount = [...Object.keys(plan.harems), ...rooms].map(site => siteHeadcount(site, here, cap)).join('');
         const loggingOff = `<p class="hint">Logging off: move every harem ram to ${esc(rooms[0] || 'holding')}, or the ewes keep lambing overnight and the harem overcrowds and starves.</p>`;
 
         this.container.innerHTML = `
@@ -83,6 +120,11 @@ export class PoolsView extends View {
                 <p class="hint">Easier by day: at night sleeping sheep break off the lead.</p>
                 ${plan.moves.length ? `<ul>${plan.moves.map(m => `<li><b>${esc(m.name)}</b>: ${esc(m.from || 'not placed')} → ${esc(m.to)}</li>`).join('')}</ul>
                     <button id="btn-apply" class="primary">I've moved them - record it</button>` : '<p class="hint">Everyone is where they should be.</p>'}
+            </div>
+            <div class="panel">
+                <h3>Headcount</h3>
+                <p class="hint">From personal space on cards read in the last ${RECENT_MIN} minutes: each animal over ${cap} in range costs about 17 points. More in range than registered means a wild sheep nearby or a lamb not captured yet.</p>
+                <ul>${headcount}</ul>
             </div>
             ${crowded}${overflow}${loggingOff}
             <div class="pools">${harems}${holdingHtml}</div>`;
