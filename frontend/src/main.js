@@ -132,6 +132,22 @@ async function refreshLambStatus() {
 setInterval(refreshLambStatus, 30000);
 refreshLambStatus();
 
+// Pools tab badge: how many sheep the app wants moved between rooms.
+async function refreshMoves() {
+    const badge = document.getElementById('moves-badge');
+    try {
+        const plan = await api.get('/api/pools?species=sheep');
+        badge.textContent = plan.moves.length;
+        badge.classList.toggle('hidden', plan.moves.length === 0);
+    } catch (e) {
+        badge.classList.add('hidden');
+    }
+}
+setInterval(refreshMoves, 30000);
+refreshMoves();
+on('auto_seen', () => refreshMoves());
+on('capture_ready', () => refreshMoves());
+
 connect();
 refreshCaptureBadge();
 showTab('herd');

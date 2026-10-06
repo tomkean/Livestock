@@ -83,6 +83,7 @@ export class PoolsView extends View {
         this.container.querySelector('#btn-apply')?.addEventListener('click', async () => {
             await api.post(`/api/pools/apply?species=${this.species}`);
             toast('Rooms recorded');
+            document.getElementById('moves-badge')?.classList.add('hidden');
             this.render();
         });
     }
