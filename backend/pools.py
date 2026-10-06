@@ -13,7 +13,10 @@ import genetics
 import planner
 
 N = len(genetics.GENES)
-STAY_MARGIN = 0.2  # an animal stays in its harem unless another one suits it more than 20% better
+# Moving sheep is work (and each new lamb shifts which genes are scarce), so the plan only moves an animal for a clear
+# gain: a ewe stays in her harem unless another suits her 50% better, a heading ram keeps his harem unless a challenger
+# is worth 50% more.
+STAY_MARGIN = 0.5
 
 
 def beliefs(animals, target: str, posterior: dict | None) -> dict:
@@ -60,7 +63,10 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
     value = {a.id: _value(belief[a.id], weights) for a in animals}
 
     grown = [a for a in animals if not getattr(a, "is_lamb", False)]
-    rams = sorted((a for a in grown if a.sex == "M"), key=lambda a: -value[a.id])
+    def ram_rank(a):
+        return value[a.id] * (1 + STAY_MARGIN if getattr(a, "pen", "") in harems else 1)
+
+    rams = sorted((a for a in grown if a.sex == "M"), key=lambda a: -ram_rank(a))
     heads = rams[:len(harems)]
     pen = {a.id: holding for a in animals}
     members = {h: [] for h in harems}
