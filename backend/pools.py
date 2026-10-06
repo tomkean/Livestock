@@ -13,6 +13,7 @@ import genetics
 import planner
 
 N = len(genetics.GENES)
+STAY_MARGIN = 0.2  # an animal stays in its harem unless another one suits it more than 20% better
 
 
 def beliefs(animals, target: str, posterior: dict | None) -> dict:
@@ -63,10 +64,17 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
     heads = rams[:len(harems)]
     pen = {a.id: holding for a in animals}
     members = {h: [] for h in harems}
+    # A chosen ram stays in the harem he's already in; the others fill the harems left without one.
     head_of = {}
-    for name, ram in zip(harems, heads):
+    for ram in heads:
+        here = getattr(ram, "pen", "")
+        if here in members and here not in head_of:
+            head_of[here] = ram
+    for ram in heads:
+        if ram not in head_of.values():
+            head_of[next(h for h in harems if h not in head_of)] = ram
+    for name, ram in head_of.items():
         pen[ram.id] = name
-        head_of[name] = ram
 
     def fit(ewe, ram):
         return planner.pair_score(_beast(ewe, belief[ewe.id]), _beast(ram, belief[ram.id]),
@@ -74,16 +82,22 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
 
     ewes = sorted((a for a in grown if a.sex == "F"), key=lambda a: -value[a.id])
     for ewe in ewes:
-        options = sorted(head_of, key=lambda h: -fit(ewe, head_of[h]))
+        scores = {h: fit(ewe, head_of[h]) for h in head_of}
+        options = sorted(head_of, key=lambda h: -scores[h])
+        here = getattr(ewe, "pen", "")
+        if here in scores and options and scores[options[0]] - scores[here] <= STAY_MARGIN * abs(scores[options[0]]):
+            options.remove(here)
+            options.insert(0, here)  # nearly as good where she is: not worth a move
         for h in options:
             if len(members[h]) < harem_ewes:
                 members[h].append(ewe)
                 pen[ewe.id] = h
                 break
 
-    # Verdicts for everything in holding.
-    weakest_ewe = {h: min((value[e.id] for e in members[h]), default=None) for h in members}
-    weakest_ram = min((value[r.id] for r in heads), default=None)
+    # Verdicts for everything in holding, best first: each promotion takes its place in the harems before the next
+    # animal is judged, so two lambs are never both told to replace the same ewe.
+    members = {h: list(m) for h, m in members.items()}
+    heads = list(head_of.values())
     kept_values = [value[a.id] for a in animals if pen[a.id] != holding]
     floor = min(kept_values) if kept_values else 0.0
 
@@ -91,31 +105,28 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         return any(belief[a.id][i] > 0.5 and not any(o.id != a.id and belief[o.id][i] > 0.5 for o in animals)
                    for i in range(N))
 
+    ram_home = {r.id: h for h, r in head_of.items()}
+
+    def harem_of(ram):
+        return ram_home.get(ram.id, harems[0])
+
     verdicts = {}
-    for a in animals:
-        if pen[a.id] != holding:
-            continue
+    for a in sorted((a for a in animals if pen[a.id] == holding), key=lambda a: -value[a.id]):
         v = value[a.id]
-        as_ram = weakest_ram is None or v > weakest_ram
+        weakest_ram = min(heads, key=lambda r: value[r.id]) if heads else None
+        as_ram = weakest_ram is None or v > value[weakest_ram.id]
         best_h = max(head_of, key=lambda h: fit(a, head_of[h])) if head_of else None
-        as_ewe = best_h is not None and (len(members[best_h]) < harem_ewes or
-                                         (weakest_ewe[best_h] is not None and v > weakest_ewe[best_h]))
+        weakest_ewe = min(members[best_h], key=lambda e: value[e.id]) if best_h and members[best_h] else None
+        room = best_h is not None and len(members[best_h]) < harem_ewes
+        as_ewe = best_h is not None and (room or (weakest_ewe is not None and v > value[weakest_ewe.id]))
         lamb = getattr(a, "is_lamb", False)
-        replaced_ram = min(heads, key=lambda r: value[r.id]).name if heads else None
-        replaced_ewe = (min(members[best_h], key=lambda e: value[e.id]).name
-                        if best_h and len(members[best_h]) >= harem_ewes else None)
-        ram_text = f"promote to {next((h for h, r in head_of.items() if r.name == replaced_ram), harems[0])}, replacing {replaced_ram}" \
-            if heads else f"promote to {harems[0]}"
-        ewe_text = f"promote to {best_h}" + (f", replacing {replaced_ewe}" if replaced_ewe else "")
+        ram_text = (f"promote to {harem_of(weakest_ram)}, replacing {weakest_ram.name}" if weakest_ram
+                    else f"promote to {harems[0]}")
+        ewe_text = f"promote to {best_h}" + ("" if room or weakest_ewe is None else f", replacing {weakest_ewe.name}")
         if a.sex == "M":
-            verdict, reason = ("promote", ram_text) if as_ram else \
-                ("keep", "only carrier of a Good copy") if last_carrier(a) else \
-                ("cull" if lamb else "sell", "not better than the harem rams")
+            verdict, reason = ("promote", ram_text) if as_ram else                 ("keep", "only carrier of a Good copy") if last_carrier(a) else                 ("cull" if lamb else "sell", "not better than the harem rams")
         elif a.sex == "F":
-            verdict, reason = ("promote", ewe_text) if as_ewe else \
-                ("keep", "only carrier of a Good copy") if last_carrier(a) else \
-                ("keep", "spare ewe, nearly as good as the harems'") if v >= 0.9 * floor else \
-                ("cull" if lamb else "sell", "not better than the harem ewes")
+            verdict, reason = ("promote", ewe_text) if as_ewe else                 ("keep", "only carrier of a Good copy") if last_carrier(a) else                 ("keep", "spare ewe, nearly as good as the harems'") if v >= 0.9 * floor else                 ("cull" if lamb else "sell", "not better than the harem ewes")
         else:  # unsexed lamb: horns show at maturity
             if as_ram or as_ewe:
                 parts = ([f"if a ram: {ram_text}"] if as_ram else []) + ([f"if a ewe: {ewe_text}"] if as_ewe else [])
@@ -125,6 +136,14 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
             else:
                 verdict, reason = "cull", "no better than what the harems have, whatever its sex"
         verdicts[a.id] = {"verdict": verdict, "reason": reason}
+        if verdict == "promote":  # it takes the place it was promised (both, for an unsexed lamb)
+            if as_ram and a.sex in ("M", "?") and weakest_ram is not None:
+                heads[heads.index(weakest_ram)] = a
+                ram_home[a.id] = ram_home.get(weakest_ram.id, harems[0])
+            if as_ewe and a.sex in ("F", "?"):
+                if not room and weakest_ewe is not None:
+                    members[best_h].remove(weakest_ewe)
+                members[best_h].append(a)
 
     # A lamb not worth keeping is still worth selling once grown (an hour), so it only gets culled when holding has no
     # room to grow it. Best lambs get the free places first.

@@ -36,6 +36,20 @@ class Pools(unittest.TestCase):
         self.assertEqual(r["verdicts"][8]["verdict"], "cull")
         self.assertIn("full", r["verdicts"][8]["reason"])
 
+    def test_two_lambs_never_replace_the_same_ewe(self):
+        herd = self.herd + [a(7, "F", "GGGGG", "GGGGG", lamb=True), a(8, "F", "GGGGG", "GGGGO", lamb=True)]
+        r = self.arrange(herd, ewes=1)
+        replaced = [r["verdicts"][i]["reason"].split("replacing ")[-1] for i in (7, 8)
+                    if r["verdicts"][i]["verdict"] == "promote" and "replacing" in r["verdicts"][i]["reason"]]
+        self.assertEqual(len(replaced), len(set(replaced)))
+
+    def test_animals_stay_in_their_harem_when_it_suits_them(self):
+        herd = [a(1, "M", "GGGGG", "GGOOO"), a(2, "M", "GOOOO", "OOOOO"), a(4, "F", "GGGOO", "GOOOO")]
+        herd[0].pen, herd[1].pen, herd[2].pen = "H2", "H1", "H1"
+        r = self.arrange(herd)
+        self.assertEqual(r["pen"][1], "H2")  # the best ram isn't moved just to head the first harem
+        self.assertEqual(r["pen"][2], "H1")
+
     def test_harems_never_exceed_their_size(self):
         r = self.arrange(self.herd, ewes=1)
         self.assertTrue(all(len(h["ewes"]) <= 1 for h in r["harems"].values()))
