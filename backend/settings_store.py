@@ -20,7 +20,7 @@ DEFAULTS = {
     "second_row_visible": False,
     # Pools mode rooms: harems (one ram each, mating freely) and a holding room. Names are free text.
     # 5 ewes: a clump of 6 sheep bottomed out at 73% personal space, just above the 70% breeding threshold.
-    "pools": {"harems": ["Harem #1", "Harem #2"], "holding": "Death Row", "harem_ewes": 2, "holding_size": 3, "site_cap": 9},
+    "pools": {"harems": ["Harem #1", "Harem #2"], "holding": "Death Row", "harem_ewes": 7, "holding_size": 7, "site_cap": 9},
 }
 
 
