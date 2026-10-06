@@ -1,6 +1,6 @@
 import { View } from './View.js';
 import { api } from '../services/api.js';
-import { AnimalForm } from '../components/animalForm.js';
+import { AnimalForm, buildingsFrom } from '../components/animalForm.js';
 import { GENE_NAMES, animalCardHtml, animalLabel } from '../components/animalCard.js';
 import { renderParents } from '../components/parentsList.js';
 import { growsUpAt, lambStatus } from '../components/lambTimer.js';
@@ -128,7 +128,8 @@ export class HerdView extends View {
                 ${ev.other_id && byId[ev.other_id] ? ' · ' + esc(animalLabel(byId[ev.other_id])) : ''}
                 ${ev.notes ? ` <span class="muted">${esc(ev.notes)}</span>` : ''}</li>`).join('')}</ul>`;
 
-        this.form = new AnimalForm(panel.querySelector('#detail-form'), this.animals.filter(x => x.id !== a.id), a);
+        this.form = new AnimalForm(panel.querySelector('#detail-form'), this.animals.filter(x => x.id !== a.id), a,
+            buildingsFrom(this.settings));
         panel.querySelector('#detail-close').addEventListener('click', () => {
             this.selectedId = null;
             panel.classList.add('hidden');

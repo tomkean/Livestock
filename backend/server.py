@@ -58,6 +58,7 @@ class AnimalIn(CaptureCrop):
     mother_id: Optional[int] = None
     father_id: Optional[int] = None
     notes: str = ""
+    pen: str = ""  # the building it's in
 
 
 class AnimalPatch(CaptureCrop):

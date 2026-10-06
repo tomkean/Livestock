@@ -12,8 +12,15 @@ const BLANK = {
     name: '', species: 'sheep', sex: 'F', origin: 'ranch',
     genes_top: '?????', genes_bottom: '?????',
     herd_top: null, herd_bottom: null,
-    pregnant: false, mother_id: null, father_id: null, notes: ''
+    pregnant: false, mother_id: null, father_id: null, notes: '', pen: ''
 };
+
+/** The buildings set up in Pools (harems, then holding), for the Building picker. */
+export function buildingsFrom(settings) {
+    const pools = settings?.pools || {};
+    const holding = Array.isArray(pools.holding) ? pools.holding : pools.holding ? [pools.holding] : [];
+    return [...(pools.harems || []), ...holding];
+}
 
 /**
  * Editable animal fields: species, sex, origin, both gene rows (click a circle to cycle ? → Good → Ok → Bad),
@@ -21,9 +28,10 @@ const BLANK = {
  * hidden unless the 'admin view' switch is on.
  */
 export class AnimalForm {
-    constructor(container, animals = [], values = {}) {
+    constructor(container, animals = [], values = {}, buildings = []) {
         this.container = container;
         this.animals = animals;
+        this.buildings = buildings;
         this.v = { ...BLANK, ...values };
         this.showSecond = !!values.genes_bottom || values.herd_bottom != null || adminViewPref();
         if (!this.v.genes_bottom) this.v.genes_bottom = '?????';
@@ -62,7 +70,8 @@ export class AnimalForm {
             pregnant: this.v.sex === 'F' && this.v.pregnant,
             mother_id: ranch ? null : this.v.mother_id,
             father_id: ranch ? null : this.v.father_id,
-            notes: this.v.notes
+            notes: this.v.notes,
+            pen: this.v.pen || ''
         };
     }
 
@@ -79,6 +88,13 @@ export class AnimalForm {
             return `<button type="button" class="dot edit a-${allele === '?' ? 'U' : allele}${row === 'genes_bottom' ? ' small' : ''}"
                 data-gene-row="${row}" data-index="${i}" title="${GENE_NAMES[g]}">${g}</button>`;
         }).join('');
+    }
+
+    _buildingSelect() {
+        const names = [...this.buildings];
+        if (this.v.pen && !names.includes(this.v.pen)) names.push(this.v.pen);
+        const options = names.map(n => `<option value="${esc(n)}" ${this.v.pen === n ? 'selected' : ''}>${esc(n)}</option>`).join('');
+        return `<select data-input="pen"><option value="">Not placed</option>${options}</select>`;
     }
 
     _parentSelect(field, sex) {
@@ -102,6 +118,7 @@ export class AnimalForm {
                 <label>Species</label>${this._seg('species', [['sheep', '🐑 Sheep'], ['cow', '🐄 Cow']])}
                 <label>Sex</label>${this._seg('sex', [['F', '♀ Female'], ['M', '♂ Male'], ['?', '? Unknown']])}
                 <label>Origin</label>${this._seg('origin', [['ranch', 'Ranch'], ['bred', 'Bred']])}
+                <label>Building</label>${this._buildingSelect()}
                 <label>Genes</label>
                 <div class="genes edit">
                     <div class="gene-row">${this._geneRow('genes_top')}${herdInput('herd_top')}</div>
@@ -148,7 +165,7 @@ export class AnimalForm {
             this.render();
         } else if (field === 'pregnant') {
             this.v.pregnant = e.target.checked;
-        } else if (field === 'notes' || field === 'name') {
+        } else if (field === 'notes' || field === 'name' || field === 'pen') {
             this.v[field] = e.target.value;
         } else {
             this.v[field] = e.target.value === '' ? null : Number(e.target.value);

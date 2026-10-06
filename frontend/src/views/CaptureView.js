@@ -2,7 +2,7 @@ import { View } from './View.js';
 import { api } from '../services/api.js';
 import { ScreenCaptureService } from '../services/ScreenCaptureService.js';
 import { requestCapture } from '../services/captureActions.js';
-import { AnimalForm } from '../components/animalForm.js';
+import { AnimalForm, buildingsFrom } from '../components/animalForm.js';
 import { animalCardHtml, displayName } from '../components/animalCard.js';
 import { renderParents } from '../components/parentsList.js';
 import { esc, fmtTime, media, refreshCaptureBadge, toast } from '../ui.js';
@@ -157,7 +157,8 @@ export class CaptureView extends View {
             window.addEventListener('mouseup', up);
         });
 
-        const form = new AnimalForm(this.container.querySelector('#cap-form'), this.animals, this.formValues || {});
+        const form = new AnimalForm(this.container.querySelector('#cap-form'), this.animals, this.formValues || {},
+            buildingsFrom(this.settings));
         this.form = form;
         form.onChange(values => {
             this.formValues = values;
