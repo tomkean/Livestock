@@ -1,4 +1,5 @@
 """Livestock backend: herd register, breeding log and screen-capture intake."""
+import re
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -298,11 +299,15 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
     if data.get("sex", animal.sex) == "M":
         data["pregnant"] = False
     changed = []
+    old_pen = animal.pen
     for field, value in clean(data).items():
         if getattr(animal, field) != value:
             setattr(animal, field, value)
             changed.append(field)
     check_animal(session, animal)
+    if "pen" in changed:  # the moves log is how the parent finder knows who was where
+        log(session, "moved", animal.id, notes=f"{old_pen or 'unplaced'} -> {animal.pen or 'unplaced'}")
+        changed.remove("pen")
     if "pregnant" in changed:
         log(session, "pregnant" if animal.pregnant else "not_pregnant", animal.id)
     if "status" in changed:
@@ -326,6 +331,7 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
 
 class ChildIn(Observed):
     id: Optional[int] = None  # the animal itself, when it is already in the herd
+    pen: str = ""  # the building it was found in: its parents were most likely there too
 
 
 _inference_cache: dict = {}
@@ -356,11 +362,33 @@ def inferred(session: Session) -> dict | None:
     return _inference_cache["result"]
 
 
+_MOVE = re.compile(r"^(.*?) -> (.*?)(?: \(seen there\))?$")
+
+
+def pens_at(session: Session, when: datetime) -> dict[int, str]:
+    """Which building every animal was in at a given time: its current one, with later moves undone."""
+    pens = {a.id: a.pen for a in session.exec(select(Animal)).all()}
+    later = session.exec(select(Event).where(Event.kind == "moved", Event.at > when).order_by(Event.at.desc())).all()
+    for e in later:  # newest first, so the last one undone is the first move after `when`
+        m = _MOVE.match(e.notes or "")
+        if m and e.animal_id in pens:
+            pens[e.animal_id] = "" if m.group(1) in ("unplaced", "not placed") else m.group(1)
+    return pens
+
+
 def _parents(session: Session, child) -> list[dict]:
     animals = [visible(a) for a in session.exec(select(Animal)).all()]  # sold and dead animals may still be parents
     mated = {(e.animal_id, e.other_id) for e in session.exec(select(Event).where(Event.kind == "mated"))}
     inf = inferred(session)
-    return genetics.likely_parents(visible(child), animals, mated, dists=inf["posterior"] if inf else None)
+    present = None
+    pen = getattr(child, "pen", "") or ""
+    if pen:
+        # Conceived 10 minutes before birth; a lamb just captured was born around now.
+        born = _utc(getattr(child, "born_at", None) or datetime.now(timezone.utc))
+        conceived = born - timedelta(minutes=planner.GESTATION)
+        present = {i for i, p in pens_at(session, conceived).items() if p == pen}
+    return genetics.likely_parents(visible(child), animals, mated, dists=inf["posterior"] if inf else None,
+                                   present=present)
 
 
 @app.post("/api/parents")

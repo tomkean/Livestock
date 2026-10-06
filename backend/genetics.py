@@ -202,11 +202,17 @@ def _could_parent(parent, child) -> bool:
     return (c - p).total_seconds() / 60 >= CONCEPTION_LEAD_MIN
 
 
-def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 5, dists: dict | None = None) -> list[dict]:
+ELSEWHERE = 0.05  # weight for a parent that wasn't in the lamb's building when it was conceived
+
+
+def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 5, dists: dict | None = None,
+                   present: set | None = None) -> list[dict]:
     """Mother × father pairs that could have produced the child, most likely first, with relative chances.
 
-    A pair with a recorded mating is weighted 10× (it's where lambs usually come from); the chances are relative
-    to the other candidates, not absolute.
+    A pair with a recorded mating is weighted 10× (it's where lambs usually come from). `present` is the animals that
+    were in the lamb's building when it was conceived: in a harem the parents are almost always among them, so each
+    parent from elsewhere costs a factor of 20 (not ruled out: the building records can be wrong). The chances are
+    relative to the other candidates, not absolute.
     """
     child_id = getattr(child, "id", None)
     pool = [a for a in animals if a.species == child.species and getattr(a, "id", None) != child_id
@@ -222,9 +228,12 @@ def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 
             if p > 0:
                 if (m.id, f.id) in mated_pairs:
                     p *= 10
+                if present is not None:
+                    p *= (1 if m.id in present else ELSEWHERE) * (1 if f.id in present else ELSEWHERE)
                 scored.append((p, m, f))
     total = sum(p for p, _, _ in scored)
     scored.sort(key=lambda s: -s[0])
     return [{"mother_id": m.id, "father_id": f.id, "chance": p / total, "mated": (m.id, f.id) in mated_pairs,
-             "reveals": [x.id for x in (m, f) if x.sex == "?"]}
+             "reveals": [x.id for x in (m, f) if x.sex == "?"],
+             "same_building": present is not None and m.id in present and f.id in present}
             for p, m, f in scored[:limit]]
