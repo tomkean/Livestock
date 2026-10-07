@@ -708,6 +708,7 @@ def read_capture(capture_id: int, session: Session = Depends(get_session)):
     return card_reader.read_card(image)
 
 
+PREGNANCY_ECHO_SECONDS = 40 * 60  # after a lamb, a "Pregnant" on the mother's card is the label lingering
 READING_EVERY_SECONDS = 600  # history keeps every change, plus one reading per 10 minutes when nothing changes
 _auto_seen: dict = {}  # card signature -> (time, conditions): skip repeats of the same view
 AUTO_REPEAT_SECONDS = 30
@@ -1030,11 +1031,21 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     if animal.status == "missing":
         animal.status = "alive"
         log(session, "alive", animal.id, notes="found (automatic capture)")
-    if reading.get("pregnant") and not animal.pregnant and animal.sex != "M":
-        animal.pregnant = True
-        if animal.sex == "?":
-            animal.sex = "F"
-        log(session, "pregnant", animal.id, notes="the card says Pregnant (automatic capture)")
+    if reading.get("name") and animal.sex != "M":
+        # "Pregnant" after the name. It lingers a few seconds after the lamb appears, and no ewe can be pregnant again
+        # within 40 minutes of lambing (the shortest cooldown is 41), so a recent lamb means it's that echo.
+        last_lamb = session.exec(select(Animal).where(Animal.mother_id == animal.id)
+                                 .order_by(Animal.created_at.desc())).first()
+        lamb_at = _utc(last_lamb.born_at or last_lamb.created_at) if last_lamb else None
+        just_lambed = lamb_at is not None and (now - lamb_at).total_seconds() < PREGNANCY_ECHO_SECONDS
+        if reading.get("pregnant") and not animal.pregnant and not just_lambed:
+            animal.pregnant = True
+            if animal.sex == "?":
+                animal.sex = "F"
+            log(session, "pregnant", animal.id, notes="the card says Pregnant (automatic capture)")
+        elif not reading.get("pregnant") and animal.pregnant:
+            animal.pregnant = False  # the name read cleanly without it: she's had the lamb (or never was)
+            log(session, "not_pregnant", animal.id, notes="the card no longer says Pregnant (automatic capture)")
     if reading.get("lamb") and reading.get("age_minutes") is not None and animal.born_at is None:
         animal.born_at = now - timedelta(minutes=reading["age_minutes"])
     # Seen while the player says they're in a building: that's where it is.
