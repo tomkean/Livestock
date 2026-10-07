@@ -171,7 +171,7 @@ export class PoolsView extends View {
                 <ul>${headcount}</ul>
             </div>
             ${crowded}${overflow}${loggingOff}
-            <div class="pools">${harems}${holdingHtml}${unplacedHtml}</div>`;
+            <div class="pools">${harems}${holdingHtml}</div>`;
 
         this.container.querySelectorAll('[data-species]').forEach(btn => btn.addEventListener('click', () => {
             this.species = btn.dataset.species;

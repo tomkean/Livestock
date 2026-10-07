@@ -94,7 +94,7 @@ export class AnimalForm {
         const names = [...this.buildings];
         if (this.v.pen && !names.includes(this.v.pen)) names.push(this.v.pen);
         const options = names.map(n => `<option value="${esc(n)}" ${this.v.pen === n ? 'selected' : ''}>${esc(n)}</option>`).join('');
-        return `<select data-input="pen"><option value="">Not placed</option>${options}</select>`;
+        return `<select data-input="pen"><option value="">Outside / not sure (missing)</option>${options}</select>`;
     }
 
     _parentSelect(field, sex) {

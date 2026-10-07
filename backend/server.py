@@ -268,6 +268,13 @@ def target_chance(a, target: str, inf: dict | None):
     return per_gene, round(total, 4)
 
 
+def _outside_is_missing(session: Session, animal: Animal):
+    """Every building is watched, so an animal alive in none of them is simply missing (its card still matches)."""
+    if animal.status == "alive" and not animal.pen:
+        animal.status = "missing"
+        log(session, "missing", animal.id, notes="not in any building")
+
+
 def _same_animal(session: Session, data: dict) -> Optional[Animal]:
     """An animal already in the herd with this name, species, top row and first marker: a second capture of it."""
     name = (data.get("name") or "").strip().lower()
@@ -330,6 +337,7 @@ def create_animal(body: AnimalIn, session: Session = Depends(get_session), auto:
         apply_capture(session, animal, crop, learn=not auto)
     set_birth(session, animal, crop)
     log(session, "born" if animal.origin == "bred" else "bought", animal.id, animal.mother_id)
+    _outside_is_missing(session, animal)
     session.commit()
     session.refresh(animal)
     return animal
@@ -354,6 +362,10 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
     if "pen" in changed:  # the moves log is how the parent finder knows who was where
         log(session, "moved", animal.id, notes=f"{old_pen or 'unplaced'} -> {animal.pen or 'unplaced'}")
         changed.remove("pen")
+        if animal.pen and animal.status == "missing":
+            animal.status = "alive"  # put in a building: found
+            log(session, "alive", animal.id, notes=f"placed in {animal.pen}")
+    _outside_is_missing(session, animal)
     if "pregnant" in changed:
         log(session, "pregnant" if animal.pregnant else "not_pregnant", animal.id)
     if "status" in changed:
