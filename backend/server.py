@@ -969,6 +969,7 @@ MIA_WINDOW_SECONDS = 30 * 60
 MIA_LOOKS = 3  # separate looks at the building in that window, at least a minute apart
 MIA_LOOK_GAP_SECONDS = 60
 MIA_DISTINCT = 3  # different animals seen there in the window
+UNPLACED_STALE_SECONDS = 6 * 3600
 _sightings: dict = {}  # building -> [(time, animal id, was it recorded there already)]
 _mia_checked: dict = {}  # building -> last check time
 
@@ -1002,6 +1003,14 @@ async def _roll_call(session: Session, building: str, now: datetime):
         a.status = "missing"
         log(session, "missing", a.id, notes=f"not seen in {building} in {looks} looks over 30 minutes (roll call)")
         missing.append(a.name or a.code)
+    # Animals with no building belong to no roll call: while you're out looking, one unseen for hours is gone too.
+    stale = now - timedelta(seconds=UNPLACED_STALE_SECONDS)
+    for a in session.exec(select(Animal).where(Animal.status == "alive", or_(Animal.pen == "", Animal.pen.is_(None)))).all():
+        last = _utc(a.seen_at) or _utc(a.created_at)
+        if last is not None and last < stale:
+            a.status = "missing"
+            log(session, "missing", a.id, notes="no building and not seen for 6 hours (roll call)")
+            missing.append(a.name or a.code)
     if missing:
         session.commit()
         await hub.broadcast({"type": "auto_missing", "building": building, "names": missing})
