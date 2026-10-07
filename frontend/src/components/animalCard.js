@@ -46,7 +46,7 @@ export function animalCardHtml(a) {
     const seen = a.seen_at ? new Date(/[zZ]|[+-]\d\d:\d\d$/.test(a.seen_at) ? a.seen_at : a.seen_at + 'Z') : null;
     const ago = seen ? Math.max(0, Math.round((Date.now() - seen) / 60000)) : null;
     const conditions = a.overall == null ? '' : `
-        <div class="conditions${a.overall < 70 || (a.food != null && a.food < 50) ? ' low' : ''}">
+        <div class="conditions${a.overall < 70 || (a.food != null && a.food < 10) ? ' low' : ''}">
             Food ${a.food ?? '?'}% · Space ${a.personal_space ?? '?'}% · Overall <b>${a.overall}%</b>
             <span class="muted">${ago == null ? '' : ago < 1 ? 'just now' : ago < 120 ? `${ago} min ago` : `${Math.round(ago / 60)} h ago`}</span>
         </div>`;
