@@ -32,7 +32,10 @@ class Animal(SQLModel, table=True):
     overall: Optional[int] = None
     seen_at: Optional[datetime] = None
     # From the card's YIELD line: set by the expressed Y gene (Good 320, Ok 120, Bad 45 an hour; inbred one grade less).
-    wool_per_hour: Optional[float] = None  # Pools mode: which room it lives in (e.g. Harem #1, Death Row); empty if not placed  # from the card's AGE line at capture; lambs grow up 60 min later
+    wool_per_hour: Optional[float] = None
+    # Wool stops growing at one shear's worth, so what counts is how much a shear gives and how soon it's back.
+    wool_per_shear: Optional[int] = None
+    wool_regrow_min: Optional[float] = None  # Pools mode: which room it lives in (e.g. Harem #1, Death Row); empty if not placed  # from the card's AGE line at capture; lambs grow up 60 min later
     status: str = "alive"  # alive | sold | dead | missing
     mother_id: Optional[int] = Field(default=None, foreign_key="animal.id")
     father_id: Optional[int] = Field(default=None, foreign_key="animal.id")

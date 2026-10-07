@@ -26,6 +26,8 @@ ADDED_COLUMNS = [
     ("animal", "overall", "INTEGER"),
     ("animal", "seen_at", "DATETIME"),
     ("animal", "wool_per_hour", "FLOAT"),
+    ("animal", "wool_per_shear", "INTEGER"),
+    ("animal", "wool_regrow_min", "FLOAT"),
 ]
 
 
