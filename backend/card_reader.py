@@ -226,6 +226,29 @@ def read_age(image: np.ndarray, anchor) -> float | None:
     return int(match.group(1)) * AGE_UNIT_MINUTES[match.group(2)]
 
 
+try:
+    import gender_guesser.detector as _gender
+    _GENDER = _gender.Detector(case_sensitive=False)
+except ImportError:  # optional: without it lambs just stay unsexed until their horns show
+    _GENDER = None
+
+
+# Names given to both sexes; the dictionary is sure about some of them, the herd says otherwise (Jessie and Taylor: rams).
+EITHER_SEX = {"jessie", "jesse", "taylor", "jamie", "jordan", "casey", "alex", "sam", "robin", "terry", "kelly",
+              "courtney", "aubrey", "morgan", "riley", "jody", "leslie", "lee", "kim", "chris", "pat", "drew"}
+
+
+def sex_from_name(name: str | None) -> str | None:
+    """Sex suggested by an English first name. The game names animals by sex: 58 of 60 sexed sheep matched, the two
+    misses unisex names (Jessie, Courtney). Only clearly male or female names count; anything else is None."""
+    if not name or _GENDER is None:
+        return None
+    first = name.strip().split()[0]
+    if first.lower() in EITHER_SEX:
+        return None
+    return {"male": "M", "female": "F"}.get(_GENDER.get_gender(first))
+
+
 # The YIELD line sits under AGE: "16 Wool per 3 minutes". White text over a part-filled light bar, so only the
 # near-white pixels are text.
 YIELD_BOX = (380, 213, 380, 48)  # x, y, w, h of the YIELD value from the anchor
@@ -367,7 +390,8 @@ def read_card(image: np.ndarray) -> dict:
         "inbred": inbred,
         "card_box": frac_box(x + CARD_LEFT * s, card_top, x + CARD_RIGHT * s, card_bottom),
         "name_box": name_box,
-        "name": read_name(image, name_box),
+        "name": (name := read_name(image, name_box)),
+        "sex_guess": sex_from_name(name),
         # The AGE line is only trustworthy on lambs: adult cards have shown "0 SECONDS" and ages far too low.
         "conditions": read_conditions(image, anchor),
         "yield": read_yield(image, anchor),

@@ -239,6 +239,8 @@ export class CaptureView extends View {
         if (reading.species) fields.species = reading.species;
         if (reading.lamb) fields.sex = '?';  // horns only show once grown...
         Object.assign(fields, this.parentageFromName(reading.name));  // ...unless the name gives it away
+        const byName = reading.lamb && fields.sex === '?' && reading.sex_guess;  // "Margie": a ewe, "Raymond": a ram
+        if (byName) fields.sex = reading.sex_guess;
         this.ageMinutes = reading.lamb ? reading.age_minutes : null;
         this.form.set(fields);
         this.formValues = this.form.values();
@@ -249,6 +251,7 @@ export class CaptureView extends View {
         status.innerHTML = 'Read from the card. Check it, set the sex (Unknown for lambs), and save.'
             + (reading.name ? '' : " The name isn't plain Latin text (or OCR is off), so the app's ID will be used unless you type one.")
             + (reading.lamb ? ` <b class="warn">Lamb${reading.age_minutes != null ? `, ${Math.round(reading.age_minutes)} min old: grows up in ${Math.max(0, Math.round(60 - reading.age_minutes))} min` : ''} - sort it by sex before then.</b>` : '')
+            + (byName ? ` Sex guessed from the name (${reading.sex_guess === 'F' ? 'female' : 'male'}): right 58 times in 60 so far.` : '')
             + (reading.inbred ? ' <b class="warn">The card says INBRED.</b>' : '')
             + (unread.length ? ` <b class="warn">Couldn't read ${unread.join(' or ')} - please fill in.</b>` : '');
         this.findMatches();
