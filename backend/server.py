@@ -880,20 +880,27 @@ async def _vendor_frame(session: Session, frame, now: datetime) -> Optional[dict
     if not reading["found"]:
         return None
     items = [{k: i[k] for k in ("item", "amount", "length_ft")} for i in reading["items"]]
-    signature = (reading["name"].lower(), json.dumps(items))
-    if _vendor and _vendor.get("signature") == signature:
-        _vendor["seen"] = now
-        return {"vendor": True, "repeat": True}
     animal = None if reading["wool"] else _vendor_animal(session, reading["name"])
-    same_visit = bool(_vendor) and reading["kind"] != "first" and (
-        (animal is not None and animal.id == _vendor.get("animal_id"))
-        or difflib.SequenceMatcher(None, reading["name"].lower(), _vendor.get("name", "")).ratio() > 0.75)
+    # Keyed by the animal once the name is matched, so an OCR slip ("Randy r") doesn't look like a new visit.
+    who = f"#{animal.id}" if animal is not None else reading["name"].lower()
+    signature = (who, json.dumps(items))
+    if _vendor and (signature == _vendor.get("signature") or signature in _vendor.get("offers", [])):
+        _vendor["seen"] = now  # the same screen again, or an earlier offer re-read
+        return {"vendor": True, "repeat": True}
+    same_animal = animal is not None and animal.id == _vendor.get("animal_id")
+    same_visit = bool(_vendor) and (same_animal or (reading["kind"] != "first" and difflib.SequenceMatcher(
+        None, reading["name"].lower(), _vendor.get("name", "")).ratio() > 0.75))
     if _vendor and not same_visit:
         await _close_visit(session)
+    elif same_visit and animal is not None and not _vendor.get("animal_id"):
+        _vendor["animal_id"] = animal.id  # the name only matched on a later frame: the whole visit is this animal's
+        for o in session.exec(select(Offer).where(Offer.sale == _vendor["sale"])):
+            o.animal_id = animal.id
     if not _vendor:
         _vendor.update(sale=f"{now:%Y%m%d-%H%M%S}", name=reading["name"].lower(), number=0,
                        animal_id=animal.id if animal else None)
-    _vendor.update(seen=now, signature=signature, number=_vendor["number"] + 1)
+    _vendor.update(seen=now, signature=signature, number=_vendor["number"] + 1,
+                   offers=_vendor.get("offers", []) + [signature])
     file = f"{now:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}.jpg"
     cv2.imwrite(str(CAPTURE_DIR / file), frame)
     capture = Capture(path=file, width=frame.shape[1], height=frame.shape[0], location="Vendor", dismissed=True,
