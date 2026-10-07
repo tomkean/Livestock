@@ -55,6 +55,17 @@ class Event(SQLModel, table=True):
     notes: str = ""
 
 
+class Reading(SQLModel, table=True):
+    """Conditions read off an animal's card by automatic capture, kept over time (e.g. food falling overnight)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    animal_id: int = Field(foreign_key="animal.id", index=True)
+    at: datetime = Field(default_factory=utcnow, index=True)
+    food: Optional[int] = None
+    water: Optional[int] = None
+    personal_space: Optional[int] = None
+    overall: Optional[int] = None
+
+
 class Capture(SQLModel, table=True):
     """A full-screen frame uploaded from the gaming PC, waiting to be turned into an animal record."""
     id: Optional[int] = Field(default=None, primary_key=True)

@@ -23,7 +23,7 @@ import pools
 import settings_store
 from config import BUILD_DIR, CAPTURE_DIR, CARD_DIR, DATA_DIR, NAME_DIR, PORT
 from database import get_session, init_db
-from models import Animal, Capture, Event
+from models import Animal, Capture, Event, Reading
 
 
 @asynccontextmanager
@@ -584,6 +584,13 @@ def pools_apply(species: str = "sheep", body: Optional[ApplyIn] = None, session:
     return {"ok": True}
 
 
+@app.get("/api/animals/{animal_id}/readings")
+def animal_readings(animal_id: int, limit: int = 200, session: Session = Depends(get_session)):
+    """Conditions history from automatic capture, newest first."""
+    return session.exec(select(Reading).where(Reading.animal_id == animal_id)
+                        .order_by(Reading.at.desc()).limit(limit)).all()
+
+
 @app.get("/api/events")
 def list_events(animal_id: Optional[int] = None, limit: int = 500, session: Session = Depends(get_session)):
     query = select(Event).order_by(Event.at.desc()).limit(limit)
@@ -643,6 +650,7 @@ def read_capture(capture_id: int, session: Session = Depends(get_session)):
     return card_reader.read_card(image)
 
 
+READING_EVERY_SECONDS = 600  # history keeps every change, plus one reading per 10 minutes when nothing changes
 _auto_seen: dict = {}  # card signature -> (time, conditions): skip repeats of the same view
 AUTO_REPEAT_SECONDS = 30
 AUTO_NEW_COOLDOWN_SECONDS = 600  # a new, unmatched animal is filed as a capture at most this often
@@ -713,7 +721,12 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
         return {"card": True, "new": True, "filed": True, "name": reading.get("name")}
 
     cond = reading.get("conditions") or {}
-    for key in ("food", "water", "personal_space", "overall"):
+    keys = ("food", "water", "personal_space", "overall")
+    changed = any(cond.get(k) is not None and cond.get(k) != getattr(animal, k) for k in keys)
+    last_seen = _utc(animal.seen_at)
+    if cond and (changed or last_seen is None or (now - last_seen).total_seconds() > READING_EVERY_SECONDS):
+        session.add(Reading(animal_id=animal.id, at=now, **{k: cond.get(k) for k in keys}))
+    for key in keys:
         if cond.get(key) is not None:
             setattr(animal, key, cond[key])
     animal.seen_at = now

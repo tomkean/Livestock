@@ -124,7 +124,10 @@ export class HerdView extends View {
             panel.classList.add('hidden');
             return;
         }
-        const events = await api.get(`/api/events?animal_id=${a.id}&limit=50`);
+        const [events, readings] = await Promise.all([
+            api.get(`/api/events?animal_id=${a.id}&limit=50`),
+            api.get(`/api/animals/${a.id}/readings?limit=24`)
+        ]);
         const byId = Object.fromEntries(this.animals.map(x => [x.id, x]));
         const statusButtons = a.status === 'alive'
             ? `<button data-status="sold">Mark sold</button><button data-status="missing">Mark missing</button><button data-status="dead" class="danger">Mark dead</button>`
@@ -145,6 +148,11 @@ export class HerdView extends View {
             </div>
             <h3>Parents</h3>
             <div id="detail-parents"><button id="btn-find-parents">Find parents</button></div>
+            ${readings.length ? `<h3>Conditions</h3>
+            <table class="readings"><tr><th></th><th>Food</th><th>Water</th><th>Space</th><th>Overall</th></tr>
+                ${readings.map(r => `<tr><td class="when">${fmtTime(r.at)}</td><td class="${r.food != null && r.food < 50 ? 'warn' : ''}">${r.food ?? '?'}</td>
+                    <td>${r.water ?? '?'}</td><td>${r.personal_space ?? '?'}</td><td class="${r.overall != null && r.overall < 70 ? 'warn' : ''}">${r.overall ?? '?'}</td></tr>`).join('')}
+            </table>` : ''}
             <h3>History</h3>
             <ul class="events">${events.map(ev => `
                 <li><span class="when">${fmtTime(ev.at)}</span> ${esc(ev.kind)}
