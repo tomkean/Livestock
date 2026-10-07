@@ -72,7 +72,8 @@ export class PoolsView extends View {
     async render() {
         let plan, animals;
         try {
-            [plan, animals] = await Promise.all([api.get(`/api/pools?species=${this.species}`), api.get('/api/animals')]);
+            [plan, animals, this.settings] = await Promise.all([api.get(`/api/pools?species=${this.species}`),
+                api.get('/api/animals'), api.get('/api/settings')]);
         } catch (e) {
             this.container.innerHTML = `<div class="panel error">${esc(e.message)}</div>`;
             return;
@@ -82,6 +83,9 @@ export class PoolsView extends View {
         const skipped = skippedMoves();
         const moves = plan.moves.filter(m => !skipped.has(`${m.id}>${m.to}`));
         const skippedHere = plan.moves.filter(m => skipped.has(`${m.id}>${m.to}`));
+        const location = this.settings?.location || '';
+        const fromHere = moves.filter(m => location && (m.from || '') === location);
+        const elsewhere = moves.filter(m => !fromHere.includes(m));
         const here = animals.filter(a => a.species === this.species && a.status === 'alive');
         const rooms = plan.holding_rooms || [cfg.holding];
         const heads = new Set(Object.values(plan.harems).map(h => h.ram).filter(Boolean));
@@ -91,7 +95,8 @@ export class PoolsView extends View {
             const v = plan.verdicts[a.id];
             const verdict = v ? `<div class="verdict v-${v.verdict}"><b>${VERDICT_LABEL[v.verdict]}</b> ${esc(v.reason)}${v.verdict === 'cull' ? ' <span class="muted">(lead it over a barrier and let go - never shoot one while the herd is awake: they all attack)</span>' : ''}</div>` : '';
             const to = plan.pen[a.id];
-            const moving = to && to !== a.pen && !skipped.has(`${a.id}>${to}`) ? `<div class="hint move">→ move to <b>${esc(to)}</b></div>` : '';
+            const moving = to && to !== a.pen && !skipped.has(`${a.id}>${to}`)
+                ? `<div class="hint move">→ move to <b>${esc(to)}</b> <button class="skip" data-skip="${a.id}>${esc(to)}" title="Not doing this one: skip it">✕</button></div>` : '';
             const role = heads.has(a.id) ? `<div class="hint">harem ram${to && to !== a.pen ? ` for ${esc(to)}` : ''}</div>` : '';
             return `<div class="pool-card">${animalCardHtml(a)}${role}${moving}${verdict}</div>`;
         };
@@ -151,13 +156,13 @@ export class PoolsView extends View {
                 about 3 m (several troughs at different spots, no corners to pile into).
                 Capture every newborn: it gets a verdict here straight away.</p>
             <div class="panel">
-                <h3>Moves to make</h3>
-                <p class="hint">Easier by day: at night sleeping sheep break off the lead.</p>
-                ${moves.length ? `<ul class="moves">${moves.map(m => `<li><b>${esc(m.name)}</b>: ${esc(m.from || 'not placed')} → ${esc(m.to)}${growingNote(byId[m.id])}
-                        <button class="done" data-done="${m.id}" title="Done: record this move">✓</button>
-                        <button class="skip" data-skip="${m.id}>${esc(m.to)}" title="Can't do this one: skip it">✕</button></li>`).join('')}</ul>
-                    <button id="btn-apply" class="primary">I've made these moves - record them</button>
-                    <button id="btn-skip-all">Skip them all</button>` : `<p class="hint">${plan.moves.length ? 'All suggested moves skipped.' : 'Everyone is where they should be.'}</p>`}
+                <h3>${location ? `Take from ${esc(location)}` : 'Moves'}</h3>
+                ${fromHere.length ? `<ul class="moves">${fromHere.map(m => `<li><b>${esc(m.name)}</b> → ${esc(m.to)}${growingNote(byId[m.id])}
+                        <button class="skip" data-skip="${m.id}>${esc(m.to)}" title="Not doing this one: skip it">✕</button></li>`).join('')}</ul>`
+                    : `<p class="hint">${location ? `Nothing to take from ${esc(location)}.` : 'Set "Where am I?" at the top to see what to take from that building.'}</p>`}
+                ${elsewhere.length ? `<p class="hint">${elsewhere.length} more from other buildings (see the notes on the cards): ${elsewhere.map(m => esc(m.name)).join(', ')}.</p>` : ''}
+                ${!moves.length && plan.moves.length ? '<p class="hint">All suggested moves skipped.</p>' : ''}
+                <p class="hint">Moves record themselves: Auto capture sees the sheep in its new building. Easier by day: sleeping sheep break off the lead.</p>
                 ${skippedHere.length ? `<p class="hint">${skippedHere.length} skipped. <button id="btn-unskip">Show them again</button></p>` : ''}
             </div>
             <div class="panel">
@@ -172,32 +177,12 @@ export class PoolsView extends View {
             this.species = btn.dataset.species;
             this.render();
         }));
-        this.container.querySelector('#btn-apply')?.addEventListener('click', async () => {
-            await api.post(`/api/pools/apply?species=${this.species}`, { ids: moves.map(m => m.id) });
-            toast('Moves recorded');
-            document.getElementById('moves-badge')?.classList.add('hidden');
-            this.render();
-        });
-        this.container.querySelectorAll('[data-done]').forEach(btn => btn.addEventListener('click', async () => {
-            try {
-                await api.post(`/api/pools/apply?species=${this.species}`, { ids: [Number(btn.dataset.done)] });
-                this.render();
-            } catch (e) {
-                toast(e.message, 'error');
-            }
-        }));
         this.container.querySelectorAll('[data-skip]').forEach(btn => btn.addEventListener('click', () => {
             const set = skippedMoves();
             set.add(btn.dataset.skip);
             saveSkipped(set);
             this.render();
         }));
-        this.container.querySelector('#btn-skip-all')?.addEventListener('click', () => {
-            const set = skippedMoves();
-            moves.forEach(m => set.add(`${m.id}>${m.to}`));
-            saveSkipped(set);
-            this.render();
-        });
         this.container.querySelector('#btn-unskip')?.addEventListener('click', () => {
             const set = skippedMoves();
             skippedHere.forEach(m => set.delete(`${m.id}>${m.to}`));

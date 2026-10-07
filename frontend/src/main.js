@@ -93,7 +93,10 @@ where.addEventListener('change', async () => {
         toast(e.message, 'error');
     }
 });
-on('location', msg => { if (where.value !== msg.location) api.get('/api/settings').then(showWhere).catch(() => {}); });
+on('location', msg => {
+    if (where.value !== msg.location) api.get('/api/settings').then(showWhere).catch(() => {});
+    currentView?.onAutoSeen?.(msg);  // e.g. Pools: "Take from <here>"
+});
 // The vendor reader: each offer as it's read, and the sale when the visit ends.
 on('vendor_offer', msg => toast(`${msg.name}, offer ${msg.number}${msg.rare ? ' (rare mood!)' : ''}: ${msg.items}`, 'info'));
 on('vendor_sold', msg => {
