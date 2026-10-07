@@ -91,6 +91,8 @@ export class PoolsView extends View {
         const heads = new Set(Object.values(plan.harems).map(h => h.ram).filter(Boolean));
         const order = { promote: 0, keep: 1, sell: 2, cull: 3 };
         // Each card sits in the building the animal is in now; the plan shows as a note.
+        // Seen by automatic capture in the last 2 hours; anything else may already have gone (sold, lost) unnoticed.
+        const confirmed = (a) => { const t = seenAt(a); return t && Date.now() - t < 2 * 3600000; };
         const card = (a) => {
             const v = plan.verdicts[a.id];
             const verdict = v ? `<div class="verdict v-${v.verdict}"><b>${VERDICT_LABEL[v.verdict]}</b> ${esc(v.reason)}${v.verdict === 'cull' ? ' <span class="muted">(lead it over a barrier and let go - never shoot one while the herd is awake: they all attack)</span>' : ''}</div>` : '';
@@ -112,7 +114,8 @@ export class PoolsView extends View {
             const sorted = (list) => list.sort((x, y) => (order[plan.verdicts[x.id]?.verdict] ?? -1) - (order[plan.verdicts[y.id]?.verdict] ?? -1));
             return `
                 <section class="pen pool${kind === 'holding' ? ' holding' : ''}">
-                    <h2>${esc(name)} <span class="muted">(${kind})</span> <span class="count">${inside.length} / ${cfg.site_cap || 9}</span></h2>
+                    <h2>${esc(name)} <span class="muted">(${kind})</span> <span class="count" title="seen in the last 2 hours / recorded here, against the crowding limit">${inside.filter(confirmed).length}${inside.some(a => !confirmed(a)) ? ` of ${inside.length}` : ''} / ${cfg.site_cap || 9}</span></h2>
+                    ${inside.some(a => !confirmed(a)) ? `<p class="hint">Unconfirmed (not seen for 2 h): ${inside.filter(a => !confirmed(a)).map(a => esc(a.name || a.code)).join(', ')}</p>` : ''}
                     ${waiting ? `<p class="warn">Harem ram: <b>${esc(waiting.name || waiting.code)}</b>, now in ${esc(waiting.pen || 'no building')} - move him here</p>` : ''}
                     ${rams.length ? `<h3>Rams</h3>${grid(rams)}` : kind === 'harem' && !waiting ? '<h3>Rams</h3><p class="empty">No ram</p>' : ''}
                     ${ewes.filter(a => !young.includes(a)).length ? `<h3>Ewes</h3>${grid(sorted(ewes.filter(a => !young.includes(a))))}` : ''}
@@ -135,7 +138,7 @@ export class PoolsView extends View {
         // (lambs and wild ones included) personal space falls ~17 points per animal: 10 still breeds, 11 doesn't.
         const cap = cfg.site_cap || 9;
         const crowded = [...Object.keys(plan.harems), ...rooms].map(site => {
-            const n = here.filter(a => a.pen === site).length;
+            const n = here.filter(a => a.pen === site && confirmed(a)).length;  // only what's been seen counts
             return n > cap ? `<p class="warn">${esc(site)} has ${n}: over ${cap} they lose personal space (${n === cap + 1 ? 'about 83%, still breeding' : 'too low to breed'}). Move, sell or cull ${n - cap}.</p>` : '';
         }).join('');
         const headcount = [...Object.keys(plan.harems), ...rooms].map(site => siteHeadcount(site, here, cap)).join('');
