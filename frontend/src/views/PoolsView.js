@@ -3,7 +3,8 @@ import { api } from '../services/api.js';
 import { animalCardHtml } from '../components/animalCard.js';
 import { esc, toast } from '../ui.js';
 
-const VERDICT_LABEL = { promote: 'Promote', keep: 'Keep', cull: 'Cull', sell: 'Sell' };
+// Releasing (lead it over a barrier it won't cross back, then let go) doesn't count as a kill, so the herd stays calm.
+const VERDICT_LABEL = { promote: 'Promote', keep: 'Keep', cull: 'Release', sell: 'Sell' };
 
 /**
  * Pools mode: harems where each ram mates his ewes freely, plus a holding room. Shows where every animal should be,
@@ -88,7 +89,7 @@ export class PoolsView extends View {
         // Each card sits in the building the animal is in now; the plan shows as a note.
         const card = (a) => {
             const v = plan.verdicts[a.id];
-            const verdict = v ? `<div class="verdict v-${v.verdict}"><b>${VERDICT_LABEL[v.verdict]}</b> ${esc(v.reason)}</div>` : '';
+            const verdict = v ? `<div class="verdict v-${v.verdict}"><b>${VERDICT_LABEL[v.verdict]}</b> ${esc(v.reason)}${v.verdict === 'cull' ? ' <span class="muted">(lead it over a barrier and let go; shooting angers the herd)</span>' : ''}</div>` : '';
             const to = plan.pen[a.id];
             const moving = to && to !== a.pen && !skipped.has(`${a.id}>${to}`) ? `<div class="hint move">→ move to <b>${esc(to)}</b></div>` : '';
             const role = heads.has(a.id) ? `<div class="hint">harem ram${to && to !== a.pen ? ` for ${esc(to)}` : ''}</div>` : '';
