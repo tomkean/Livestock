@@ -963,6 +963,50 @@ def vendor_offers(limit: int = 300, session: Session = Depends(get_session)):
     return session.exec(select(Offer).order_by(Offer.at.desc()).limit(limit)).all()
 
 
+# ---------------------------------------------------------------- roll call
+
+MIA_WINDOW_SECONDS = 30 * 60
+MIA_LOOKS = 3  # separate looks at the building in that window, at least a minute apart
+MIA_LOOK_GAP_SECONDS = 60
+MIA_DISTINCT = 3  # different animals seen there in the window
+_sightings: dict = {}  # building -> [(time, animal id, was it recorded there already)]
+_mia_checked: dict = {}  # building -> last check time
+
+
+async def _roll_call(session: Session, building: str, now: datetime):
+    """Mark missing the animals recorded in this building that the last 30 minutes of looking there never saw.
+
+    A look counts when the cards seen were mostly of animals already recorded there (so a stale "Where am I?" can't
+    empty the wrong building). An animal seen anywhere else would already have been moved out of the room."""
+    if (now - _mia_checked.get(building, now - timedelta(hours=1))).total_seconds() < 60:
+        return
+    _mia_checked[building] = now
+    start = now - timedelta(seconds=MIA_WINDOW_SECONDS)
+    recent = [x for x in _sightings.get(building, []) if x[0] >= start]
+    _sightings[building] = recent
+    if not recent or sum(1 for _, _, home in recent if home) * 2 < len(recent):
+        return
+    looks, last = 0, None
+    for t, _, _ in sorted(recent):
+        if last is None or (t - last).total_seconds() >= MIA_LOOK_GAP_SECONDS:
+            looks += 1
+            last = t
+    if looks < MIA_LOOKS or len({aid for _, aid, _ in recent}) < MIA_DISTINCT:
+        return  # staring at one sheep isn't looking round the building
+    then = pens_at(session, start)
+    missing = []
+    for a in session.exec(select(Animal).where(Animal.status == "alive", Animal.pen == building)).all():
+        seen = _utc(a.seen_at)
+        if then.get(a.id) != building or _utc(a.created_at) >= start or (seen is not None and seen >= start):
+            continue
+        a.status = "missing"
+        log(session, "missing", a.id, notes=f"not seen in {building} in {looks} looks over 30 minutes (roll call)")
+        missing.append(a.name or a.code)
+    if missing:
+        session.commit()
+        await hub.broadcast({"type": "auto_missing", "building": building, "names": missing})
+
+
 @app.post("/api/autocapture")
 async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_height: int = 0, crop_x: int = 0,
                       crop_y: int = 0, session: Session = Depends(get_session)):
@@ -1055,10 +1099,14 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     holding = pools_cfg.get("holding") or []
     buildings = list(pools_cfg.get("harems") or []) + ([holding] if isinstance(holding, str) else list(holding))
     here = settings.get("location") or ""
+    if here in buildings:
+        _sightings.setdefault(here, []).append((now, animal.id, animal.pen == here))
     if here in buildings and animal.pen != here:
         log(session, "moved", animal.id, notes=f"{animal.pen or 'not placed'} -> {here} (seen there)")
         animal.pen = here
     session.commit()
+    if here in buildings:
+        await _roll_call(session, here, now)
     await hub.broadcast({"type": "auto_seen", "id": animal.id, "name": animal.name or animal.code, **cond})
     return {"card": True, "id": animal.id, "name": animal.name or animal.code, "conditions": cond}
 

@@ -100,6 +100,10 @@ on('vendor_sold', msg => {
     toast(`Sold ${msg.name} on offer ${msg.number}: ${msg.items}. Not sold? Undo in the Log tab`, 'info');
     currentView?.onAutoSeen?.(msg);
 });
+on('auto_missing', msg => {
+    toast(`Not seen in ${msg.building} for 30 min: ${msg.names.join(', ')} - marked missing`, 'warn');
+    currentView?.onAutoSeen?.(msg);
+});
 on('auto_new', msg => {
     currentView?.onAutoSeen?.(msg);
     const sex = msg.sex === 'M' ? 'ram' : msg.sex === 'F' ? 'ewe' : 'sex unknown';
