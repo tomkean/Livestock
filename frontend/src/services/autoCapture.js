@@ -12,6 +12,11 @@ const STRIP = { x0: 0.53, x1: 0.87, y0: 0.10, y1: 0.80 };
 
 let timer = null;
 let busy = false;
+let paused = false;  // "Away from livestock": keep sharing, send nothing
+
+export function setPaused(value) {
+    paused = value;
+}
 const listeners = [];
 
 export function onAutoChange(cb) {
@@ -27,7 +32,7 @@ function notify() {
 }
 
 async function tick() {
-    if (busy || !ScreenCaptureService.isCapturing()) return;
+    if (busy || paused || !ScreenCaptureService.isCapturing()) return;
     busy = true;
     try {
         const video = ScreenCaptureService.videoEl;

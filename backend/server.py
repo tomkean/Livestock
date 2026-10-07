@@ -1042,6 +1042,8 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
 
     No card: ignored. A known animal: its conditions (and pregnancy, lamb age) are updated quietly. A new animal: the
     frame is filed as a pending capture for the player to confirm, at most once every few minutes."""
+    if settings_store.load().get("location") == "Away":  # the player said they're away from the livestock
+        return {"away": True}
     data = np.frombuffer(await file.read(), np.uint8)
     strip = cv2.imdecode(data, cv2.IMREAD_COLOR)
     if strip is None:

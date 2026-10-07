@@ -10,7 +10,8 @@ import { PlanView } from './views/PlanView.js';
 import { PoolsView } from './views/PoolsView.js';
 import { api } from './services/api.js';
 import { lambStatus } from './components/lambTimer.js';
-import { isAutoOn, onAutoChange, startAuto, stopAuto } from './services/autoCapture.js';
+import { isAutoOn, onAutoChange, setPaused, startAuto, stopAuto } from './services/autoCapture.js';
+const AWAY = 'Away';  // the "Where am I?" choice that stops the watching
 
 const VIEWS = { herd: HerdView, capture: CaptureView, pools: PoolsView, plan: PlanView, log: LogView };
 let currentView = null;
@@ -44,43 +45,30 @@ function updateShareStatus() {
 
 document.querySelectorAll('#tabs button').forEach(btn => btn.addEventListener('click', () => showTab(btn.dataset.tab)));
 
-// Automatic capture runs on the browser sharing the screen; any device can switch it on or off.
-let autoRemote = false;
-function showAuto(on) {
-    const btn = document.getElementById('btn-auto');
-    btn.textContent = on ? 'Auto: on' : 'Auto: off';
-    btn.classList.toggle('primary', on);
-}
-// Auto stays on across reloads: the browser makes you press Share screen again, but Auto then resumes by itself.
-const AUTO_PREF = 'livestock.autoOn';
-function rememberAuto(on) {
-    try { localStorage.setItem(AUTO_PREF, on ? '1' : '0'); } catch (e) { /* only a convenience */ }
-}
-function autoWanted() {
-    try { return localStorage.getItem(AUTO_PREF) === '1'; } catch (e) { return false; }
+// Sharing the screen means "watch": automatic capture runs whenever this browser shares, except while the player has
+// said they're away from the livestock. The chip shows the state on every device.
+let remoteWatching = false;
+let away = false;
+function showWatching() {
+    const chip = document.getElementById('btn-auto');
+    const sharingHere = ScreenCaptureService.isCapturing();
+    const watching = (sharingHere ? isAutoOn() : remoteWatching) && !away;
+    chip.textContent = away ? 'Away' : watching ? 'Watching' : 'Not sharing';
+    chip.classList.toggle('primary', watching);
+    chip.title = away ? 'Away from livestock: frames are ignored. Pick a place in "Where am I?" to start watching again.'
+        : watching ? 'The shared screen is being watched: cards and vendor screens are read every 2 seconds.'
+        : 'Press Share screen on the gaming PC to start watching.';
 }
 document.getElementById('btn-auto').addEventListener('click', () => {
-    if (ScreenCaptureService.isCapturing()) {
-        isAutoOn() ? stopAuto() : startAuto();
-        rememberAuto(isAutoOn());
-    } else if (!send({ type: 'auto_capture', enabled: !autoRemote })) {
-        toast('Not connected to the backend', 'error');
-    } else if (sharers === 0) {
-        toast('No browser is sharing the gaming PC screen', 'warn');
-    }
+    if (!ScreenCaptureService.isCapturing() && !remoteWatching) toast('Share the gaming PC screen to start watching', 'info');
 });
 onAutoChange(on => {
-    showAuto(on);
+    showWatching();
     send({ type: 'auto_status', enabled: on });
 });
-on('auto_capture', msg => {
-    if (!ScreenCaptureService.isCapturing()) return;
-    msg.enabled ? startAuto() : stopAuto();
-    rememberAuto(msg.enabled);
-});
 on('auto_status', msg => {
-    autoRemote = msg.enabled;
-    if (!ScreenCaptureService.isCapturing()) showAuto(msg.enabled);
+    remoteWatching = msg.enabled;
+    showWatching();
 });
 let lastSeenToast = 0;
 // Where the player is: picked here until Rust+ can tell. Every open app follows the same choice.
@@ -90,14 +78,20 @@ function showWhere(settings) {
     const holding = Array.isArray(pools.holding) ? pools.holding : pools.holding ? [pools.holding] : [];
     const places = [...(pools.harems || []), ...holding, 'Vendor'];
     const here = settings?.location || '';
-    where.innerHTML = `<option value="">Where am I?</option>` + places.map(p =>
-        `<option value="${p.replace(/"/g, '&quot;')}" ${p === here ? 'selected' : ''}>${p.replace(/</g, '&lt;')}</option>`).join('');
+    away = here === AWAY;
+    setPaused(away);
+    showWatching();
+    where.innerHTML = `<option value="">Where am I?</option><option value="${AWAY}" ${away ? 'selected' : ''}>Away from livestock</option>`
+        + places.map(p => `<option value="${p.replace(/"/g, '&quot;')}" ${p === here ? 'selected' : ''}>${p.replace(/</g, '&lt;')}</option>`).join('');
 }
 api.get('/api/settings').then(showWhere).catch(() => {});
 where.addEventListener('change', async () => {
     try {
         await api.put('/api/settings', { location: where.value });
-        toast(where.value ? `At ${where.value}` : 'Location cleared');
+        away = where.value === AWAY;
+        setPaused(away);
+        showWatching();
+        toast(away ? 'Away from livestock: not watching' : where.value ? `At ${where.value}` : 'Location cleared');
     } catch (e) {
         toast(e.message, 'error');
     }
@@ -133,11 +127,8 @@ on('auto_seen', msg => {
 
 ScreenCaptureService.onStatusChange(status => {
     setCapturer(status === 'active');
-    if (status !== 'active') stopAuto();
-    else if (autoWanted()) {
-        startAuto();
-        toast('Sharing - Auto back on', 'info');
-    }
+    if (status === 'active') startAuto(); else stopAuto();  // sharing means watching
+    showWatching();
     updateShareStatus();
 });
 
