@@ -1,7 +1,7 @@
 import './style.css';
 import { connect, on, send, setCapturer } from './services/socket.js';
 import { ScreenCaptureService } from './services/ScreenCaptureService.js';
-import { captureLocal, requestCapture } from './services/captureActions.js';
+import { captureLocal } from './services/captureActions.js';
 import { refreshCaptureBadge, toast } from './ui.js';
 import { HerdView } from './views/HerdView.js';
 import { CaptureView } from './views/CaptureView.js';
@@ -43,7 +43,6 @@ function updateShareStatus() {
 }
 
 document.querySelectorAll('#tabs button').forEach(btn => btn.addEventListener('click', () => showTab(btn.dataset.tab)));
-document.getElementById('btn-capture').addEventListener('click', () => requestCapture());
 
 // Automatic capture runs on the browser sharing the screen; any device can switch it on or off.
 let autoRemote = false;
