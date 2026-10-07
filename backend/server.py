@@ -373,6 +373,7 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
 
 class ChildIn(Observed):
     id: Optional[int] = None  # the animal itself, when it is already in the herd
+    name: str = ""  # "X Junior" / "X the 3rd" names one parent
     pen: str = ""  # the building it was found in: its parents were most likely there too
 
 
@@ -444,8 +445,16 @@ def _parents(session: Session, child) -> list[dict]:
         return together, mother_there
     child_view = visible(child)
     child_view.born_at = born  # so parents too young for it are ruled out, even for a lamb just captured
+    # A name like "Dianna the 3rd" says who one parent is (Dianna Junior); only the other one needs finding.
+    known = None
+    parent_name = genetics.named_parent(getattr(child, "name", None))
+    if parent_name:
+        matches = [a for a in animals if (a.name or "").lower() == parent_name.lower()
+                   and a.species == child.species and a.id != getattr(child, "id", None)]
+        if len(matches) == 1:
+            known = matches[0].id
     return genetics.likely_parents(child_view, animals, mated, dists=inf["posterior"] if inf else None,
-                                   places=places)
+                                   places=places, known_parent=known)
 
 
 @app.post("/api/parents")

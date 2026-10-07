@@ -1,4 +1,5 @@
 """Livestock genetics rules. MECHANICS.md records which of these are confirmed and which are guesses."""
+import re
 from datetime import timezone
 
 GENES = ("D", "L", "Y", "F", "H")  # dung, lifespan, yield, fertility, hardiness
@@ -202,11 +203,29 @@ def _could_parent(parent, child) -> bool:
     return (c - p).total_seconds() / 60 >= CONCEPTION_LEAD_MIN
 
 
+_ORDINAL = re.compile(r"^(.+?)\s+the\s+(\d+)(?:st|nd|rd|th)$", re.I)
+
+
+def named_parent(name: str | None) -> str | None:
+    """The parent a lamb's name points to: "X Junior" is X's lamb, "X the 3rd" is X Junior's, "X the 4th" is X the
+    3rd's. The game names a lamb after its parent of the same sex; on the test server this was right 18 times in 18."""
+    text = (name or "").strip()
+    m = re.match(r"^(.+?)\s+junior$", text, re.I)
+    if m:
+        return m.group(1)
+    m = _ORDINAL.match(text)
+    if m and int(m.group(2)) >= 3:
+        n = int(m.group(2)) - 1
+        suffix = "th" if 11 <= n % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+        return f"{m.group(1)} Junior" if n == 2 else f"{m.group(1)} the {n}{suffix}"
+    return None
+
+
 ELSEWHERE = 0.05  # weight for each place rule a pair breaks (see likely_parents)
 
 
 def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 5, dists: dict | None = None,
-                   places=None) -> list[dict]:
+                   places=None, known_parent: int | None = None) -> list[dict]:
     """Mother × father pairs that could have produced the child, most likely first, with relative chances.
 
     A pair with a recorded mating is weighted 10× (it's where lambs usually come from). `places(mother, father)` says
@@ -224,6 +243,8 @@ def likely_parents(child, animals, mated_pairs: set = frozenset(), limit: int = 
         for f in (a for a in pool if a.sex in ("M", "?")):
             if m is f:
                 continue
+            if known_parent is not None and known_parent not in (m.id, f.id):
+                continue  # the name says who one parent is
             p = parentage_likelihood(child, m, f, dists)
             if p > 0:
                 if (m.id, f.id) in mated_pairs:
