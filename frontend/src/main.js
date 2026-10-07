@@ -51,9 +51,18 @@ function showAuto(on) {
     btn.textContent = on ? 'Auto: on' : 'Auto: off';
     btn.classList.toggle('primary', on);
 }
+// Auto stays on across reloads: the browser makes you press Share screen again, but Auto then resumes by itself.
+const AUTO_PREF = 'livestock.autoOn';
+function rememberAuto(on) {
+    try { localStorage.setItem(AUTO_PREF, on ? '1' : '0'); } catch (e) { /* only a convenience */ }
+}
+function autoWanted() {
+    try { return localStorage.getItem(AUTO_PREF) === '1'; } catch (e) { return false; }
+}
 document.getElementById('btn-auto').addEventListener('click', () => {
     if (ScreenCaptureService.isCapturing()) {
         isAutoOn() ? stopAuto() : startAuto();
+        rememberAuto(isAutoOn());
     } else if (!send({ type: 'auto_capture', enabled: !autoRemote })) {
         toast('Not connected to the backend', 'error');
     } else if (sharers === 0) {
@@ -67,6 +76,7 @@ onAutoChange(on => {
 on('auto_capture', msg => {
     if (!ScreenCaptureService.isCapturing()) return;
     msg.enabled ? startAuto() : stopAuto();
+    rememberAuto(msg.enabled);
 });
 on('auto_status', msg => {
     autoRemote = msg.enabled;
@@ -124,6 +134,10 @@ on('auto_seen', msg => {
 ScreenCaptureService.onStatusChange(status => {
     setCapturer(status === 'active');
     if (status !== 'active') stopAuto();
+    else if (autoWanted()) {
+        startAuto();
+        toast('Sharing - Auto back on', 'info');
+    }
     updateShareStatus();
 });
 
