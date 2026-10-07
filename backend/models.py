@@ -66,6 +66,22 @@ class Reading(SQLModel, table=True):
     overall: Optional[int] = None
 
 
+class Offer(SQLModel, table=True):
+    """One offer read off the barn vendor's Sale panel. Offers in a row for the same animal (or wool lot) share `sale`."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    at: datetime = Field(default_factory=utcnow, index=True)
+    sale: str = Field(index=True)  # groups the offers of one visit to the vendor
+    name: str = ""  # as read off the panel ("Aubrey", "400 Wool")
+    animal_id: Optional[int] = Field(default=None, foreign_key="animal.id")
+    wool: Optional[int] = None  # a wool lot's size instead of an animal
+    number: int = 1  # 1st, 2nd, 3rd offer of the visit
+    rare: bool = False  # "You've caught me in a rare mood"
+    items: str = "[]"  # JSON: [{"item": "hqm_ore", "amount": 34, "length_ft": null}, ...]
+    scrap: int = 0
+    capture_id: Optional[int] = Field(default=None, foreign_key="capture.id")
+    outcome: str = ""  # "taken" for the one accepted
+
+
 class Capture(SQLModel, table=True):
     """A full-screen frame uploaded from the gaming PC, waiting to be turned into an animal record."""
     id: Optional[int] = Field(default=None, primary_key=True)

@@ -22,10 +22,15 @@ export class LogView extends View {
                         <tr class="ev-${esc(ev.kind)}">
                             <td>${fmtTime(ev.at)}</td><td>${esc(ev.kind)}</td>
                             <td>${label(ev.animal_id)}</td><td>${label(ev.other_id)}</td>
-                            <td>${esc(ev.notes)}</td>
+                            <td>${esc(ev.notes)}${ev.kind === 'sold' && ev.notes.startsWith('auto:') && byId[ev.animal_id]?.status === 'sold'
+                                ? ` <button data-not-sold="${ev.animal_id}" title="Recorded by the vendor reader. Turned the offers down? Put it back.">Not sold</button>` : ''}</td>
                         </tr>`).join('') || '<tr><td colspan="5" class="empty">Nothing yet</td></tr>'}
                     </tbody>
                 </table>
             </div>`;
+        this.container.querySelectorAll('[data-not-sold]').forEach(btn => btn.addEventListener('click', async () => {
+            await api.post(`/api/vendor/not-sold/${btn.dataset.notSold}`);
+            this.render();
+        }));
     }
 }

@@ -6,8 +6,9 @@
 import { ScreenCaptureService } from './ScreenCaptureService.js';
 
 const INTERVAL_MS = 2000;
-// Cards appear right of centre: at 3840x2160 the card spans about x 2110-2900, y 400-1400.
-const STRIP = { x0: 0.53, x1: 0.78, y0: 0.10, y1: 0.80 };
+// Cards appear right of centre: at 3840x2160 the card spans about x 2110-2900, y 400-1400. The vendor's Sale panel and
+// dialogue sit a little further right (to x 3300), so the strip reaches that far too.
+const STRIP = { x0: 0.53, x1: 0.87, y0: 0.10, y1: 0.80 };
 
 let timer = null;
 let busy = false;

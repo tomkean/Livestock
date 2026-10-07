@@ -1,4 +1,6 @@
 """Livestock backend: herd register, breeding log and screen-capture intake."""
+import difflib
+import json
 import re
 import uuid
 from contextlib import asynccontextmanager
@@ -16,6 +18,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, func, or_, select
 
 import card_reader
+import vendor_reader
 import genetics
 import inference
 import planner
@@ -23,7 +26,7 @@ import pools
 import settings_store
 from config import BUILD_DIR, CAPTURE_DIR, CARD_DIR, DATA_DIR, NAME_DIR, PORT
 from database import get_session, init_db
-from models import Animal, Capture, Event, Reading
+from models import Animal, Capture, Event, Offer, Reading
 
 
 @asynccontextmanager
@@ -803,6 +806,162 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
     return animal
 
 
+# ---------------------------------------------------------------- vendor
+
+ITEM_LABELS = {"metal_fragments": "metal fragments", "hqm_ore": "HQM ore", "rifle_ammo_556": "5.56 rifle ammo",
+               "cctv_camera": "CCTV camera", "smg_body": "SMG body"}
+VENDOR_GAP_SECONDS = 45  # no Sale panel for this long: the visit is over
+_vendor: dict = {}  # the visit in progress: sale key, name, animal, last seen, last offer's signature
+
+
+def _item_text(items: list) -> str:
+    parts = []
+    for i in items:
+        label = ITEM_LABELS.get(i.get("item") or "", (i.get("item") or "unknown item").replace("_", " "))
+        if i.get("length_ft"):
+            parts.append(f"{label} ({i['length_ft']}ft)")
+        else:
+            parts.append(f"{i['amount']} {label}" if i["amount"] != 1 or label == "scrap" else label)
+    return " + ".join(parts)
+
+
+def _vendor_animal(session: Session, name: str) -> Optional[Animal]:
+    """The herd animal the Sale panel names (OCR can slip a letter: "Daryi")."""
+    alive = session.exec(select(Animal).where(Animal.status.in_(["alive", "missing"]))).all()
+    names = {(a.name or "").lower(): a for a in alive}
+    hit = difflib.get_close_matches(name.lower(), list(names), n=1, cutoff=0.75)
+    return names[hit[0]] if hit else None
+
+
+async def _close_visit(session: Session):
+    """The visit ended: the last offer shown is taken (you nearly always end on a deal), the animal marked sold."""
+    visit = _vendor.copy()
+    _vendor.clear()
+    offers = session.exec(select(Offer).where(Offer.sale == visit["sale"]).order_by(Offer.number)).all()
+    if not offers:
+        return
+    last = offers[-1]
+    last.outcome = "taken"
+    text = "; ".join(f"{o.number} = {_item_text(json.loads(o.items))}" + (" (rare mood)" if o.rare else "")
+                     for o in offers)
+    caps = ", ".join(str(o.capture_id) for o in offers if o.capture_id)
+    animal = session.get(Animal, last.animal_id) if last.animal_id else None
+    if animal is not None and animal.status in ("alive", "missing"):
+        animal.status = "sold"
+        log(session, "sold", animal.id, notes=f"auto: offers (offer {last.number} taken): {text} [captures {caps}]")
+        await hub.broadcast({"type": "vendor_sold", "id": animal.id, "name": animal.name, "number": last.number,
+                             "items": _item_text(json.loads(last.items)), "sale": visit["sale"]})
+    elif last.wool:
+        log(session, "wool_sold", None,
+            notes=f"auto: {last.wool} wool, offer {last.number} taken: {text} [captures {caps}]")
+        await hub.broadcast({"type": "vendor_sold", "name": f"{last.wool} wool", "number": last.number,
+                             "items": _item_text(json.loads(last.items)), "sale": visit["sale"]})
+    session.commit()
+
+
+async def _vendor_frame(session: Session, frame, now: datetime) -> Optional[dict]:
+    """A frame from automatic capture that shows no animal card: is it the vendor's Sale panel?"""
+    if _vendor and (now - _vendor["seen"]).total_seconds() > VENDOR_GAP_SECONDS:
+        await _close_visit(session)
+    reading = vendor_reader.read_sale(frame)
+    if not reading["found"]:
+        return None
+    items = [{k: i[k] for k in ("item", "amount", "length_ft")} for i in reading["items"]]
+    signature = (reading["name"].lower(), json.dumps(items))
+    if _vendor and _vendor.get("signature") == signature:
+        _vendor["seen"] = now
+        return {"vendor": True, "repeat": True}
+    animal = None if reading["wool"] else _vendor_animal(session, reading["name"])
+    same_visit = bool(_vendor) and reading["kind"] != "first" and (
+        (animal is not None and animal.id == _vendor.get("animal_id"))
+        or difflib.SequenceMatcher(None, reading["name"].lower(), _vendor.get("name", "")).ratio() > 0.75)
+    if _vendor and not same_visit:
+        await _close_visit(session)
+    if not _vendor:
+        _vendor.update(sale=f"{now:%Y%m%d-%H%M%S}", name=reading["name"].lower(), number=0,
+                       animal_id=animal.id if animal else None)
+    _vendor.update(seen=now, signature=signature, number=_vendor["number"] + 1)
+    file = f"{now:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}.jpg"
+    cv2.imwrite(str(CAPTURE_DIR / file), frame)
+    capture = Capture(path=file, width=frame.shape[1], height=frame.shape[0], location="Vendor", dismissed=True,
+                      animal_id=animal.id if animal else None)
+    session.add(capture)
+    session.flush()
+    offer = Offer(at=now, sale=_vendor["sale"], name=reading["name"], animal_id=animal.id if animal else None,
+                  wool=reading["wool"], number=_vendor["number"], rare=reading["kind"] == "rare",
+                  items=json.dumps(items), scrap=reading["scrap"], capture_id=capture.id)
+    session.add(offer)
+    session.commit()
+    for k, item in enumerate(reading["items"]):  # keep icons it doesn't know, to be named and added to the library
+        if item["item"] is None:
+            unknown = vendor_reader.LIBRARY_DIR / "_unknown"
+            unknown.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(unknown / f"{capture.id}_{k}.png"), item["icon"])
+    await hub.broadcast({"type": "vendor_offer", "name": animal.name if animal else reading["name"],
+                         "number": offer.number, "rare": offer.rare, "items": _item_text(items)})
+    return {"vendor": True, "offer": offer.number, "name": reading["name"]}
+
+
+def _resold_check(session: Session, animal_name: str, reading: dict) -> Optional[Animal]:
+    """A card of an animal the vendor reader marked sold: the offers were turned down after all. Put it back."""
+    for a in session.exec(select(Animal).where(Animal.status == "sold",
+                                               func.lower(Animal.name) == animal_name.lower())):
+        if a.genes_top != reading["genes_top"]:
+            continue
+        sold = session.exec(select(Event).where(Event.animal_id == a.id, Event.kind == "sold")
+                            .order_by(Event.at.desc())).first()
+        if sold and sold.notes.startswith("auto:"):
+            a.status = "alive"
+            sold.kind = "offers_declined"
+            sold.notes = sold.notes.replace("auto: offers (offer", "auto: declined (last was offer", 1)
+            for o in session.exec(select(Offer).where(Offer.animal_id == a.id, Offer.outcome == "taken")):
+                o.outcome = ""
+            log(session, "alive", a.id, notes="seen again after the vendor visit: not sold")
+            session.commit()
+            return a
+    return None
+
+
+@app.post("/api/vendor/undo/{sale}")
+def vendor_undo(sale: str, session: Session = Depends(get_session)):
+    """The automatic 'sold' was wrong (offers declined): put the animal back."""
+    offers = session.exec(select(Offer).where(Offer.sale == sale)).all()
+    for o in offers:
+        o.outcome = ""
+    for aid in {o.animal_id for o in offers if o.animal_id}:
+        a = session.get(Animal, aid)
+        if a and a.status == "sold":
+            a.status = "alive"
+            log(session, "alive", a.id, notes="vendor sale undone: offers declined")
+            for e in session.exec(select(Event).where(Event.animal_id == aid, Event.kind == "sold")):
+                if e.notes.startswith("auto:"):
+                    e.kind = "offers_declined"
+    session.commit()
+    return {"ok": True}
+
+
+@app.post("/api/vendor/not-sold/{animal_id}")
+def vendor_not_sold(animal_id: int, session: Session = Depends(get_session)):
+    """An animal the vendor reader marked sold wasn't (the offers were turned down): put it back in the herd."""
+    a = get_animal(session, animal_id)
+    for e in session.exec(select(Event).where(Event.animal_id == animal_id, Event.kind == "sold")):
+        if e.notes.startswith("auto:"):
+            e.kind = "offers_declined"
+            e.notes = e.notes.replace("auto: offers (offer", "auto: declined (last was offer", 1)
+    for o in session.exec(select(Offer).where(Offer.animal_id == animal_id, Offer.outcome == "taken")):
+        o.outcome = ""
+    if a.status == "sold":
+        a.status = "alive"
+        log(session, "alive", a.id, notes="vendor sale undone: offers declined")
+    session.commit()
+    return {"ok": True}
+
+
+@app.get("/api/vendor/offers")
+def vendor_offers(limit: int = 300, session: Session = Depends(get_session)):
+    return session.exec(select(Offer).order_by(Offer.at.desc()).limit(limit)).all()
+
+
 @app.post("/api/autocapture")
 async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_height: int = 0, crop_x: int = 0,
                       crop_y: int = 0, session: Session = Depends(get_session)):
@@ -820,7 +979,7 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     frame[crop_y:crop_y + h, crop_x:crop_x + w] = strip
     reading = card_reader.read_card(frame)
     if not reading.get("found"):
-        return {"card": False}
+        return await _vendor_frame(session, frame, datetime.now(timezone.utc)) or {"card": False}
     now = datetime.now(timezone.utc)
     sig = _signature(reading)
     last = _auto_seen.get(sig)
@@ -829,6 +988,8 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     _auto_seen[sig] = (now, reading.get("conditions"))
 
     animal = _match_reading(session, reading)
+    if animal is None and reading.get("name"):
+        animal = _resold_check(session, reading["name"], reading)
     if animal is None:
         # A card caught while opening, blurred or half off-screen reads as unknown genes: wait for a clean look rather
         # than filing a "new" animal that is really a bad read of one already seen.

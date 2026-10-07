@@ -94,6 +94,12 @@ where.addEventListener('change', async () => {
     }
 });
 on('location', msg => { if (where.value !== msg.location) api.get('/api/settings').then(showWhere).catch(() => {}); });
+// The vendor reader: each offer as it's read, and the sale when the visit ends.
+on('vendor_offer', msg => toast(`${msg.name}, offer ${msg.number}${msg.rare ? ' (rare mood!)' : ''}: ${msg.items}`, 'info'));
+on('vendor_sold', msg => {
+    toast(`Sold ${msg.name} on offer ${msg.number}: ${msg.items}. Not sold? Undo in the Log tab`, 'info');
+    currentView?.onAutoSeen?.(msg);
+});
 on('auto_new', msg => {
     currentView?.onAutoSeen?.(msg);
     const sex = msg.sex === 'M' ? 'ram' : msg.sex === 'F' ? 'ewe' : 'sex unknown';
