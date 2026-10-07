@@ -163,6 +163,7 @@ AGE_PATTERN = re.compile(r"(\d+)\s*(SECOND|MINUTE|HOUR|DAY)S?")
 AGE_UNIT_MINUTES = {"SECOND": 1 / 60, "MINUTE": 1, "HOUR": 60, "DAY": 1440}
 NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9 '-]{0,38}$")  # digits for "Jay the 3rd"
 NAME_MIN_CONFIDENCE = 75
+PREGNANT_SUFFIX = re.compile(r"\s+pregnant$", re.I)
 WINDOWS_TESSERACT = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
 
 
@@ -380,6 +381,10 @@ def read_card(image: np.ndarray) -> dict:
     card_bottom = 2 * CARD_CENTRE_Y * s - card_top
     nx, ny, nw, nh = (v * s for v in NAME_BOX)
     name_box = frac_box(x + nx, y + ny, x + nx + nw, y + ny + nh)
+    # A pregnant ewe's card prints "Pregnant" after her name: it's her status, not part of the name.
+    raw_name = read_name(image, name_box) or ""
+    pregnant = bool(PREGNANT_SUFFIX.search(raw_name))
+    name = PREGNANT_SUFFIX.sub("", raw_name).strip() or None
     return {
         "found": True,
         "score": round(score, 3),
@@ -390,7 +395,8 @@ def read_card(image: np.ndarray) -> dict:
         "inbred": inbred,
         "card_box": frac_box(x + CARD_LEFT * s, card_top, x + CARD_RIGHT * s, card_bottom),
         "name_box": name_box,
-        "name": (name := read_name(image, name_box)),
+        "name": name,
+        "pregnant": pregnant,
         "sex_guess": sex_from_name(name),
         # The AGE line is only trustworthy on lambs: adult cards have shown "0 SECONDS" and ages far too low.
         "conditions": read_conditions(image, anchor),

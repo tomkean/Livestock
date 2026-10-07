@@ -1030,6 +1030,11 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     if animal.status == "missing":
         animal.status = "alive"
         log(session, "alive", animal.id, notes="found (automatic capture)")
+    if reading.get("pregnant") and not animal.pregnant and animal.sex != "M":
+        animal.pregnant = True
+        if animal.sex == "?":
+            animal.sex = "F"
+        log(session, "pregnant", animal.id, notes="the card says Pregnant (automatic capture)")
     if reading.get("lamb") and reading.get("age_minutes") is not None and animal.born_at is None:
         animal.born_at = now - timedelta(minutes=reading["age_minutes"])
     # Seen while the player says they're in a building: that's where it is.
