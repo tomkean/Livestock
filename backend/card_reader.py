@@ -253,7 +253,7 @@ def sex_from_name(name: str | None) -> str | None:
 # The YIELD line sits under AGE: "16 Wool per 3 minutes". White text over a part-filled light bar, so only the
 # near-white pixels are text.
 YIELD_BOX = (380, 213, 380, 48)  # x, y, w, h of the YIELD value from the anchor
-YIELD_PATTERN = re.compile(r"(\d+)\s*W\w*\s*PER\s*(\d+)\s*(SEC|MIN|HOU)")
+YIELD_PATTERN = re.compile(r"(\d+)\s*([A-Z]+)\s*PER\s*(\d+)\s*(SEC|MIN|HOU)")  # "16 Wool per 3 minutes", "1 Milk per 5 minutes"
 YIELD_UNIT_MINUTES = {"SEC": 1 / 60, "MIN": 1, "HOU": 60}
 YIELD_TEXT = 225  # grey level: text is near-white, the bar behind it light grey
 
@@ -273,10 +273,11 @@ def read_yield(image: np.ndarray, anchor) -> dict | None:
     match = YIELD_PATTERN.search(text)
     if not match:
         return None
-    amount, period = int(match.group(1)), int(match.group(2)) * YIELD_UNIT_MINUTES[match.group(3)]
+    amount, period = int(match.group(1)), int(match.group(3)) * YIELD_UNIT_MINUTES[match.group(4)]
     if not period:
         return None
-    return {"amount": amount, "minutes": period, "per_hour": round(amount * 60 / period, 1)}
+    return {"amount": amount, "product": match.group(2).lower(), "minutes": period,
+            "per_hour": round(amount * 60 / period, 1)}
 
 
 # Conditions: located by the "CONDITIONS" heading (its height on the card depends on which lines sit above it), then
