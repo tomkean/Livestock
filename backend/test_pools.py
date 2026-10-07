@@ -50,6 +50,15 @@ class Pools(unittest.TestCase):
         self.assertEqual(r["pen"][1], "H2")  # the best ram isn't moved just to head the first harem
         self.assertEqual(r["pen"][2], "H1")
 
+    def test_a_promoted_ewe_lamb_goes_straight_to_its_harem(self):
+        herd = self.herd + [a(7, "F", "GGGGG", "GGGGG", lamb=True)]
+        r = self.arrange(herd, ewes=1)
+        self.assertEqual(r["verdicts"][7]["verdict"], "promote")
+        self.assertIn(r["pen"][7], ("H1", "H2"))
+        replaced = [i for i, v in r["verdicts"].items() if v["reason"].startswith("replaced in")]
+        self.assertTrue(all(r["pen"][i] == "Row" for i in replaced))
+        self.assertTrue(all(len(h["ewes"]) <= 1 for h in r["harems"].values()))
+
     def test_harems_never_exceed_their_size(self):
         r = self.arrange(self.herd, ewes=1)
         self.assertTrue(all(len(h["ewes"]) <= 1 for h in r["harems"].values()))

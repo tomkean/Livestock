@@ -143,13 +143,24 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
                 verdict, reason = "cull", "no better than what the harems have, whatever its sex"
         verdicts[a.id] = {"verdict": verdict, "reason": reason}
         if verdict == "promote":  # it takes the place it was promised (both, for an unsexed lamb)
+            out, goes_to = None, None
             if as_ram and a.sex in ("M", "?") and weakest_ram is not None:
                 heads[heads.index(weakest_ram)] = a
                 ram_home[a.id] = ram_home.get(weakest_ram.id, harems[0])
+                if a.sex == "M":
+                    out, goes_to = weakest_ram, ram_home[a.id]
             if as_ewe and a.sex in ("F", "?"):
                 if not room and weakest_ewe is not None:
                     members[best_h].remove(weakest_ewe)
                 members[best_h].append(a)
+                if a.sex == "F" or not as_ram:  # an unsexed lamb only goes ahead if it has just the one place
+                    out, goes_to = (None if room else weakest_ewe), best_h
+            # Straight to its new harem, no stop in holding; whoever it replaces moves out to holding instead.
+            if goes_to:
+                pen[a.id] = goes_to
+                if out is not None and pen.get(out.id) != holding:
+                    pen[out.id] = holding
+                    verdicts[out.id] = {"verdict": "sell", "reason": f"replaced in {goes_to} by {a.name}"}
 
     # A lamb not worth keeping is still worth selling once grown (an hour), so it only gets culled when holding has no
     # room to grow it. Best lambs get the free places first.
