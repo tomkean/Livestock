@@ -144,7 +144,7 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
                     else f"promote to {harems[0]}")
         ewe_text = f"promote to {best_h}" + ("" if room or weakest_ewe is None else f", replacing {weakest_ewe.name}")
         if a.sex == "M":
-            verdict, reason = ("promote", ram_text) if as_ram else                 ("keep", "only carrier of a Good copy") if last_carrier(a) else                 ("cull" if lamb else "sell", "not better than the harem rams")
+            verdict, reason = ("promote", ram_text) if as_ram else                 ("keep", "only carrier of a Good copy") if last_carrier(a) else                 ("keep", "spare ram, nearly as good as the harem rams") if weakest_ram is not None and v >= 0.9 * value[weakest_ram.id] else                 ("cull" if lamb else "sell", "not better than the harem rams")
         elif a.sex == "F":
             verdict, reason = ("promote", ewe_text) if as_ewe else                 ("keep", "only carrier of a Good copy") if last_carrier(a) else                 ("keep", "spare ewe, nearly as good as the harems'") if v >= 0.9 * floor else                 ("cull" if lamb else "sell", "not better than the harem ewes")
         else:  # unsexed lamb: horns show at maturity
@@ -160,7 +160,7 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
             # It's in a harem today but the plan has no place for it there.
             places = harem_ewes * len(harems) if a.sex == "F" else len(harems)
             kind = "ewes" if a.sex == "F" else "rams"
-            reason = f"out of {now_in}: {places} better {kind} fill the harem places" +                 (" - but it's the only carrier of a Good copy" if verdict == "keep" and "carrier" in reason else "")
+            reason = f"out of {now_in}: {places} better {kind} fill the harem places" +                 (f" - but keep it: {reason}" if verdict == "keep" else "")
         verdicts[a.id] = {"verdict": verdict, "reason": reason}
         if verdict == "promote":  # it takes the place it was promised (both, for an unsexed lamb)
             out, goes_to = None, None
