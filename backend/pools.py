@@ -86,19 +86,33 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         return planner.pair_score(_beast(ewe, belief[ewe.id]), _beast(ram, belief[ram.id]),
                                   [_beast(x, belief[x.id]) for x in animals], weights)
 
+    # Which ewes get harem places is decided by value; which harem each goes to, by fit - but a ewe already in a harem
+    # stays put unless another suits her clearly better, and she settles in before newcomers are placed, so better
+    # ewes don't push incumbents across to the other harem.
     ewes = sorted((a for a in grown if a.sex == "F"), key=lambda a: -value[a.id])
-    for ewe in ewes:
+    chosen = ewes[:harem_ewes * len(head_of)]
+
+    def options_for(ewe):
         scores = {h: fit(ewe, head_of[h]) for h in head_of}
         options = sorted(head_of, key=lambda h: -scores[h])
         here = getattr(ewe, "pen", "")
-        if here in scores and options and scores[options[0]] - scores[here] <= STAY_MARGIN * abs(scores[options[0]]):
+        stays = here in scores and options and scores[options[0]] - scores[here] <= STAY_MARGIN * abs(scores[options[0]])
+        if stays:
             options.remove(here)
             options.insert(0, here)  # nearly as good where she is: not worth a move
-        for h in options:
-            if len(members[h]) < harem_ewes:
-                members[h].append(ewe)
-                pen[ewe.id] = h
-                break
+        return options, stays
+
+    plans = {ewe.id: options_for(ewe) for ewe in chosen}
+    for staying in (True, False):
+        for ewe in chosen:
+            options, stays = plans[ewe.id]
+            if stays != staying or ewe.id in pen and pen[ewe.id] != holding:
+                continue
+            for h in options:
+                if len(members[h]) < harem_ewes:
+                    members[h].append(ewe)
+                    pen[ewe.id] = h
+                    break
 
     # Verdicts for everything in holding, best first: each promotion takes its place in the harems before the next
     # animal is judged, so two lambs are never both told to replace the same ewe.
@@ -141,6 +155,12 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
                 verdict, reason = "keep", "only carrier of a Good copy"
             else:
                 verdict, reason = "cull", "no better than what the harems have, whatever its sex"
+        now_in = getattr(a, "pen", "")
+        if now_in in harems and verdict != "promote":
+            # It's in a harem today but the plan has no place for it there.
+            places = harem_ewes * len(harems) if a.sex == "F" else len(harems)
+            kind = "ewes" if a.sex == "F" else "rams"
+            reason = f"out of {now_in}: {places} better {kind} fill the harem places" +                 (" - but it's the only carrier of a Good copy" if verdict == "keep" and "carrier" in reason else "")
         verdicts[a.id] = {"verdict": verdict, "reason": reason}
         if verdict == "promote":  # it takes the place it was promised (both, for an unsexed lamb)
             out, goes_to = None, None
