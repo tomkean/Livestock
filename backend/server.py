@@ -264,10 +264,52 @@ def target_chance(a, target: str, inf: dict | None):
     return per_gene, round(total, 4)
 
 
+def _same_animal(session: Session, data: dict) -> Optional[Animal]:
+    """An animal already in the herd with this name, species, top row and first marker: a second capture of it."""
+    name = (data.get("name") or "").strip().lower()
+    if not name:
+        return None
+    for a in session.exec(select(Animal).where(Animal.status.in_(["alive", "missing"]),
+                                               Animal.species == data.get("species"))).all():
+        if (a.name or "").strip().lower() != name:
+            continue
+        top = data.get("genes_top") or "?????"
+        if any(x != "?" and y != "?" and x != y for x, y in zip(top, a.genes_top)):
+            continue
+        if data.get("herd_top") is not None and a.herd_top is not None and data["herd_top"] != a.herd_top:
+            continue
+        return a
+    return None
+
+
 @app.post("/api/animals")
 def create_animal(body: AnimalIn, session: Session = Depends(get_session)):
     data = body.model_dump()
     crop = split_crop(data)
+    same = _same_animal(session, data)
+    if same is not None:
+        # The same card captured twice (names haven't repeated yet): update the animal already in the herd.
+        for field in ("mother_id", "father_id"):
+            if getattr(same, field, None) is None and data.get(field) is not None:
+                setattr(same, field, data[field])
+        if same.origin != "bred" and data.get("origin") == "bred":
+            same.origin = "bred"
+        if same.sex == "?" and data.get("sex") in ("M", "F"):
+            same.sex = data["sex"]
+        if data.get("pen") and data["pen"] != same.pen:
+            log(session, "moved", same.id, notes=f"{same.pen or 'unplaced'} -> {data['pen']}")
+            same.pen = data["pen"]
+        if same.status == "missing":
+            same.status = "alive"
+            log(session, "alive", same.id, notes="found")
+        if crop.get("capture_id"):
+            apply_capture(session, same, crop)
+        if same.born_at is None:
+            set_birth(session, same, crop)
+        log(session, "captured", same.id, notes="captured again (not a new animal)")
+        session.commit()
+        session.refresh(same)
+        return same
     animal = Animal(**clean(data), code=next_code(session, data["species"]))
     animal.name = animal.name or animal.code
     if animal.origin == "bred" and animal.mother_id is not None:
