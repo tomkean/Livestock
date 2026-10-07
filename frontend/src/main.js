@@ -74,6 +74,32 @@ on('auto_status', msg => {
     if (!ScreenCaptureService.isCapturing()) showAuto(msg.enabled);
 });
 let lastSeenToast = 0;
+// Where the player is: picked here until Rust+ can tell. Every open app follows the same choice.
+const where = document.getElementById('where');
+function showWhere(settings) {
+    const pools = settings?.pools || {};
+    const holding = Array.isArray(pools.holding) ? pools.holding : pools.holding ? [pools.holding] : [];
+    const places = [...(pools.harems || []), ...holding, 'Vendor'];
+    const here = settings?.location || '';
+    where.innerHTML = `<option value="">Where am I?</option>` + places.map(p =>
+        `<option value="${p.replace(/"/g, '&quot;')}" ${p === here ? 'selected' : ''}>${p.replace(/</g, '&lt;')}</option>`).join('');
+}
+api.get('/api/settings').then(showWhere).catch(() => {});
+where.addEventListener('change', async () => {
+    try {
+        await api.put('/api/settings', { location: where.value });
+        toast(where.value ? `At ${where.value}` : 'Location cleared');
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+});
+on('location', msg => { if (where.value !== msg.location) api.get('/api/settings').then(showWhere).catch(() => {}); });
+on('auto_new', msg => {
+    currentView?.onAutoSeen?.(msg);
+    const sex = msg.sex === 'M' ? 'ram' : msg.sex === 'F' ? 'ewe' : 'sex unknown';
+    toast(`New: ${msg.name} (${msg.lamb ? 'lamb, ' : ''}${sex})${msg.pen ? ' in ' + msg.pen : ''} - registered automatically`, 'info');
+});
+
 on('auto_seen', msg => {
     currentView?.onAutoSeen?.(msg);
     if (Date.now() - lastSeenToast > 4000) {

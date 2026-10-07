@@ -13,7 +13,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
-from sqlmodel import Session, or_, select
+from sqlmodel import Session, func, or_, select
 
 import card_reader
 import genetics
@@ -176,8 +176,9 @@ def crop_image(capture: Capture, box: Box, out_dir) -> str:
     return f"{out_dir.relative_to(DATA_DIR).as_posix()}/{name}"
 
 
-def apply_capture(session: Session, animal: Animal, crop: dict):
-    """Cut the card and name images for an animal out of a capture, and mark the capture as used."""
+def apply_capture(session: Session, animal: Animal, crop: dict, learn: bool = True):
+    """Cut the card and name images for an animal out of a capture, and mark the capture as used. `learn` teaches the
+    marker reader the digits, so only for records a person confirmed (never from its own automatic reads)."""
     capture = session.get(Capture, crop["capture_id"])
     if not capture:
         raise HTTPException(404, f"capture {crop['capture_id']} not found")
@@ -187,7 +188,7 @@ def apply_capture(session: Session, animal: Animal, crop: dict):
         animal.name_image = crop_image(capture, crop["name_box"], NAME_DIR)
     capture.animal_id = animal.id
     # Teach the card reader this capture's marker digits, now that a person has confirmed them.
-    if animal.herd_top is not None or animal.herd_bottom is not None:
+    if learn and (animal.herd_top is not None or animal.herd_bottom is not None):
         image = cv2.imread(str(CAPTURE_DIR / capture.path))
         if image is not None:
             card_reader.learn_markers(image, animal.herd_top, animal.herd_bottom)
@@ -283,7 +284,7 @@ def _same_animal(session: Session, data: dict) -> Optional[Animal]:
 
 
 @app.post("/api/animals")
-def create_animal(body: AnimalIn, session: Session = Depends(get_session)):
+def create_animal(body: AnimalIn, session: Session = Depends(get_session), auto: bool = False):
     data = body.model_dump()
     crop = split_crop(data)
     same = _same_animal(session, data)
@@ -303,7 +304,7 @@ def create_animal(body: AnimalIn, session: Session = Depends(get_session)):
             same.status = "alive"
             log(session, "alive", same.id, notes="found")
         if crop.get("capture_id"):
-            apply_capture(session, same, crop)
+            apply_capture(session, same, crop, learn=not auto)
         if same.born_at is None:
             set_birth(session, same, crop)
         log(session, "captured", same.id, notes="captured again (not a new animal)")
@@ -323,7 +324,7 @@ def create_animal(body: AnimalIn, session: Session = Depends(get_session)):
     session.flush()
     check_animal(session, animal)
     if crop.get("capture_id"):
-        apply_capture(session, animal, crop)
+        apply_capture(session, animal, crop, learn=not auto)
     set_birth(session, animal, crop)
     log(session, "born" if animal.origin == "bred" else "bought", animal.id, animal.mother_id)
     session.commit()
@@ -658,8 +659,11 @@ def get_settings():
 
 
 @app.put("/api/settings")
-def put_settings(changes: dict):
-    return settings_store.save(changes)
+async def put_settings(changes: dict):
+    saved = settings_store.save(changes)
+    if "location" in changes:  # every open app shows where the player is
+        await hub.broadcast({"type": "location", "location": saved.get("location") or ""})
+    return saved
 
 
 # ---------------------------------------------------------------- captures
@@ -727,6 +731,78 @@ def _match_reading(session: Session, reading: dict) -> Optional[Animal]:
     return unnamed[0] if len(unnamed) == 1 and not name else None
 
 
+def _buildings() -> list[str]:
+    cfg = settings_store.load().get("pools") or {}
+    holding = cfg.get("holding") or []
+    return list(cfg.get("harems") or []) + ([holding] if isinstance(holding, str) else list(holding))
+
+
+def _other_parent(session: Session, known: Animal, conceived: datetime) -> Optional[Animal]:
+    """The one adult of the other sex that was in the known parent's building when the lamb was conceived, if there
+    was exactly one (a harem's ram, say). None when it's ambiguous: better a blank than a wrong parent."""
+    pens = pens_at(session, conceived)
+    where = pens.get(known.id)
+    if not where:
+        return None
+    gone = {e.animal_id: _utc(e.at) for e in session.exec(select(Event).where(Event.kind.in_(["sold", "dead"])))}
+    want = "M" if known.sex == "F" else "F"
+    found = []
+    for a in session.exec(select(Animal).where(Animal.species == known.species, Animal.sex == want)).all():
+        if pens.get(a.id) != where or (a.id in gone and gone[a.id] < conceived):
+            continue
+        born = _utc(a.born_at)
+        if born is not None and (conceived - born).total_seconds() < planner.GROWTH * 60:
+            continue  # still a lamb then
+        found.append(a)
+    return found[0] if len(found) == 1 else None
+
+
+def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Optional[Animal]:
+    """Register an animal seen for the first time from a clean read of its card, so the player doesn't have to.
+
+    Needs a confident name, every top gene and the marker. Species from the portrait; a lamb is bred here, an adult
+    arriving is bought or tamed. Sex from the parent its name points to, else from an English first name, else
+    unknown. One parent from the name, the other only when the building records leave no doubt. Anything less clean
+    is filed as a pending capture for a person instead."""
+    name = (reading.get("name") or "").strip()
+    if not name or "?" in reading["genes_top"] or reading.get("herd_top") is None:
+        return None
+    lamb = bool(reading.get("lamb"))
+    parent = None
+    parent_name = genetics.named_parent(name)
+    if parent_name:
+        named = session.exec(select(Animal).where(func.lower(Animal.name) == parent_name.lower())).all()
+        parent = named[0] if len(named) == 1 else None
+    species = reading.get("species") or (parent.species if parent else "sheep")
+    if parent is not None and parent.species != species:
+        parent = None
+    sex = parent.sex if parent is not None and parent.sex in ("M", "F") else (reading.get("sex_guess") or "?")
+    here = settings_store.load().get("location") or ""
+    file = f"{now:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}.jpg"
+    cv2.imwrite(str(CAPTURE_DIR / file), frame)
+    capture = Capture(path=file, width=frame.shape[1], height=frame.shape[0], location=here)
+    session.add(capture)
+    session.flush()
+    data = {"name": name, "species": species, "sex": sex, "origin": "bred" if (lamb or parent) else "ranch",
+            "genes_top": reading["genes_top"], "genes_bottom": reading.get("genes_bottom"),
+            "herd_top": reading.get("herd_top"), "herd_bottom": reading.get("herd_bottom"),
+            "pen": here if here in _buildings() else ""}
+    if parent is not None:
+        data["mother_id" if parent.sex == "F" else "father_id"] = parent.id
+        born = now - timedelta(minutes=reading.get("age_minutes") or 0)
+        other = _other_parent(session, parent, born - timedelta(minutes=planner.GESTATION)) if parent.sex in ("M", "F") else None
+        if other is not None:
+            data["father_id" if parent.sex == "F" else "mother_id"] = other.id
+    body = AnimalIn(**data, capture_id=capture.id, card_box=reading.get("card_box"), name_box=reading.get("name_box"),
+                    age_minutes=reading.get("age_minutes") if lamb else None)
+    animal = create_animal(body, session, auto=True)
+    log(session, "captured", animal.id, notes="registered automatically from its card"
+        + (f"; {'mother' if parent.sex == 'F' else 'father'} from its name" if parent is not None else "")
+        + ("; sex from its name" if parent is None and sex != "?" else ""))
+    session.commit()
+    return animal
+
+
 @app.post("/api/autocapture")
 async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_height: int = 0, crop_x: int = 0,
                       crop_y: int = 0, session: Session = Depends(get_session)):
@@ -761,6 +837,12 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
         filed = _auto_seen.get("new:" + sig)
         if filed and (now - filed[0]).total_seconds() < AUTO_NEW_COOLDOWN_SECONDS:
             return {"card": True, "new": True, "filed": False}
+        new = _auto_register(session, reading, frame, now)
+        if new is not None:
+            _auto_seen["new:" + sig] = (now, None)
+            await hub.broadcast({"type": "auto_new", "id": new.id, "name": new.name, "sex": new.sex,
+                                 "pen": new.pen, "lamb": bool(reading.get("lamb"))})
+            return {"card": True, "new": True, "registered": new.id, "name": new.name}
         _auto_seen["new:" + sig] = (now, None)
         name = f"{now:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}.jpg"
         cv2.imwrite(str(CAPTURE_DIR / name), frame)

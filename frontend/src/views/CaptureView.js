@@ -53,12 +53,7 @@ export class CaptureView extends View {
                         <button id="btn-capture-delay">Capture in 5s</button>
                     </div>
                     <p class="hint">Share screen on the gaming PC. Press Capture from any device while an animal card is showing.</p>
-                    <label class="where">Where I am
-                        <select id="where">${['', ...buildingsFrom(this.settings), 'Vendor'].map(w =>
-                            `<option value="${esc(w)}" ${(this.settings.location || '') === w ? 'selected' : ''}>${w ? esc(w) : 'Elsewhere'}</option>`).join('')}
-                        </select>
-                    </label>
-                    <p class="hint">Auto capture files every animal it recognises under this building. At the vendor, captures are tagged as offer screens.</p>
+                    <p class="hint">Set where you are with the picker at the top. With Auto on, animals seen for the first time register themselves; only unclear cards wait here.</p>
                     <h3>Pending captures</h3>
                     <ul class="captures">${this.captures.map(c => `
                         <li data-id="${c.id}" class="${c.id === this.selected?.id ? 'selected' : ''}">
@@ -72,14 +67,6 @@ export class CaptureView extends View {
             </div>`;
 
         this.container.querySelector('#btn-share').addEventListener('click', () => this.toggleShare());
-        this.container.querySelector('#where').addEventListener('change', async e => {
-            try {
-                this.settings = await api.put('/api/settings', { location: e.target.value });
-                toast(e.target.value ? `Now at ${e.target.value}` : 'Location cleared');
-            } catch (err) {
-                toast(err.message, 'error');
-            }
-        });
         this.container.querySelector('#btn-capture-delay').addEventListener('click', () => requestCapture(5));
         this.container.querySelectorAll('.captures li[data-id]').forEach(li => li.addEventListener('click', e => {
             if (e.target.closest('[data-dismiss]')) return;
