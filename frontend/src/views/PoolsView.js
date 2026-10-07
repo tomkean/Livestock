@@ -89,7 +89,7 @@ export class PoolsView extends View {
         // Each card sits in the building the animal is in now; the plan shows as a note.
         const card = (a) => {
             const v = plan.verdicts[a.id];
-            const verdict = v ? `<div class="verdict v-${v.verdict}"><b>${VERDICT_LABEL[v.verdict]}</b> ${esc(v.reason)}${v.verdict === 'cull' ? ' <span class="muted">(lead it over a barrier and let go; shooting angers the herd)</span>' : ''}</div>` : '';
+            const verdict = v ? `<div class="verdict v-${v.verdict}"><b>${VERDICT_LABEL[v.verdict]}</b> ${esc(v.reason)}${v.verdict === 'cull' ? ' <span class="muted">(lead it over a barrier and let go - never shoot one while the herd is awake: they all attack)</span>' : ''}</div>` : '';
             const to = plan.pen[a.id];
             const moving = to && to !== a.pen && !skipped.has(`${a.id}>${to}`) ? `<div class="hint move">→ move to <b>${esc(to)}</b></div>` : '';
             const role = heads.has(a.id) ? `<div class="hint">harem ram${to && to !== a.pen ? ` for ${esc(to)}` : ''}</div>` : '';
