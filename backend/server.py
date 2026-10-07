@@ -1017,7 +1017,8 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
 
     cond = reading.get("conditions") or {}
     keys = ("food", "water", "personal_space", "overall")
-    changed = any(cond.get(k) is not None and cond.get(k) != getattr(animal, k) for k in keys)
+    # The bars read a point either way from frame to frame: only a real change counts.
+    changed = any(cond.get(k) is not None and abs(cond[k] - (getattr(animal, k) or 0)) >= 3 for k in keys)
     last_seen = _utc(animal.seen_at)
     if cond and (changed or last_seen is None or (now - last_seen).total_seconds() > READING_EVERY_SECONDS):
         session.add(Reading(animal_id=animal.id, at=now, **{k: cond.get(k) for k in keys}))
