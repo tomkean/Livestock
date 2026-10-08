@@ -27,10 +27,12 @@ class Inference(unittest.TestCase):
     def test_green_parents_with_all_green_lambs_lean_good_good(self):
         # Many green lambs from a red ewe: each one got Good from the ram, so Good/Good becomes likely.
         herd = [animal(1, "BBBBB"), animal(2, "GGGGG")] + [animal(10 + k, "GGGGG", mother=1, father=2) for k in range(6)]
-        lone = inference.infer([animal(2, "GGGGG")], sweeps=600, burn=200)["posterior"][2][0].get("GG", 0)
-        tested = inference.infer(herd, sweeps=600, burn=200)["posterior"][2][0].get("GG", 0)
+        # Enough samples that one gene's estimate isn't at the mercy of the random stream (80 kept samples swung it
+        # between 0.69 and 0.98; the exact answer here is about 0.94).
+        lone = inference.infer([animal(2, "GGGGG")], sweeps=2500, burn=500)["posterior"][2][0].get("GG", 0)
+        tested = inference.infer(herd, sweeps=2500, burn=500)["posterior"][2][0].get("GG", 0)
         self.assertGreater(tested, 0.8)
-        self.assertLess(lone, 0.2)
+        self.assertLess(lone, 0.3)  # a lone green: Good/Good a fifth of the time with equal wild odds
 
 
 if __name__ == "__main__":

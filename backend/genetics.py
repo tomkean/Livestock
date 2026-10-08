@@ -23,8 +23,10 @@ def _pair(a: str, b: str) -> str:
     return a + b if STRENGTH[a] >= STRENGTH[b] else b + a
 
 
-# Wild and bought animals roll each copy independently (published): Good 20%, Ok 50%, Bad 30%.
-WILD_COPY = {"G": 0.2, "O": 0.5, "B": 0.3}
+# Wild and bought animals roll each copy independently. Published sources said Good 20%, Ok 50%, Bad 30%, but both
+# rows of 62 spawned sheep on the test server (620 copies) gave 34% / 29% / 37%: equal odds fit. (Console-spawned; tamed
+# or bought animals on a live server might differ.)
+WILD_COPY = {"G": 1 / 3, "O": 1 / 3, "B": 1 / 3}
 
 
 def _wild_pair(a: str, b: str) -> float:

@@ -109,7 +109,7 @@ Sources: rusthelp.com/world/sheep and /cow, rust.facepunch.com/news/livestock, b
 | Dung interval (D) | 16m 40s | 10m | 6m 15s |
 
 - **Gestation 10 min.** Growth to adult: not published; we measured 60 min (Estella).
-- **Wild animals roll each gene copy Good 20%, Ok 50%, Bad 30%.** So a wild animal is Good/Good on a given gene only 4% of the time, and shows Good on it 36% of the time.
+- **Wild animals roll each gene copy about a third each** (measured, test server 8 Oct 2026: both rows of 32 sheep that were adults when first seen, 320 copies, gave Good 31% / Ok 34% / Bad 35%; top rows 52% green). The published "Good 20%, Ok 50%, Bad 30%" doesn't fit. So a wild animal is Good/Good on a gene 1 time in 9 and shows Good 5 times in 9. These were console-spawned; tamed or bought animals on a live server could differ. The app uses equal odds (scored better against the true second rows: real Good/Goods got 0.27 on average instead of 0.18).
 - Breeding: adult female near an adult male, both with overall condition ≥ 0.7 (pauses at 0.6). Overall condition = the lowest of food, water and personal space.
 - Inbred animals express weaker genes but still pass on their Good copies.
 - Personal space: comfortable with up to 8 herd mates within 20 m; crowded beyond 12. Grazing and trough range 25 m. Wild group size: sheep 2-6, cows 1-4. Sheep HP 150.

@@ -19,7 +19,7 @@ import genetics
 ALLELES = (2, 1, 0)  # Good, Ok, Bad
 LETTER_TO = {"G": 2, "O": 1, "B": 0}
 TO_LETTER = {2: "G", 1: "O", 0: "B"}
-WILD = {2: 0.2, 1: 0.5, 0: 0.3}
+WILD = {2: genetics.WILD_COPY["G"], 1: genetics.WILD_COPY["O"], 0: genetics.WILD_COPY["B"]}  # one source of truth
 # Annealing: early sweeps allow a little "impossible" inheritance and card mismatch so the sampler can't get stuck
 # (a lamb's guessed copy ruling out its mother's true copy and vice versa). Both shrink to ~0 before sampling starts.
 SLACK_START, SLACK_END = 0.2, 1e-6
