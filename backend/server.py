@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, func, or_, select
 
 import card_reader
+import constraints
 import housekeeping
 import vendor_reader
 import genetics
@@ -253,12 +254,13 @@ def list_animals(include_gone: bool = False, session: Session = Depends(get_sess
     inf = inferred(session)
     target = settings_store.load().get("target_genes") or "DLYFH"
     out = []
+    lg = logic(session) if inf is not None else None
     for a in session.exec(query).all():
         row = a.model_dump(mode="json")
         free = free_again_at(session, a)
         row["free_again_at"] = free.isoformat() if free else None
         row["good_good"], row["target_chance"] = target_chance(a, target, inf)
-        row["hidden"] = hidden_copies(a, inf)
+        row["hidden"] = hidden_copies(a, inf, lg)
         out.append(row)
     return out
 
@@ -266,7 +268,7 @@ def list_animals(include_gone: bool = False, session: Session = Depends(get_sess
 HIDDEN_SHOWN = 0.005  # a hidden copy below this chance counts as ruled out
 
 
-def hidden_copies(a, inf: dict | None) -> list:
+def hidden_copies(a, inf: dict | None, lg: dict | None = None) -> list:
     """Per gene, the hidden (second) copies still possible under the top row, most likely first: [[letter, chance]].
 
     The top row shows the stronger copy, so the hidden one is never stronger than it (no G under an O or B). Live mode:
@@ -278,6 +280,13 @@ def hidden_copies(a, inf: dict | None) -> list:
             pairs = {}
             for pair, p in dist.items():  # pairs are written strongest first: "GO" means top G, hidden O
                 pairs[pair[1]] = pairs.get(pair[1], 0.0) + p
+            # Exact logic overrides sampling noise: what it rules out goes, what it proves is certain - unless this
+            # animal's own family records conflict, where the logic can't be trusted until they're fixed.
+            if lg and a.id in lg["domains"] and a.id not in lg["in_conflict"]:
+                possible = {pair[1] for pair in lg["domains"][a.id][i]}
+                pairs = {k: v for k, v in pairs.items() if k in possible}
+                total = sum(pairs.values())
+                pairs = {k: v / total for k, v in pairs.items()} if total else {k: 1 / len(possible) for k in possible}
             out.append(sorted(([k, round(v, 3)] for k, v in pairs.items() if v >= HIDDEN_SHOWN), key=lambda x: -x[1]))
         elif a.genes_bottom and a.genes_bottom[i] != "?":
             out.append([[a.genes_bottom[i], 1.0]])
@@ -477,8 +486,14 @@ def inferred(session: Session) -> dict | None:
     animals = [visible(a) for a in session.exec(select(Animal)).all()]
     key = tuple((a.id, a.genes_top, a.mother_id, a.father_id) for a in animals)
     if _inference_cache.get("key") != key:
-        _inference_cache.update(key=key, result=inference.infer(animals))
+        _inference_cache.update(key=key, result=inference.infer(animals), logic=constraints.closure(animals))
     return _inference_cache["result"]
+
+
+def logic(session: Session) -> Optional[dict]:
+    """The exact logic pass over the family tree (see constraints.py), computed with the inference."""
+    inferred(session)
+    return _inference_cache.get("logic")
 
 
 _MOVE = re.compile(r"^(.*?) -> (.*?)(?: \(seen there\))?$")
@@ -756,6 +771,25 @@ def animal_readings(animal_id: int, limit: int = 200, session: Session = Depends
     """Conditions history from automatic capture, newest first."""
     return session.exec(select(Reading).where(Reading.animal_id == animal_id)
                         .order_by(Reading.at.desc()).limit(limit)).all()
+
+
+@app.get("/api/records/conflicts")
+def record_conflicts(session: Session = Depends(get_session)):
+    """Lambs whose recorded parents can't all be right: no hidden copies could explain the lamb's card from theirs."""
+    lg = logic(session)
+    if not lg:
+        return []
+    names = {a.id: a for a in session.exec(select(Animal)).all()}
+    seen, out = set(), []
+    for child, g, mother, father in lg["conflicts"]:
+        if child in seen:
+            continue
+        seen.add(child)
+        c, m, f = names.get(child), names.get(mother), names.get(father)
+        out.append({"id": child, "name": c.name if c else "?", "gene": genetics.GENES[g], "top": c.genes_top if c else "",
+                    "mother": {"id": m.id, "name": m.name, "top": m.genes_top} if m else None,
+                    "father": {"id": f.id, "name": f.name, "top": f.genes_top} if f else None})
+    return out
 
 
 @app.get("/api/events")

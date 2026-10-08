@@ -23,10 +23,11 @@ export class HerdView extends View {
     }
 
     async render() {
-        let everyone;
-        [everyone, this.settings] = await Promise.all([
+        let everyone, conflicts;
+        [everyone, this.settings, conflicts] = await Promise.all([
             api.get('/api/animals?include_gone=true'),
-            api.get('/api/settings')
+            api.get('/api/settings'),
+            api.get('/api/records/conflicts').catch(() => [])
         ]);
         // Missing animals always show, in their own strip, so one that turns up can be put straight back.
         const missing = everyone.filter(a => a.status === 'missing');
@@ -64,6 +65,14 @@ export class HerdView extends View {
                         <label><input type="checkbox" id="show-gone" ${this.showGone ? 'checked' : ''}> Show sold / dead / missing</label>
                     </div>
                     <div id="odds"></div>
+                    ${conflicts.length ? `
+                    <section class="pen conflicts">
+                        <h2>Family records that can't be right <span class="count">${conflicts.length}</span></h2>
+                        <p class="hint">No hidden copies could give the lamb's card from these parents' cards, so one parent is wrong (or a card was misread). A wrong parent quietly skews the hidden-gene estimates for the whole family.</p>
+                        <ul class="missing-list">${conflicts.map(c => `<li><b>${esc(c.name)}</b> ${esc(c.top)} - gene ${esc(c.gene)}:
+                            mother ${c.mother ? `${esc(c.mother.name)} ${esc(c.mother.top)} <button data-clear="${c.id}" data-role="mother_id">Not her</button>` : '-'}
+                            · father ${c.father ? `${esc(c.father.name)} ${esc(c.father.top)} <button data-clear="${c.id}" data-role="father_id">Not him</button>` : '-'}</li>`).join('')}</ul>
+                    </section>` : ''}
                     ${missing.length ? `
                     <section class="pen missing">
                         <h2>Missing <span class="count">${missing.length}</span> <span class="muted">seeing one puts it back; clear the ones you know are gone</span></h2>
@@ -77,6 +86,15 @@ export class HerdView extends View {
                 <aside id="detail" class="panel ${this.selectedId ? '' : 'hidden'}"></aside>
             </div>`;
 
+        this.container.querySelectorAll('[data-clear]').forEach(btn => btn.addEventListener('click', async () => {
+            try {
+                await api.patch(`/api/animals/${btn.dataset.clear}`, { [btn.dataset.role]: null });
+                toast('Parent cleared');
+                this.render();
+            } catch (e) {
+                toast(e.message, 'error');
+            }
+        }));
         this.container.querySelectorAll('[data-gone]').forEach(btn => btn.addEventListener('click', async () => {
             const a = missing.find(m => m.id === Number(btn.dataset.gone));
             try {
