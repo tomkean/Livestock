@@ -258,7 +258,31 @@ def list_animals(include_gone: bool = False, session: Session = Depends(get_sess
         free = free_again_at(session, a)
         row["free_again_at"] = free.isoformat() if free else None
         row["good_good"], row["target_chance"] = target_chance(a, target, inf)
+        row["hidden"] = hidden_copies(a, inf)
         out.append(row)
+    return out
+
+
+HIDDEN_SHOWN = 0.005  # a hidden copy below this chance counts as ruled out
+
+
+def hidden_copies(a, inf: dict | None) -> list:
+    """Per gene, the hidden (second) copies still possible under the top row, most likely first: [[letter, chance]].
+
+    The top row shows the stronger copy, so the hidden one is never stronger than it (no G under an O or B). Live mode:
+    from the inference, family included. Test-server mode: the captured second row, when there is one."""
+    out = []
+    for i in range(len(genetics.GENES)):
+        if inf is not None and a.id in inf["posterior"]:
+            dist = inf["posterior"][a.id][i]
+            pairs = {}
+            for pair, p in dist.items():  # pairs are written strongest first: "GO" means top G, hidden O
+                pairs[pair[1]] = pairs.get(pair[1], 0.0) + p
+            out.append(sorted(([k, round(v, 3)] for k, v in pairs.items() if v >= HIDDEN_SHOWN), key=lambda x: -x[1]))
+        elif a.genes_bottom and a.genes_bottom[i] != "?":
+            out.append([[a.genes_bottom[i], 1.0]])
+        else:
+            out.append([])
     return out
 
 

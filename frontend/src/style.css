@@ -271,3 +271,9 @@ main { padding: 16px 20px; }
 .readings { font-size: 13px; border-collapse: collapse; }
 .readings td, .readings th { padding: 1px 8px 1px 0; text-align: right; }
 .readings td.when { text-align: left; }
+
+/* Hidden copies still possible, one column per gene */
+.hidden-row { align-items: flex-start; }
+.hidden-col { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 34px; flex: none; }  /* under a 30px circle + border */
+.hidden-col .dot.small { margin: 0; }
+.dot.truth { outline: 2px solid #fff; outline-offset: 1px; }

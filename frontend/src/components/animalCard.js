@@ -14,13 +14,28 @@ function herdDot(herd, small) {
     return `<span class="dot herd${small ? ' small' : ''}" title="Herd">${herd ?? '?'}</span>`;
 }
 
-/** Gene circles laid out like the in-game card: expressed row on top, carried row underneath. */
+const LETTER_NAME = { G: 'Good', O: 'Ok', B: 'Bad' };
+
+/**
+ * Gene circles: the top row as on the in-game card, and under each gene a column of the hidden copies not yet ruled
+ * out, most likely first (fainter when less likely; the chance on hover). One circle under a gene means it's settled.
+ * On a test server, the captured second row is ringed, so you can see how the inference is doing.
+ */
 export function geneDots(a) {
     const top = [...a.genes_top].map((g, i) => dot(g, GENES[i], false)).join('') + herdDot(a.herd_top, false);
-    const bottom = a.genes_bottom
-        ? [...a.genes_bottom].map((g, i) => dot(g, GENES[i], true)).join('') + herdDot(a.herd_bottom, true)
-        : '';
-    return `<div class="genes"><div class="gene-row">${top}</div>${bottom ? `<div class="gene-row">${bottom}</div>` : ''}</div>`;
+    const hidden = a.hidden || [];
+    if (!hidden.some(col => col.length)) {
+        return `<div class="genes"><div class="gene-row">${top}</div></div>`;
+    }
+    const columns = GENES.map((gene, i) => {
+        const truth = a.genes_bottom && a.genes_bottom[i] !== '?' ? a.genes_bottom[i] : null;
+        const options = hidden[i] || [];
+        const cells = options.map(([letter, p]) => `<span class="dot small a-${letter}${letter === truth ? ' truth' : ''}"
+            style="opacity:${Math.max(0.35, Math.min(1, 0.35 + p))}"
+            title="${GENE_NAMES[gene]}: hidden copy ${LETTER_NAME[letter]} - ${p >= 0.995 ? 'certain' : Math.round(p * 100) + '%'}${letter === truth ? ' (the second row says so)' : ''}">${letter}</span>`).join('');
+        return `<div class="hidden-col">${cells || '<span class="dot small a-U" title="unknown">?</span>'}</div>`;
+    }).join('');
+    return `<div class="genes"><div class="gene-row">${top}</div><div class="gene-row hidden-row">${columns}</div></div>`;
 }
 
 export function displayName(a) {
