@@ -281,7 +281,7 @@ def target_chance(a, target: str, inf: dict | None):
     total = 1.0
     for v in per_gene.values():
         total *= v
-    return per_gene, round(total, 4)
+    return per_gene, float(f"{total:.3g}")  # keep tiny chances tiny, not 0 (the card shows them as <1%)
 
 
 def by_name(candidates: list, now: Optional[datetime] = None):
