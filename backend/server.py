@@ -903,6 +903,12 @@ async def _close_visit(session: Session):
                      for o in offers)
     caps = ", ".join(str(o.capture_id) for o in offers if o.capture_id)
     animal = session.get(Animal, last.animal_id) if last.animal_id else None
+    if animal is not None and animal.pregnant:
+        last.outcome = ""
+        log(session, "offers_declined", animal.id,
+            notes=f"auto: the vendor won't buy a pregnant ewe; offers seen: {text} [captures {caps}]")
+        session.commit()
+        return
     if animal is not None and animal.status in ("alive", "missing"):
         animal.status = "sold"
         log(session, "sold", animal.id, notes=f"auto: offers (offer {last.number} taken): {text} [captures {caps}]")
@@ -1109,6 +1115,14 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     animal = _match_reading(session, reading)
     if animal is None and reading.get("name"):
         animal = _resold_check(session, reading["name"], reading)
+    if animal is None and reading.get("name") and "?" not in reading["genes_top"]:
+        for a in session.exec(select(Animal).where(Animal.status == "dead",
+                                                   func.lower(Animal.name) == reading["name"].lower())):
+            if a.genes_top == reading["genes_top"] and (reading.get("herd_top") is None or a.herd_top in (None, reading["herd_top"])):
+                a.status = "missing"  # back as alive below if this is one of the buildings
+                log(session, "missing", a.id, notes="marked dead, but its card was seen again")
+                animal = a
+                break
     if animal is None:
         # A card caught while opening, blurred or half off-screen reads as unknown genes: wait for a clean look rather
         # than filing a "new" animal that is really a bad read of one already seen.
@@ -1150,7 +1164,7 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     if animal.status == "missing" and (settings_store.load().get("location") or "") in _buildings():
         animal.status = "alive"  # back in a building; seen outside one (grazing by the vendor, say) it stays missing
         log(session, "alive", animal.id, notes="found (automatic capture)")
-    if reading.get("name") and animal.sex != "M":
+    if reading.get("name"):
         # "Pregnant" after the name. It lingers a few seconds after the lamb appears, and no ewe can be pregnant again
         # within 40 minutes of lambing (the shortest cooldown is 41), so a recent lamb means it's that echo.
         last_lamb = session.exec(select(Animal).where(Animal.mother_id == animal.id)
@@ -1159,7 +1173,8 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
         just_lambed = lamb_at is not None and (now - lamb_at).total_seconds() < PREGNANCY_ECHO_SECONDS
         if reading.get("pregnant") and not animal.pregnant and not just_lambed:
             animal.pregnant = True
-            if animal.sex == "?":
+            if animal.sex != "F":  # only a ewe can be pregnant, whatever the name suggested
+                log(session, "edited", animal.id, notes=f"sex {animal.sex} -> F: the card says Pregnant")
                 animal.sex = "F"
             log(session, "pregnant", animal.id, notes="the card says Pregnant (automatic capture)")
         elif not reading.get("pregnant") and animal.pregnant:
