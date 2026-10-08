@@ -1147,8 +1147,8 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     if (reading.get("yield") or {}).get("per_hour") and reading["yield"].get("product", "wool") == "wool":
         animal.wool_per_hour = reading["yield"]["per_hour"]
         animal.wool_per_shear, animal.wool_regrow_min = reading["yield"]["amount"], reading["yield"]["minutes"]
-    if animal.status == "missing":
-        animal.status = "alive"
+    if animal.status == "missing" and (settings_store.load().get("location") or "") in _buildings():
+        animal.status = "alive"  # back in a building; seen outside one (grazing by the vendor, say) it stays missing
         log(session, "alive", animal.id, notes="found (automatic capture)")
     if reading.get("name") and animal.sex != "M":
         # "Pregnant" after the name. It lingers a few seconds after the lamb appears, and no ewe can be pregnant again
