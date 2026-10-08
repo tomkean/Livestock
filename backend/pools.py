@@ -17,6 +17,7 @@ N = len(genetics.GENES)
 # gain: a ewe stays in her harem unless another suits her 50% better, a heading ram keeps his harem unless a challenger
 # is worth 50% more.
 STAY_MARGIN = 0.5
+PREVIOUS_EDGE = 0.1  # the last plan's rams and promotions keep their place unless beaten by more than 10%
 
 
 def beliefs(animals, target: str, posterior: dict | None) -> dict:
@@ -51,7 +52,7 @@ def _value(goods, weights) -> float:
 
 
 def arrange(animals, target: str, posterior: dict | None, harems: list[str], holding, harem_ewes: int = 8,
-            holding_size: int = 4) -> dict:
+            holding_size: int = 4, previous: set | None = None) -> dict:
     """Suggested pen for every animal, plus a verdict and a reason for each one in holding.
 
     `holding` is one room name or a list of them; animals waiting there fill the rooms in order, `holding_size` each
@@ -63,8 +64,15 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
     value = {a.id: _value(belief[a.id], weights) for a in animals}
 
     grown = [a for a in animals if not getattr(a, "is_lamb", False)]
+    # The last plan's choices (harem rams, promoted lambs) get an edge, so a near-tie - two lambs whose estimates
+    # drift by a percent as the herd changes - doesn't flip the advice back and forth.
+    previous = previous or set()
+
+    def held(a):
+        return value[a.id] * (1 + PREVIOUS_EDGE if a.id in previous else 1)
+
     def ram_rank(a):
-        return value[a.id] * (1 + STAY_MARGIN if getattr(a, "pen", "") in harems else 1)
+        return held(a) * (1 + STAY_MARGIN if getattr(a, "pen", "") in harems else 1)
 
     rams = sorted((a for a in grown if a.sex == "M"), key=lambda a: -ram_rank(a))
     heads = rams[:len(harems)]
@@ -131,8 +139,8 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         return ram_home.get(ram.id, harems[0])
 
     verdicts = {}
-    for a in sorted((a for a in animals if pen[a.id] == holding), key=lambda a: -value[a.id]):
-        v = value[a.id]
+    for a in sorted((a for a in animals if pen[a.id] == holding), key=lambda a: -held(a)):
+        v = held(a)
         weakest_ram = min(heads, key=lambda r: value[r.id]) if heads else None
         as_ram = weakest_ram is None or v > value[weakest_ram.id]
         best_h = max(head_of, key=lambda h: fit(a, head_of[h])) if head_of else None
