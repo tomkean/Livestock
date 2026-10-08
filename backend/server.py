@@ -980,6 +980,13 @@ def _vendor_animal(session: Session, name: str) -> Optional[Animal]:
     return by_name([a for a in alive if (a.name or "").lower() == hit[0]]) if hit else None
 
 
+def _too_valuable_to_assume(animal: Animal) -> bool:
+    """A harem ram or promoted animal in the current plan, or one showing green on every target gene."""
+    target = settings_store.load().get("target_genes") or "DLYFH"
+    all_green = all(animal.genes_top[genetics.GENES.index(g)] == "G" for g in target)
+    return all_green or animal.id in _last_plan.get(animal.species, set())
+
+
 async def _close_visit(session: Session):
     """The visit ended: the last offer shown is taken (you nearly always end on a deal), the animal marked sold."""
     visit = _vendor.copy()
@@ -998,6 +1005,14 @@ async def _close_visit(session: Session):
         log(session, "offers_declined", animal.id,
             notes=f"auto: the vendor won't buy a pregnant ewe; offers seen: {text} [captures {caps}]")
         session.commit()
+        return
+    if animal is not None and animal.status in ("alive", "missing") and _too_valuable_to_assume(animal):
+        # Ending on offer 3 looks the same whether it was taken or all three were turned down (Louis, the god ram, was
+        # declined). For an animal this valuable, record the offers and ask rather than assume a sale.
+        log(session, "offers_declined", animal.id,
+            notes=f"auto: offers seen, sale not assumed (valuable animal) - mark it sold if you did sell: {text} [captures {caps}]")
+        session.commit()
+        await hub.broadcast({"type": "vendor_unsure", "id": animal.id, "name": animal.name})
         return
     if animal is not None and animal.status in ("alive", "missing"):
         animal.status = "sold"

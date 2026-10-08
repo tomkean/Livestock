@@ -102,6 +102,7 @@ on('location', msg => {
 });
 // The vendor reader: each offer as it's read, and the sale when the visit ends.
 on('vendor_offer', msg => toast(`${msg.name}, offer ${msg.number}${msg.rare ? ' (rare mood!)' : ''}: ${msg.items}`, 'info'));
+on('vendor_unsure', msg => toast(`${msg.name}'s offers recorded but NOT marked sold (too valuable to assume). If you did sell, mark it sold on the Herd tab.`, 'warn'));
 on('vendor_sold', msg => {
     toast(`Sold ${msg.name} on offer ${msg.number}: ${msg.items}. Not sold? Undo in the Log tab`, 'info');
     currentView?.onAutoSeen?.(msg);
