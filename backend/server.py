@@ -656,6 +656,7 @@ def _pools_view(session: Session, species: str) -> tuple[list, dict]:
                            cfg.get("harems") or ["Harem #1", "Harem #2"], cfg.get("holding") or "Death Row",
                            int(cfg.get("harem_ewes") or 5), int(cfg.get("holding_size") or 4),
                            previous=_last_plan.get(species), harem_sizes=cfg.get("harem_sizes") or {})
+    result["quiet"] = _quiet_harems(session, cfg.get("harems") or [], now)
     # Remember this plan's rams and promotions, so the next one sticks with them unless something is clearly better.
     _last_plan[species] = ({h["ram"] for h in result["harems"].values() if h["ram"]}
                            | {i for i, v in result["verdicts"].items() if v["verdict"] == "promote"})
@@ -663,6 +664,37 @@ def _pools_view(session: Session, species: str) -> tuple[list, dict]:
 
 
 _last_plan: dict = {}  # species -> ids the last plan made harem rams or promoted
+
+QUIET_MINUTES = 30
+
+
+def _quiet_harems(session: Session, harems: list, now: datetime) -> dict:
+    """Harems where nothing has happened for a while although a ewe is ready. Mating seems to start when animals come
+    together (a ram arriving), not while a settled group stands about, so a quiet harem can need its ram moved."""
+    out = {}
+    grown = lambda a: a.born_at is None or (now - _utc(a.born_at)).total_seconds() >= planner.GROWTH * 60  # noqa: E731
+    for h in harems:
+        inside = session.exec(select(Animal).where(Animal.status == "alive", Animal.pen == h)).all()
+        rams = [a for a in inside if a.sex == "M" and grown(a)]
+        if not rams:
+            continue
+        ready = []
+        for e in inside:
+            if e.sex != "F" or e.pregnant or not grown(e) or (e.overall is not None and e.overall < 70):
+                continue
+            free = free_again_at(session, e)
+            if free is None or _utc(free) <= now:
+                ready.append(e.name or e.code)
+        if not ready:
+            continue
+        ids = [a.id for a in inside]
+        last = session.exec(select(func.max(Event.at)).where(Event.animal_id.in_(ids), or_(
+            Event.kind == "pregnant", (Event.kind == "moved") & Event.animal_id.in_([r.id for r in rams])))).first()
+        last = _utc(last) if last else None
+        minutes = (now - last).total_seconds() / 60 if last else None
+        if minutes is None or minutes >= QUIET_MINUTES:
+            out[h] = {"minutes": round(minutes) if minutes is not None else None, "ready": ready}
+    return out
 
 
 @app.get("/api/pools")
