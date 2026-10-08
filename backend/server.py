@@ -1,4 +1,5 @@
 """Livestock backend: herd register, breeding log and screen-capture intake."""
+import asyncio
 import difflib
 import json
 import re
@@ -18,6 +19,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, func, or_, select
 
 import card_reader
+import housekeeping
 import vendor_reader
 import genetics
 import inference
@@ -29,10 +31,24 @@ from database import get_session, init_db
 from models import Animal, Capture, Event, Offer, Reading
 
 
+async def _housekeeping_loop():
+    """Prune old capture frames now and every hour, so the data folder can't grow without limit."""
+    while True:
+        try:
+            result = await asyncio.to_thread(housekeeping.prune_captures)
+            if result["removed"]:
+                print(f"housekeeping: removed {result['removed']} old captures ({result['freed_mb']} MB)")
+        except Exception as e:  # never let tidying up take the server down
+            print(f"housekeeping failed: {e}")
+        await asyncio.sleep(3600)
+
+
 @asynccontextmanager
 async def lifespan(app):
     init_db()
+    task = asyncio.create_task(_housekeeping_loop())
     yield
+    task.cancel()
 
 
 app = FastAPI(title="Livestock", lifespan=lifespan)
