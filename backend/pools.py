@@ -213,6 +213,12 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         if verdicts[a.id]["verdict"] == "cull":
             verdicts[a.id]["reason"] += f" - and {holding_rooms[0]} is full"
 
+    # The vendor won't buy a pregnant ewe: a sale waits for the lamb.
+    for a in animals:
+        v = verdicts.get(a.id)
+        if v and v["verdict"] == "sell" and getattr(a, "pregnant", False):
+            v["reason"] += " - after she lambs (the vendor won't buy a pregnant ewe)"
+
     # Spread the animals waiting in holding across the holding rooms, most valuable first.
     order = {"promote": 0, "keep": 1, "sell": 2, "cull": 3}
     waiting = sorted((a for a in animals if pen[a.id] == holding),
