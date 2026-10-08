@@ -268,6 +268,26 @@ def target_chance(a, target: str, inf: dict | None):
     return per_gene, round(total, 4)
 
 
+def by_name(candidates: list, now: Optional[datetime] = None):
+    """The one animal a name means, now that names get reused (a lamb called Clarence while an older Clarence is
+    missing). Prefers grown over lambs, then alive over missing; None when that still leaves more than one."""
+    if len(candidates) <= 1:
+        return candidates[0] if candidates else None
+    now = now or datetime.now(timezone.utc)
+
+    def grown(a):
+        born = _utc(getattr(a, "born_at", None))
+        return born is None or (now - born).total_seconds() >= planner.GROWTH * 60
+
+    for keep in (grown, lambda a: a.status == "alive"):  # a lamb is never the one sold or the parent
+        narrowed = [a for a in candidates if keep(a)]
+        if len(narrowed) == 1:
+            return narrowed[0]
+        if narrowed:
+            candidates = narrowed
+    return None
+
+
 def _outside_is_missing(session: Session, animal: Animal):
     """Every building is watched, so an animal alive in none of them is simply missing (its card still matches)."""
     if animal.status == "alive" and not animal.pen:
@@ -467,8 +487,9 @@ def _parents(session: Session, child) -> list[dict]:
     if parent_name:
         matches = [a for a in animals if (a.name or "").lower() == parent_name.lower()
                    and a.species == child.species and a.id != getattr(child, "id", None)]
-        if len(matches) == 1:
-            known = matches[0].id
+        parent = by_name(matches, born)
+        if parent is not None:
+            known = parent.id
     return genetics.likely_parents(child_view, animals, mated, dists=inf["posterior"] if inf else None,
                                    places=places, known_parent=known)
 
@@ -788,7 +809,7 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
     parent_name = genetics.named_parent(name)
     if parent_name:
         named = session.exec(select(Animal).where(func.lower(Animal.name) == parent_name.lower())).all()
-        parent = named[0] if len(named) == 1 else None
+        parent = by_name(list(named), now)
     species = reading.get("species") or (parent.species if parent else "sheep")
     if parent is not None and parent.species != species:
         parent = None
@@ -841,9 +862,9 @@ def _item_text(items: list) -> str:
 def _vendor_animal(session: Session, name: str) -> Optional[Animal]:
     """The herd animal the Sale panel names (OCR can slip a letter: "Daryi")."""
     alive = session.exec(select(Animal).where(Animal.status.in_(["alive", "missing"]))).all()
-    names = {(a.name or "").lower(): a for a in alive}
-    hit = difflib.get_close_matches(name.lower(), list(names), n=1, cutoff=0.75)
-    return names[hit[0]] if hit else None
+    names = sorted({(a.name or "").lower() for a in alive})
+    hit = difflib.get_close_matches(name.lower(), names, n=1, cutoff=0.75)
+    return by_name([a for a in alive if (a.name or "").lower() == hit[0]]) if hit else None
 
 
 async def _close_visit(session: Session):

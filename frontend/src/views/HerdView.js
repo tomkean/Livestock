@@ -66,23 +66,22 @@ export class HerdView extends View {
                     <div id="odds"></div>
                     ${missing.length ? `
                     <section class="pen missing">
-                        <h2>Missing <span class="count">${missing.length}</span> <span class="muted">found one? press Found</span></h2>
+                        <h2>Missing <span class="count">${missing.length}</span> <span class="muted">seeing one puts it back; clear the ones you know are gone</span></h2>
                         <ul class="missing-list">${missing.map(a => `<li><b>${esc(a.name || a.code)}</b> ${esc(a.genes_top)}
                             <span class="muted">${esc(a.pen ? 'last in ' + a.pen : '')}</span>
-                            <button data-found="${a.id}">Found</button></li>`).join('')}</ul>
+                            <button data-gone="${a.id}" data-status="dead" class="danger">Dead</button>
+                            <button data-gone="${a.id}" data-status="sold">Sold</button></li>`).join('')}</ul>
                     </section>` : ''}
                     <div class="pens">${pen('?', 'Lambs (growing) and unsexed')}${pen('M', 'Males')}${pen('F', 'Females')}</div>
                 </div>
                 <aside id="detail" class="panel ${this.selectedId ? '' : 'hidden'}"></aside>
             </div>`;
 
-        this.container.querySelectorAll('[data-found]').forEach(btn => btn.addEventListener('click', async () => {
-            const a = missing.find(m => m.id === Number(btn.dataset.found));
-            const where = prompt(`Where did you find ${a.name || a.code}? (building name; blank keeps ${a.pen || 'unplaced'})`, a.pen || '');
-            if (where === null) return;
+        this.container.querySelectorAll('[data-gone]').forEach(btn => btn.addEventListener('click', async () => {
+            const a = missing.find(m => m.id === Number(btn.dataset.gone));
             try {
-                await api.patch(`/api/animals/${a.id}`, { status: 'alive', ...(where.trim() ? { pen: where.trim() } : {}) });
-                toast(`${a.name || a.code} is back`);
+                await api.patch(`/api/animals/${a.id}`, { status: btn.dataset.status });
+                toast(`${a.name || a.code} marked ${btn.dataset.status}`);
                 this.render();
             } catch (e) {
                 toast(e.message, 'error');
