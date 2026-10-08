@@ -52,12 +52,16 @@ def _value(goods, weights) -> float:
 
 
 def arrange(animals, target: str, posterior: dict | None, harems: list[str], holding, harem_ewes: int = 8,
-            holding_size: int = 4, previous: set | None = None) -> dict:
+            holding_size: int = 4, previous: set | None = None, harem_sizes: dict | None = None) -> dict:
     """Suggested pen for every animal, plus a verdict and a reason for each one in holding.
 
     `holding` is one room name or a list of them; animals waiting there fill the rooms in order, `holding_size` each
     (best first, so the ones most worth keeping get a place and any overflow is the least valuable)."""
     holding_rooms = [holding] if isinstance(holding, str) else list(holding)
+    harem_sizes = harem_sizes or {}
+
+    def size(h):  # ewes a harem takes: the usual number, or its own (a one-ewe "honeymoon" room)
+        return int(harem_sizes.get(h, harem_ewes))
     holding = holding_rooms[0]
     belief = beliefs(animals, target, posterior)
     weights = _weights(list(belief.values()))
@@ -98,7 +102,7 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
     # stays put unless another suits her clearly better, and she settles in before newcomers are placed, so better
     # ewes don't push incumbents across to the other harem.
     ewes = sorted((a for a in grown if a.sex == "F"), key=lambda a: -value[a.id])
-    chosen = ewes[:harem_ewes * len(head_of)]
+    chosen = ewes[:sum(size(h) for h in head_of)]
 
     def options_for(ewe):
         scores = {h: fit(ewe, head_of[h]) for h in head_of}
@@ -117,7 +121,7 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
             if stays != staying or ewe.id in pen and pen[ewe.id] != holding:
                 continue
             for h in options:
-                if len(members[h]) < harem_ewes:
+                if len(members[h]) < size(h):
                     members[h].append(ewe)
                     pen[ewe.id] = h
                     break
@@ -146,7 +150,7 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         as_ram = weakest_ram is None or v > ram_rank(weakest_ram)
         best_h = max(head_of, key=lambda h: fit(a, head_of[h])) if head_of else None
         weakest_ewe = min(members[best_h], key=ram_rank) if best_h and members[best_h] else None
-        room = best_h is not None and len(members[best_h]) < harem_ewes
+        room = best_h is not None and len(members[best_h]) < size(best_h)
         as_ewe = best_h is not None and (room or (weakest_ewe is not None and v > ram_rank(weakest_ewe)))
         lamb = getattr(a, "is_lamb", False)
         ram_text = (f"promote to {harem_of(weakest_ram)}, replacing {weakest_ram.name}" if weakest_ram
@@ -167,7 +171,7 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         now_in = getattr(a, "pen", "")
         if now_in in harems and verdict != "promote":
             # It's in a harem today but the plan has no place for it there.
-            places = harem_ewes * len(harems) if a.sex == "F" else len(harems)
+            places = sum(size(h) for h in harems) if a.sex == "F" else len(harems)
             kind = "ewes" if a.sex == "F" else "rams"
             reason = f"out of {now_in}: {places} better {kind} fill the harem places" +                 (f" - but keep it: {reason}" if verdict == "keep" else "")
         verdicts[a.id] = {"verdict": verdict, "reason": reason}
