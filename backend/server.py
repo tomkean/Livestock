@@ -958,7 +958,7 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
 ITEM_LABELS = {"metal_fragments": "metal fragments", "hqm_ore": "HQM ore", "rifle_ammo_556": "5.56 rifle ammo",
                "cctv_camera": "CCTV camera", "smg_body": "SMG body", "high_caliber_revolver": "High Caliber Revolver",
                "python_revolver": "Python revolver", "rifle_body": "rifle body",
-               "semi_automatic_rifle": "semi-automatic rifle"}
+               "semi_automatic_rifle": "semi-automatic rifle", "thompson": "Thompson"}
 VENDOR_GAP_SECONDS = 45  # no Sale panel for this long: the visit is over
 _vendor: dict = {}  # the visit in progress: sale key, name, animal, last seen, last offer's signature
 
