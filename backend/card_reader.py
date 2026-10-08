@@ -247,7 +247,14 @@ def sex_from_name(name: str | None) -> str | None:
     first = name.strip().split()[0]
     if first.lower() in EITHER_SEX:
         return None
-    return {"male": "M", "female": "F"}.get(_GENDER.get_gender(first))
+    # Rust's names look American; the blended world list calls Laurence female (French usage) where the US list says
+    # male. The world list fills in where the US list isn't sure, unless the US list leans the other way.
+    us, world = _GENDER.get_gender(first, "usa"), _GENDER.get_gender(first)
+    if us in ("male", "female"):
+        return "M" if us == "male" else "F"
+    if world in ("male", "female") and us != f"mostly_{'female' if world == 'male' else 'male'}":
+        return "M" if world == "male" else "F"
+    return None
 
 
 # The YIELD line sits under AGE: "16 Wool per 3 minutes". White text over a part-filled light bar, so only the
