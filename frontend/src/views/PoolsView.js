@@ -67,6 +67,23 @@ export class PoolsView extends View {
     constructor() {
         super();
         this.species = 'sheep';
+        this.refreshTimer = null;
+    }
+
+    // Automatic capture saw something (an animal, a sale, a move, the location changed): redraw, at most every few
+    // seconds, since the plan behind this page takes longer to work out than the Herd page's pens.
+    onAutoSeen() {
+        if (this.refreshTimer) return;
+        this.refreshTimer = setTimeout(() => {
+            this.refreshTimer = null;
+            if (!this.destroyed) this.render();
+        }, 3000);
+    }
+
+    destroy() {
+        super.destroy();
+        this.destroyed = true;  // the tabs share one container: never redraw over the next page
+        clearTimeout(this.refreshTimer);
     }
 
     async render() {
