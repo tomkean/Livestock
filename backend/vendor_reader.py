@@ -124,6 +124,26 @@ def offer_kind(text: str) -> str:
     return "other"
 
 
+REFUSAL_WORDS = ("today", "your loss")  # "...not offering on this today", with a "Your loss" option to click
+
+
+def read_dialogue(image: np.ndarray) -> str | None:
+    """The Stablehand's lines and options when his dialogue box is up (with or without a Sale panel), else None."""
+    h, w = image.shape[:2]
+    scale = w / BASE_WIDTH
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    header = _find(gray, "stablehand", scale, (int(w * 0.5), int(h * 0.2), int(w * 0.95), int(h * 0.6)))
+    if header is None:
+        return None
+    hx, hy, _ = header
+    S = lambda v: int(round(v * scale))  # noqa: E731
+    return " ".join(_ocr(image[hy + S(70):hy + S(390), hx + S(35):hx + S(935)], config="--psm 6").split())
+
+
+def is_refusal(text: str | None) -> bool:
+    return bool(text) and any(w in text.lower() for w in REFUSAL_WORDS)
+
+
 def read_sale(image: np.ndarray) -> dict:
     """{"found": False} unless a Sale panel is showing; otherwise its name, dialogue, offer kind and items."""
     h, w = image.shape[:2]

@@ -995,6 +995,13 @@ async def _close_visit(session: Session):
     if not offers:
         return
     last = offers[-1]
+    if visit.get("declined"):  # the Stablehand said he wouldn't offer on it today: nothing was sold
+        text = "; ".join(f"{o.number} = {_item_text(json.loads(o.items))}" for o in offers)
+        caps = ", ".join(str(o.capture_id) for o in offers if o.capture_id)
+        if last.animal_id:
+            log(session, "offers_declined", last.animal_id, notes=f"auto: all offers turned down: {text} [captures {caps}]")
+        session.commit()
+        return
     last.outcome = "taken"
     text = "; ".join(f"{o.number} = {_item_text(json.loads(o.items))}" + (" (rare mood)" if o.rare else "")
                      for o in offers)
@@ -1033,6 +1040,19 @@ async def _vendor_frame(session: Session, frame, now: datetime) -> Optional[dict
         await _close_visit(session)
     reading = vendor_reader.read_sale(frame)
     if not reading["found"]:
+        if _vendor and not _vendor.get("declined"):
+            # No Sale panel, but mid-visit: is this the Stablehand turning the animal down after the third offer?
+            said = vendor_reader.read_dialogue(frame)
+            if vendor_reader.is_refusal(said):
+                _vendor["declined"] = True
+                _vendor["seen"] = now
+                file = f"{now:%Y%m%d-%H%M%S}-refusal-{uuid.uuid4().hex[:6]}.jpg"
+                cv2.imwrite(str(CAPTURE_DIR / file), frame)  # kept so the wording can be checked
+                session.add(Capture(path=file, width=frame.shape[1], height=frame.shape[0], location="Vendor",
+                                    dismissed=True, animal_id=_vendor.get("animal_id")))
+                session.commit()
+                await hub.broadcast({"type": "vendor_refused", "name": _vendor.get("name", "")})
+                return {"vendor": True, "refused": True, "said": said}
         return None
     items = [{k: i[k] for k in ("item", "amount", "length_ft")} for i in reading["items"]]
     animal = None if reading["wool"] else _vendor_animal(session, reading["name"])
