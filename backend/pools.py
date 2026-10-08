@@ -17,6 +17,7 @@ N = len(genetics.GENES)
 # gain: a ewe stays in her harem unless another suits her 50% better, a heading ram keeps his harem unless a challenger
 # is worth 50% more.
 STAY_MARGIN = 0.5
+NO_GOOD_PENALTY = 0.5  # value multiplier per target gene with no Good copy (a dead end for a god animal)
 PREVIOUS_EDGE = 0.1  # the last plan's rams and promotions keep their place unless beaten by more than 10%
 
 
@@ -47,8 +48,11 @@ def _weights(goods_list):
 
 
 def _value(goods, weights) -> float:
-    # Good/Good counts extra: it is passed on every time.
-    return sum(w * (c + max(0.0, c - 1)) for w, c in zip(weights, goods))
+    # Good/Good counts extra: it is passed on every time. An animal with no Good copy at all of a target gene (its top
+    # row shows O or B there) can never pass one on, so none of its lambs can be a god animal: that costs half its value
+    # per missing gene, however strong it is elsewhere.
+    total = sum(w * (c + max(0.0, c - 1)) for w, c in zip(weights, goods))
+    return total * (NO_GOOD_PENALTY ** sum(1 for c in goods if c < 0.02))  # inference can leave a trace above 0
 
 
 def arrange(animals, target: str, posterior: dict | None, harems: list[str], holding, harem_ewes: int = 8,
