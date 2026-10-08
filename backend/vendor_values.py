@@ -57,7 +57,7 @@ for (sale,) in db.execute("select distinct sale from offer"):
         visits.append(offers)
 
 # The wool lots (recorded only in MECHANICS.md).
-W = [[(85, {"pressure pad": 1, "smg body": 1}), (35, {"incendiary pistol bullets": 41, "rifle body": 2}),
+W = [[(85, {"armoured ladder hatch": 1, "smg body": 1}), (35, {"incendiary pistol bullets": 41, "rifle body": 2}),
       (265, {"gears": 5, "cctv camera": 1})],
      [(295, {"gunpowder": 100, "metal fragments": 200}), (65, {"metal fragments": 500, "rifle body": 2}),
       (280, {"rifle body": 1, "hqm ore": 8})],
