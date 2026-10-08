@@ -29,7 +29,7 @@ ITEM_NAMES = [
     (r"blueprint fragments?", "blueprint_fragment"),
     (r"rifle bod(y|ies)", "rifle_body"),
     (r"smg bod(y|ies)", "smg_body"),
-    (r"rifle \(semi-auto\?\)|rifle", "rifle"),
+    (r"semi-automatic rifle|rifle \(semi-auto\?\)|rifle", "semi_automatic_rifle"),
     (r"rope", "rope"),
     (r"tarps?", "tarp"),
     (r"blue keycard", "blue_keycard"),
