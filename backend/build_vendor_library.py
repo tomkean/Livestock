@@ -33,7 +33,7 @@ ITEM_NAMES = [
     (r"rope", "rope"),
     (r"tarps?", "tarp"),
     (r"blue keycard", "blue_keycard"),
-    (r"revolver", "revolver"),
+    (r"(high caliber |python )?revolver", "high_caliber_revolver"),
     (r"pressure pad", "pressure_pad"),
 ]
 
