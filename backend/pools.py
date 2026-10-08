@@ -141,12 +141,13 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
     verdicts = {}
     for a in sorted((a for a in animals if pen[a.id] == holding), key=lambda a: -held(a)):
         v = held(a)
-        weakest_ram = min(heads, key=lambda r: value[r.id]) if heads else None
-        as_ram = weakest_ram is None or v > value[weakest_ram.id]
+        # A challenger must beat the incumbent's standing, which includes its edge for already being in the harem.
+        weakest_ram = min(heads, key=ram_rank) if heads else None
+        as_ram = weakest_ram is None or v > ram_rank(weakest_ram)
         best_h = max(head_of, key=lambda h: fit(a, head_of[h])) if head_of else None
-        weakest_ewe = min(members[best_h], key=lambda e: value[e.id]) if best_h and members[best_h] else None
+        weakest_ewe = min(members[best_h], key=ram_rank) if best_h and members[best_h] else None
         room = best_h is not None and len(members[best_h]) < harem_ewes
-        as_ewe = best_h is not None and (room or (weakest_ewe is not None and v > value[weakest_ewe.id]))
+        as_ewe = best_h is not None and (room or (weakest_ewe is not None and v > ram_rank(weakest_ewe)))
         lamb = getattr(a, "is_lamb", False)
         ram_text = (f"promote to {harem_of(weakest_ram)}, replacing {weakest_ram.name}" if weakest_ram
                     else f"promote to {harems[0]}")
