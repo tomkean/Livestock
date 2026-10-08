@@ -56,11 +56,11 @@ function siteHeadcount(site, animals, cap) {
         inRange = Math.round(cap + (100 - ps) / PS_PER_ANIMAL);
         text = `about ${inRange} in range (${ps}%)`;
     }
-    const extra = inRange == null ? 0 : inRange - members.length;
+    const extra = 0;  // the 8 Oct personal space change broke the count estimate: report the reading, infer nothing
     const verdict = extra > 0
         ? ` <span class="warn">- ${extra}${ps <= 31 ? '+' : ''} unaccounted for: a wild one nearby or an uncaptured lamb</span>`
         : '';
-    return `<li><b>${esc(site)}</b>: ${known}, cards say ${text}${verdict}</li>`;
+    return `<li><b>${esc(site)}</b>: ${known}, middle personal space ${ps}%${verdict}</li>`;
 }
 
 export class PoolsView extends View {
@@ -187,7 +187,7 @@ export class PoolsView extends View {
             </div>
             <div class="panel">
                 <h3>Headcount</h3>
-                <p class="hint">From personal space on cards read in the last ${RECENT_MIN} minutes: each animal over ${cap} in range costs about 17 points. More in range than registered means a wild sheep nearby or a lamb not captured yet.</p>
+                <p class="hint">Recorded in each building, and the middle personal space on cards read in the last ${RECENT_MIN} minutes. Since the 8 Oct change personal space is local (it varies across a pen and with small moves), so it no longer tells how many are in range.</p>
                 <ul>${headcount}</ul>
             </div>
             ${crowded}${overflow}${loggingOff}
