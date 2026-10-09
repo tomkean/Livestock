@@ -991,7 +991,7 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
     lamb = bool(reading.get("lamb"))
     parent = None
     parent_name = genetics.named_parent(name)
-    if parent_name:
+    if parent_name and (settings_store.load().get("location") or FARM) != "Vendor":  # a bought lamb's namesake isn't ours
         named = session.exec(select(Animal).where(func.lower(Animal.name) == parent_name.lower())).all()
         parent = by_name(list(named), now)
     species = reading.get("species") or (parent.species if parent else "sheep")
@@ -1004,11 +1004,13 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
     capture = Capture(path=file, width=frame.shape[1], height=frame.shape[0], location=here)
     session.add(capture)
     session.flush()
-    data = {"name": name, "species": species, "sex": sex, "origin": "bred" if (lamb or parent) else "ranch",
+    bought = here == "Vendor"  # first seen at the barn: just bought, on its way to the room for its sex
+    data = {"name": name, "species": species, "sex": sex,
+            "origin": "ranch" if bought else ("bred" if (lamb or parent) else "ranch"),
             "genes_top": reading["genes_top"], "genes_bottom": reading.get("genes_bottom"),
             "herd_top": reading.get("herd_top"), "herd_bottom": reading.get("herd_bottom"),
-            "pen": here if here in _buildings() else (_room_for(sex) if here == FARM else "")}
-    if parent is not None:
+            "pen": here if here in _buildings() else (_room_for(sex) if here in (FARM, "Vendor") else "")}
+    if parent is not None and not bought:
         data["mother_id" if parent.sex == "F" else "father_id"] = parent.id
         born = now - timedelta(minutes=reading.get("age_minutes") or 0)
         other = _other_parent(session, parent, born - timedelta(minutes=planner.GESTATION)) if parent.sex in ("M", "F") else None
