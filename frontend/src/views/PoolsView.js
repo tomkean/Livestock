@@ -2,6 +2,7 @@ import { View } from './View.js';
 import { api } from '../services/api.js';
 import { animalCardHtml } from '../components/animalCard.js';
 import { esc, toast } from '../ui.js';
+import { openAnimalEditor } from '../components/animalEditor.js';
 
 // Releasing (lead it over a barrier it won't cross back, then let go) doesn't count as a kill, so the herd stays calm.
 const VERDICT_LABEL = { promote: 'Promote', keep: 'Keep', cull: 'Release', sell: 'Sell' };
@@ -197,6 +198,12 @@ export class PoolsView extends View {
             ${crowded}${overflow}${loggingOff}
             <div class="pools">${harems}${holdingHtml}</div>`;
 
+        // Click a sheep to edit it (pregnant, sold, room...); drag it onto another room to record a move.
+        this.container.querySelectorAll('[data-drag]').forEach(el => el.addEventListener('click', e => {
+            if (e.target.closest('button')) return;  // the card's own buttons (skip a move, ...)
+            const a = byId[Number(el.dataset.drag)];
+            if (a) openAnimalEditor(a, animals, this.settings || {}, () => this.render());
+        }));
         // Drag a sheep onto another room to record that you've moved it there.
         this.container.querySelectorAll('[data-drag]').forEach(el => el.addEventListener('dragstart', e => {
             e.dataTransfer.setData('text/plain', el.dataset.drag);
