@@ -161,6 +161,8 @@ def _layout(anchor):
 AGE_BOX = (400, 150, 300, 45)  # x, y, w, h of the AGE value ("9 MINUTES") from the anchor
 AGE_PATTERN = re.compile(r"(\d+)\s*(SECOND|MINUTE|HOUR|DAY)S?")
 AGE_UNIT_MINUTES = {"SECOND": 1 / 60, "MINUTE": 1, "HOUR": 60, "DAY": 1440}
+AGE_THRESHOLDS = (110, 140, 170)  # one threshold alone misreads digits ("52" as "92"), so read at several and vote
+LAMB_MAX_AGE = 60  # minutes: a lamb grows up at 60, so a lamb card never shows more
 NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9 '-]{0,38}$")  # digits for "Jay the 3rd"
 NAME_MIN_CONFIDENCE = 75
 PREGNANT_SUFFIX = re.compile(r"\s+pregnant$", re.I)
@@ -208,7 +210,7 @@ def read_name(image: np.ndarray, box: list[float]) -> str | None:
     return None
 
 
-def read_age(image: np.ndarray, anchor) -> float | None:
+def read_age(image: np.ndarray, anchor, max_minutes: float | None = None) -> float | None:
     """The animal's age in minutes from the card's AGE line ("1 MINUTE", "9 MINUTES", "2 HOURS")."""
     if not _tesseract_ready():
         return None
@@ -218,13 +220,19 @@ def read_age(image: np.ndarray, anchor) -> float | None:
     if crop.size == 0:
         return None
     gray = cv2.resize(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY), None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-    _, ink = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY_INV)
-    text = pytesseract.image_to_string(
-        ink, config="--psm 7 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ").upper()
-    match = AGE_PATTERN.search(text.replace("O", "0").replace("0NE", "1") if not re.search(r"\d", text) else text)
-    if not match:
+    ages = []
+    for threshold in AGE_THRESHOLDS:
+        _, ink = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY_INV)
+        text = pytesseract.image_to_string(
+            ink, config="--psm 7 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ").upper()
+        match = AGE_PATTERN.search(text.replace("O", "0").replace("0NE", "1") if not re.search(r"\d", text) else text)
+        if match:
+            age = int(match.group(1)) * AGE_UNIT_MINUTES[match.group(2)]
+            if max_minutes is None or age <= max_minutes:
+                ages.append(age)
+    if not ages:
         return None
-    return int(match.group(1)) * AGE_UNIT_MINUTES[match.group(2)]
+    return max(ages, key=ages.count)  # the most common reading; on a tie, the first
 
 
 try:
@@ -411,7 +419,7 @@ def read_card(image: np.ndarray) -> dict:
         "yield": read_yield(image, anchor),
         "species": (species := adult_species(image, anchor)),  # None for lambs: their portrait isn't known per species
         "lamb": (lamb := species is None),
-        "age_minutes": read_age(image, anchor) if lamb else None,
+        "age_minutes": read_age(image, anchor, LAMB_MAX_AGE) if lamb else None,
     }
 
 
