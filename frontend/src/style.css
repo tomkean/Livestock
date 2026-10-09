@@ -297,3 +297,5 @@ main { padding: 16px 20px; }
 .editor-overlay .editor { width: min(560px, 100%); }
 .editor-overlay .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
 .tag.unseen { background: rgba(224,160,48,0.18); color: #e0a030; }
+
+.verdict.v-reject { border-color: #e0a030; color: #e0a030; }

@@ -67,6 +67,16 @@ class Pools(unittest.TestCase):
             if r["pen"][x.id] in ("Gentlemen", "Ladies"):
                 self.assertEqual(r["pen"][x.id], "Gentlemen" if x.sex == "M" else "Ladies")
 
+    def test_unwanted_rams_go_to_rejects(self):
+        r = pools.arrange(self.herd, "DLYFH", None, ["VIP"], ["Gentlemen", "Ladies", "Rejects"], 1, 9,
+                          holding_by_sex={"M": "Gentlemen", "F": "Ladies"}, reject_room="Rejects")
+        for x in self.herd:
+            v = r["verdicts"].get(x.id)
+            if x.sex == "M" and v and v["verdict"] == "reject":
+                self.assertEqual(r["pen"][x.id], "Rejects")
+            if v and v["verdict"] in ("sell", "cull"):
+                self.assertNotEqual(x.sex, "M")  # rams are never sold or released straight off
+
     def test_harems_never_exceed_their_size(self):
         r = self.arrange(self.herd, ewes=1)
         self.assertTrue(all(len(h["ewes"]) <= 1 for h in r["harems"].values()))

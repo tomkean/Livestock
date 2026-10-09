@@ -57,7 +57,7 @@ def _value(goods, weights) -> float:
 
 def arrange(animals, target: str, posterior: dict | None, harems: list[str], holding, harem_ewes: int = 8,
             holding_size: int = 4, previous: set | None = None, harem_sizes: dict | None = None,
-            holding_by_sex: dict | None = None) -> dict:
+            holding_by_sex: dict | None = None, reject_room: str | None = None) -> dict:
     """Suggested pen for every animal, plus a verdict and a reason for each one in holding.
 
     `holding` is one room name or a list of them; animals waiting there fill the rooms in order, `holding_size` each
@@ -221,10 +221,20 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
             v["reason"] += " - after she lambs (the vendor won't buy a pregnant ewe)"
 
     # Spread the animals waiting in holding across the holding rooms, most valuable first.
-    order = {"promote": 0, "keep": 1, "sell": 2, "cull": 3}
+    order = {"promote": 0, "keep": 1, "sell": 2, "reject": 2, "cull": 3}
     waiting = sorted((a for a in animals if pen[a.id] == holding),
                      key=lambda a: (order[verdicts[a.id]["verdict"]], -value[a.id]))
     overflow = []
+    if reject_room:
+        # Rams the plan has no use for go to a rejects room rather than the barn or a release: still worth their wool,
+        # and sold when it's safe to take them.
+        for a in waiting:
+            v = verdicts.get(a.id)
+            if a.sex == "M" and v and v["verdict"] in ("sell", "cull"):
+                v["verdict"] = "reject"
+                v["reason"] = f"{v['reason']} - keep for wool in {reject_room}, sell when the barn is quiet"
+                pen[a.id] = reject_room
+        waiting = [a for a in waiting if pen[a.id] != reject_room]
     if holding_by_sex:
         # Separate rooms for rams and ewes ("Gentlemen" / "Ladies"): no unplanned matings while they wait, and the
         # ewes are calmer to shear. Unsexed lambs wait with the ewes until their horns show.

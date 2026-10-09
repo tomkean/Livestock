@@ -5,7 +5,7 @@ import { esc, toast } from '../ui.js';
 import { openAnimalEditor } from '../components/animalEditor.js';
 
 // Releasing (lead it over a barrier it won't cross back, then let go) doesn't count as a kill, so the herd stays calm.
-const VERDICT_LABEL = { promote: 'Promote', keep: 'Keep', cull: 'Release', sell: 'Sell' };
+const VERDICT_LABEL = { promote: 'Promote', keep: 'Keep', cull: 'Release', sell: 'Sell', reject: 'Reject' };
 
 /**
  * Pools mode: harems where each ram mates his ewes freely, plus a holding room. Shows where every animal should be,
@@ -108,7 +108,7 @@ export class PoolsView extends View {
         const here = animals.filter(a => a.species === this.species && a.status === 'alive');
         const rooms = plan.holding_rooms || [cfg.holding];
         const heads = new Set(Object.values(plan.harems).map(h => h.ram).filter(Boolean));
-        const order = { promote: 0, keep: 1, sell: 2, cull: 3 };
+        const order = { promote: 0, keep: 1, sell: 2, reject: 2, cull: 3 };
         // Each card sits in the building the animal is in now; the plan shows as a note.
         // Seen by automatic capture in the last 2 hours; anything else may already have gone (sold, lost) unnoticed.
         const confirmed = (a) => { const t = seenAt(a); return t && Date.now() - t < 2 * 3600000; };
