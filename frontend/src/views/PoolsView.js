@@ -146,6 +146,14 @@ export class PoolsView extends View {
                 </section>`;
         };
         const harems = Object.keys(plan.harems).map(name => section(name, 'harem')).join('');
+        // A sheep's room is only ever where it was seen or where you put it: new arrivals start here.
+        const rooms_known = new Set([...Object.keys(plan.harems), ...(plan.holding_rooms || [])]);
+        const unknown = here.filter(a => !rooms_known.has(a.pen));
+        const unknownHtml = unknown.length ? `
+                <section class="pen pool" data-room="">
+                    <h2>Room unknown <span class="muted">(drag each one to the room it's in)</span> <span class="count">${unknown.length}</span></h2>
+                    ${grid(unknown)}
+                </section>` : '';
         const holdingHtml = rooms.map(room => section(room, 'holding')).join('');
         const known = new Set([...Object.keys(plan.harems), ...rooms]);
         const unplaced = here.filter(a => !known.has(a.pen));
@@ -196,7 +204,7 @@ export class PoolsView extends View {
                 <ul>${headcount}</ul>
             </div>
             ${crowded}${overflow}${loggingOff}
-            <div class="pools">${harems}${holdingHtml}</div>`;
+            <div class="pools">${harems}${holdingHtml}${unknownHtml}</div>`;
 
         // Click a sheep to edit it (pregnant, sold, room...); drag it onto another room to record a move.
         this.container.querySelectorAll('[data-drag]').forEach(el => el.addEventListener('click', e => {

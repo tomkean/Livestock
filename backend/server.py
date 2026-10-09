@@ -337,13 +337,6 @@ def by_name(candidates: list, now: Optional[datetime] = None):
     return None
 
 
-def _outside_is_missing(session: Session, animal: Animal):
-    """Every building is watched, so an animal alive in none of them is simply missing (its card still matches)."""
-    if animal.status == "alive" and not animal.pen:
-        animal.status = "missing"
-        log(session, "missing", animal.id, notes="not in any building")
-
-
 def _same_animal(session: Session, data: dict) -> Optional[Animal]:
     """An animal already in the herd with this name, species, top row and first marker: a second capture of it."""
     name = (data.get("name") or "").strip().lower()
@@ -406,7 +399,6 @@ def create_animal(body: AnimalIn, session: Session = Depends(get_session), auto:
         apply_capture(session, animal, crop, learn=not auto)
     set_birth(session, animal, crop)
     log(session, "born" if animal.origin == "bred" else "bought", animal.id, animal.mother_id)
-    _outside_is_missing(session, animal)
     session.commit()
     session.refresh(animal)
     return animal
@@ -434,7 +426,6 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
         if animal.pen and animal.status == "missing":
             animal.status = "alive"  # put in a building: found
             log(session, "alive", animal.id, notes=f"placed in {animal.pen}")
-    _outside_is_missing(session, animal)
     if "pregnant" in changed:
         log(session, "pregnant" if animal.pregnant else "not_pregnant", animal.id)
     if "status" in changed:
@@ -782,26 +773,6 @@ def _rams_wait_while_ewes_busy(session: Session, animals: list, result: dict):
                       + (" - back once her lambs are moved out" if pregnant else " - back once they're moved out")}
 
 
-class ApplyIn(BaseModel):
-    ids: Optional[list[int]] = None  # only these animals' moves (the ones the player made); None = all
-
-
-@app.post("/api/pools/apply")
-def pools_apply(species: str = "sheep", body: Optional[ApplyIn] = None, session: Session = Depends(get_session)):
-    """Record the suggested rooms as where the moved animals now are (do the moves in game first)."""
-    _, result = _pools_view(session, species)
-    only = set(body.ids) if body and body.ids is not None else None
-    for animal_id, pen in result["pen"].items():
-        if only is not None and animal_id not in only:
-            continue
-        a = session.get(Animal, animal_id)
-        if a.pen != pen:
-            log(session, "moved", a.id, notes=f"{a.pen or 'unplaced'} -> {pen}")
-            a.pen = pen
-    session.commit()
-    return {"ok": True}
-
-
 @app.get("/api/animals/{animal_id}/readings")
 def animal_readings(animal_id: int, limit: int = 200, session: Session = Depends(get_session)):
     """Conditions history from automatic capture, newest first."""
@@ -971,15 +942,6 @@ def _match_reading(session: Session, reading: dict) -> Optional[Animal]:
 FARM = "Farm"  # "Where am I?": somewhere on the farm, room unknown - watch, but never move anyone between rooms
 
 
-def _room_for(sex: str) -> str:
-    """Where a newly registered animal goes when the player's room isn't known: its sex's holding room, if set."""
-    cfg = settings_store.load().get("pools") or {}
-    by_sex = cfg.get("holding_by_sex") or {}
-    holding = cfg.get("holding") or []
-    holding = [holding] if isinstance(holding, str) else list(holding)
-    return by_sex.get(sex) or by_sex.get("F") or (holding[0] if holding else "")
-
-
 def _buildings() -> list[str]:
     cfg = settings_store.load().get("pools") or {}
     holding = cfg.get("holding") or []
@@ -1044,7 +1006,7 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
             "origin": "ranch" if bought else ("bred" if (lamb or parent) else "ranch"),
             "genes_top": reading["genes_top"], "genes_bottom": reading.get("genes_bottom"),
             "herd_top": reading.get("herd_top"), "herd_bottom": reading.get("herd_bottom"),
-            "pen": here if here in _buildings() else (_room_for(sex) if here in (FARM, "Vendor") else "")}
+            "pen": here if here in _buildings() else ""}  # room unknown until seen in one or placed by the player
     if parent is not None and not bought:
         data["mother_id" if parent.sex == "F" else "father_id"] = parent.id
         born = now - timedelta(minutes=reading.get("age_minutes") or 0)
