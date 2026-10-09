@@ -128,13 +128,15 @@ export class PoolsView extends View {
             const rams = inside.filter(a => a.sex === 'M' && !young.includes(a)).sort((x, y) => heads.has(y.id) - heads.has(x.id));
             const ewes = inside.filter(a => a.sex === 'F');
             const planned = kind === 'harem' ? byId[plan.harems[name]?.ram] : null;
-            const waiting = planned && planned.pen !== name ? planned : null;  // its ram is elsewhere (e.g. overnight)
+            const resting = plan.ram_waits?.[name];  // its ewes are all pregnant or resting: the ram waits elsewhere
+            const waiting = planned && planned.pen !== name && !resting ? planned : null;  // its ram is elsewhere (e.g. overnight)
             const sorted = (list) => list.sort((x, y) => (order[plan.verdicts[x.id]?.verdict] ?? -1) - (order[plan.verdicts[y.id]?.verdict] ?? -1));
             return `
                 <section class="pen pool${kind === 'holding' ? ' holding' : ''}" data-room="${esc(name)}">
                     <h2>${esc(name)} <span class="muted">(${kind})</span> <span class="count" title="seen in the last 2 hours / recorded here, against the crowding limit">${inside.filter(confirmed).length}${inside.some(a => !confirmed(a)) ? ` of ${inside.length}` : ''} / ${cfg.site_cap || 9}</span></h2>
                     ${inside.some(a => !confirmed(a)) ? `<p class="hint">Unconfirmed (not seen for 2 h): ${inside.filter(a => !confirmed(a)).map(a => esc(a.name || a.code)).join(', ')}</p>` : ''}
                     ${plan.quiet?.[name] ? `<p class="hint quiet">No new pregnancies for ${plan.quiet[name].minutes ?? 'a long time'}${plan.quiet[name].minutes != null ? ' min' : ''} with ${plan.quiet[name].ready.length} ewe${plan.quiet[name].ready.length === 1 ? '' : 's'} ready (${plan.quiet[name].ready.map(esc).join(', ')}). Try swapping rams with another harem, or taking the ram for a short walk outside.</p>` : ''}
+                    ${resting ? `<p class="hint">Ram ${esc(byId[resting.ram]?.name || '')} waits in ${esc(resting.room)}: the ewe here is pregnant or resting${resting.until ? `, ready about ${new Date(resting.until).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : ''}. Bring him back then.</p>` : ''}
                     ${waiting ? `<p class="warn">Harem ram: <b>${esc(waiting.name || waiting.code)}</b>, now in ${esc(waiting.pen || 'no building')} - move him here</p>` : ''}
                     ${rams.length ? `<h3>Rams</h3>${grid(rams)}` : kind === 'harem' && !waiting ? '<h3>Rams</h3><p class="empty">No ram</p>' : ''}
                     ${ewes.filter(a => !young.includes(a)).length ? `<h3>Ewes</h3>${grid(sorted(ewes.filter(a => !young.includes(a))))}` : ''}

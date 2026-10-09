@@ -741,10 +741,48 @@ def _quiet_harems(session: Session, harems: list, now: datetime) -> dict:
 def pools_plan(species: str = "sheep", session: Session = Depends(get_session)):
     """Suggested rooms for every animal (harems + holding), the moves from where they are now, and verdicts."""
     animals, result = _pools_view(session, species)
+    _rams_wait_while_ewes_busy(session, animals, result)
     current = {a.id: a.pen for a in animals}
     result["moves"] = [{"id": a.id, "name": a.name or a.code, "from": current[a.id] or None, "to": result["pen"][a.id]}
                        for a in animals if current[a.id] != result["pen"][a.id]]
     return result
+
+
+def _rams_wait_while_ewes_busy(session: Session, animals: list, result: dict):
+    """A harem whose ewes are all pregnant or resting after lambing has nothing for its ram to do: he waits in the
+    rams' room, and goes back when one is ready (his arrival is what seems to start mating anyway)."""
+    now = datetime.now(timezone.utc)
+    by_id = {a.id: a for a in animals}
+    cfg = settings_store.load().get("pools") or {}
+    wait_room = (cfg.get("holding_by_sex") or {}).get("M")
+    if not wait_room:
+        return
+    result.setdefault("ram_waits", {})
+    for harem, h in result["harems"].items():
+        ram = by_id.get(h["ram"])
+        ewes = [by_id[e] for e in h["ewes"] if e in by_id]
+        if ram is None or not ewes:
+            continue
+        ready_at = []
+        for e in ewes:
+            if e.pregnant:
+                ready_at.append(None)  # lambs in ~10 min, then rests
+                continue
+            free = free_again_at(session, session.get(Animal, e.id))
+            if free is None or _utc(free) <= now:
+                break
+            ready_at.append(_utc(free))
+        else:
+            # every ewe is busy: the ram waits
+            result["pen"][ram.id] = wait_room
+            soonest = min((t for t in ready_at if t is not None), default=None)
+            result["ram_waits"][harem] = {"ram": ram.id, "until": soonest.isoformat() if soonest else None,
+                                          "room": wait_room}
+            verdicts = result.setdefault("verdicts", {})
+            verdicts[ram.id] = {"verdict": "keep",
+                                "reason": f"{harem}'s ram: waits in {wait_room} while its ewe"
+                                          f"{'s are' if len(ewes) > 1 else ' is'} pregnant or resting"
+                                          + (f" (ready about {soonest:%H:%M} UTC)" if soonest else "")}
 
 
 class ApplyIn(BaseModel):
