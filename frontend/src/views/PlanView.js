@@ -87,9 +87,9 @@ export class PlanView extends View {
                     <h2>Next barn trip</h2>
                     <span class="spacer"></span>
                     <div class="seg" id="vehicle">
-                        <button data-vehicle="lead">Lead on foot</button>
-                        <button data-vehicle="single">Single module</button>
-                        <button data-vehicle="double">Double module</button>
+                        <button data-vehicle="lead" title="One animal at a time on the lead">Leading</button>
+                        <button data-vehicle="single" title="1 sheep, ram or lamb per trip; no grown cows">Small flatbed</button>
+                        <button data-vehicle="double" title="2 sheep, rams or lambs per trip, or 1 cow">Large flatbed</button>
                     </div>
                 </div>
                 <div id="trip"></div>
@@ -141,7 +141,7 @@ export class PlanView extends View {
             : '<li class="muted">Nothing: every gene shows green and the pens are full.</li>';
         const sell = trip.sell.length
             ? trip.sell.map(a => `<li>${esc(a.name)} (${label(a.sex)})</li>`).join('')
-            : `<li class="muted">${trip.capacity.adults === 0 ? "A single module can't carry a grown cow." : 'Nothing to sell yet.'}</li>`;
+            : `<li class="muted">${trip.capacity.adults === 0 ? "A small flatbed can't carry a grown cow." : 'Nothing to sell yet.'}</li>`;
         target.innerHTML = `
             <div class="trip-cols">
                 <div><h3>Take to sell</h3><ul>${sell}</ul></div>

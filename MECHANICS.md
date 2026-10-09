@@ -223,7 +223,7 @@ The list continued with a "Commands:" section that has not been captured yet.
 | Hitching | Only horses can be hitched to a Hitch & Trough; sheep and cows can't. | Known |
 | Sheep stuck in a full trough | One sheep glitched into a full trough showed 77% food: being at the food doesn't keep it topped up. Whether it recovers (eating in bursts) or keeps falling (hunger bug) - to check. | Seen once |
 | Animal fences | Can't be placed on foundations; they only go on terrain outside. Indoor pens are made of walls, so an indoor harem is one clump (no ram-through-a-fence layouts indoors). | Known |
-| Transport (truck flatbed) | Single module: 1 sheep, ram, lamb or calf; can't take a grown cow or bull. Double module: 2 sheep/rams/lambs/calves, or 1 cow or bull. The double needs its chassis found, so early in a wipe you may only have a single. Cows therefore take one trip each to sell. | Known |
+| Transport (truck flatbed) | Small flatbed (single module): 1 sheep, ram, lamb or calf; can't take a grown cow or bull. Large flatbed (double module): 2 sheep/rams/lambs/calves, or 1 cow or bull. The double needs its chassis found, so early in a wipe you may only have a single. Cows therefore take one trip each to sell. | Known |
 | Space per animal before a pen counts as overcrowded | 3 sheep in a 2×2 (≈12 m² each): personal space 83%, happiness 77%. Need readings at 2 and 4 sheep to see the curve. | Seen once |
 
 ## Observation log

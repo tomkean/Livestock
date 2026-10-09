@@ -9,8 +9,8 @@ DEFAULTS = {
     "name_box": None,
     # Unknown in game so far; only used to show a count against capacity.
     "pen_capacity": {"M": 4, "F": 8},
-    # How animals get to the barn: "lead" on foot (one at a time), or a truck with a "single" module
-    # (1 sheep or lamb) or "double" module (2 sheep/lambs, or 1 cow).
+    # How animals get to the barn (Plan page): "lead" = leading on foot (one at a time), "single" = small flatbed
+    # (1 sheep or lamb), "double" = large flatbed (2 sheep/lambs, or 1 cow).
     "vehicle": "single",
     # Genes the breeding target needs Good/Good on. Leave out ones you don't care about (e.g. D if dung is worthless
     # to you): the plan gets much faster. A full god animal is all five.
