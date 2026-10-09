@@ -233,6 +233,9 @@ def read_name(image: np.ndarray, box: list[float]) -> str | None:
     # Otsu's automatic one failed when bright scenery showed through behind the name, so it is only a fallback.
     _, fixed = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY_INV)
     _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    # Both are read and the surer one kept: the fixed threshold once gave "Fdna the Sti" at 77% where Otsu read
+    # "Edna the 5th" at 95%, and the first acceptable read registered a duplicate.
+    best = None
     for ink in (fixed, otsu):
         data = pytesseract.image_to_data(ink, lang=_name_languages(), config="--psm 7",
                                          output_type=pytesseract.Output.DICT)
@@ -240,9 +243,10 @@ def read_name(image: np.ndarray, box: list[float]) -> str | None:
         if not words:
             continue
         text = " ".join(t for t, _ in words).strip()
-        if min(c for _, c in words) >= NAME_MIN_CONFIDENCE and NAME_PATTERN.match(text):
-            return text
-    return None
+        sure = min(c for _, c in words)
+        if sure >= NAME_MIN_CONFIDENCE and NAME_PATTERN.match(text) and (best is None or sure > best[0]):
+            best = (sure, text)
+    return best[1] if best else None
 
 
 def read_age(image: np.ndarray, anchor, max_minutes: float | None = None) -> float | None:
