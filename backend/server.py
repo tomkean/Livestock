@@ -900,24 +900,31 @@ def _buildings() -> list[str]:
     return list(cfg.get("harems") or []) + ([holding] if isinstance(holding, str) else list(holding))
 
 
+CONCEPTION_SLACK_MINUTES = 5  # birth times come from the card's age in whole minutes, so conception is +/- a few
+
+
 def _other_parent(session: Session, known: Animal, conceived: datetime) -> Optional[Animal]:
-    """The one adult of the other sex that was in the known parent's building when the lamb was conceived, if there
-    was exactly one (a harem's ram, say). None when it's ambiguous: better a blank than a wrong parent."""
-    pens = pens_at(session, conceived)
-    where = pens.get(known.id)
-    if not where:
-        return None
+    """The one adult of the other sex that was with the known parent around the time the lamb was conceived, if there
+    was exactly one (a harem's ram, say). Checked across a few minutes either side, since the birth time is only as
+    good as the card's age. None when it's ambiguous: better a blank than a wrong parent."""
     gone = {e.animal_id: _utc(e.at) for e in session.exec(select(Event).where(Event.kind.in_(["sold", "dead"])))}
     want = "M" if known.sex == "F" else "F"
-    found = []
-    for a in session.exec(select(Animal).where(Animal.species == known.species, Animal.sex == want)).all():
-        if pens.get(a.id) != where or (a.id in gone and gone[a.id] < conceived):
+    candidates = session.exec(select(Animal).where(Animal.species == known.species, Animal.sex == want)).all()
+    found = set()
+    for minutes in range(-CONCEPTION_SLACK_MINUTES, CONCEPTION_SLACK_MINUTES + 1):
+        when = conceived + timedelta(minutes=minutes)
+        pens = pens_at(session, when)
+        where = pens.get(known.id)
+        if not where:
             continue
-        born = _utc(a.born_at)
-        if born is not None and (conceived - born).total_seconds() < planner.GROWTH * 60:
-            continue  # still a lamb then
-        found.append(a)
-    return found[0] if len(found) == 1 else None
+        for a in candidates:
+            if pens.get(a.id) != where or (a.id in gone and gone[a.id] < when):
+                continue
+            born = _utc(a.born_at)
+            if born is not None and (when - born).total_seconds() < planner.GROWTH * 60:
+                continue  # still a lamb then
+            found.add(a.id)
+    return session.get(Animal, found.pop()) if len(found) == 1 else None
 
 
 def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Optional[Animal]:
