@@ -12,7 +12,48 @@ export class PlanView extends View {
         this.species = 'sheep';
     }
 
+    // Automatic capture saw something: the upcoming list may have changed (a new pregnancy, a lamb born).
+    onAutoSeen() {
+        this.loadUpcoming();
+    }
+
+    async loadUpcoming() {
+        try {
+            this.upcoming = await api.get('/api/upcoming');
+        } catch (e) {
+            this.upcoming = [];
+        }
+        this.drawUpcoming();
+    }
+
+    /** Clock and the next things to happen, with countdowns (like Crossbreeding's event queue). */
+    drawUpcoming() {
+        const box = this.container.querySelector('#upcoming');
+        if (!box) return;
+        const now = new Date();
+        const clock = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const left = (iso) => {
+            const s = Math.round((new Date(iso) - now) / 1000);
+            const m = Math.floor(Math.abs(s) / 60), sec = String(Math.abs(s) % 60).padStart(2, '0');
+            return s >= 0 ? `in ${m}:${sec}` : `${m}:${sec} ago`;
+        };
+        const items = (this.upcoming || []).map(e => {
+            const s = (new Date(e.at) - now) / 1000;
+            const cls = s < 0 ? 'overdue' : s < 300 ? 'soon' : '';
+            const at = new Date(e.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+            return `<li class="${cls}"><span class="when">${at}</span> <span class="left">${left(e.at)}</span>
+                ${esc(e.text)} ${e.room ? `<span class="muted">(${esc(e.room)})</span>` : ''}</li>`;
+        }).join('');
+        box.innerHTML = `<div class="clock">${clock}</div>
+            <ul class="upcoming">${items || '<li class="muted">Nothing due: no pregnancies, lambs growing or ewes resting.</li>'}</ul>`;
+    }
+
     async render() {
+        if (!this.ticking) {
+            this.ticking = true;
+            this.addInterval(() => this.drawUpcoming(), 1000);
+            this.addInterval(() => this.loadUpcoming(), 30000);
+        }
         if (this.target == null) {
             try {
                 const st = await api.get('/api/settings');
@@ -21,6 +62,7 @@ export class PlanView extends View {
             } catch (e) { this.target = 'DLYFH'; this.secondRow = false; }
         }
         this.container.innerHTML = `
+            <div class="panel"><h2>Next on the farm</h2><div id="upcoming"></div></div>
             <div class="panel plan">
                 <div class="toolbar">
                     <h2>Plan to a male Good/Good on</h2>
@@ -56,6 +98,7 @@ export class PlanView extends View {
             this.species = btn.dataset.species;
             this.render();
         }));
+        this.loadUpcoming();
         this.container.querySelector('#btn-plan').addEventListener('click', () => this.runPlan());
         this.container.querySelector('#second-row').addEventListener('change', async (e) => {
             this.secondRow = e.target.checked;

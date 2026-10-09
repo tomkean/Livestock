@@ -793,6 +793,57 @@ def record_conflicts(session: Session = Depends(get_session)):
     return out
 
 
+RAM_REST_MINUTES = {"G": 6.25, "O": 10.0, "B": 15.4}  # after mating, by the ram's shown F (published)
+UPCOMING_OVERDUE_MINUTES = 30  # keep showing an event this long after it was due
+
+
+@app.get("/api/upcoming")
+def upcoming(session: Session = Depends(get_session)):
+    """What happens next on the farm, soonest first: lambs due, lambs growing up, ewes and rams ready to breed again."""
+    now = datetime.now(timezone.utc)
+    oldest = now - timedelta(minutes=UPCOMING_OVERDUE_MINUTES)
+    alive = session.exec(select(Animal).where(Animal.status == "alive")).all()
+    events = []
+
+    def add(at, kind, animal, text):
+        if at is not None and _utc(at) >= oldest:
+            events.append({"at": _utc(at).isoformat(), "kind": kind, "id": animal.id,
+                           "name": animal.name or animal.code, "room": animal.pen, "text": text})
+
+    last_pregnant = {}
+    for e in session.exec(select(Event).where(Event.kind == "pregnant").order_by(Event.at)):
+        last_pregnant[e.animal_id] = _utc(e.at)
+    for a in alive:
+        name = a.name or a.code
+        if a.sex == "F" and a.pregnant and a.id in last_pregnant:
+            add(last_pregnant[a.id] + timedelta(minutes=planner.GESTATION), "lamb", a, f"{name}'s lamb due")
+        born = _utc(a.born_at)
+        if born is not None and now - born < timedelta(minutes=planner.GROWTH):
+            grown = born + timedelta(minutes=planner.GROWTH)
+            if a.sex == "M":
+                add(grown, "grown", a, f"{name} grows up - out of the ewes' rooms before then")
+            else:
+                add(grown, "grown", a, f"{name} grows up" + (" - can breed after this" if a.sex == "F" else " - check horns"))
+        if a.sex == "F" and not a.pregnant:
+            free = free_again_at(session, a)
+            if free is not None and _utc(free) > now:
+                add(free, "free", a, f"{name} can breed again")
+    # A ram rests after each mating: his last is the latest pregnancy of a ewe he was with at the time.
+    rams = [a for a in alive if a.sex == "M"]
+    for ewe_id, at in last_pregnant.items():
+        if at < now - timedelta(minutes=30):
+            continue
+        pens = pens_at(session, at)
+        with_her = [r for r in rams if pens.get(r.id) and pens.get(r.id) == pens.get(ewe_id)]
+        if len(with_her) == 1:
+            r = with_her[0]
+            rest = RAM_REST_MINUTES.get(r.genes_top[genetics.GENES.index("F")], 10.0)
+            if at + timedelta(minutes=rest) > now:
+                add(at + timedelta(minutes=rest), "ram", r, f"{r.name or r.code} ready again")
+    events.sort(key=lambda e: e["at"])
+    return events
+
+
 @app.get("/api/events")
 def list_events(animal_id: Optional[int] = None, limit: int = 500, session: Session = Depends(get_session)):
     query = select(Event).order_by(Event.at.desc()).limit(limit)

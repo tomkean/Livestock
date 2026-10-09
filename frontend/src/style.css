@@ -277,3 +277,12 @@ main { padding: 16px 20px; }
 .hidden-col { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 30px; flex: none; }  /* exactly a top-row circle (border-box), so columns sit under their gene */
 .hidden-col .dot.small { margin: 0; }
 .dot.truth { outline: 2px solid #fff; outline-offset: 1px; }
+
+/* Plan page: clock and upcoming events */
+.clock { font-family: var(--font-head); font-size: 32px; margin-bottom: 8px; }
+.upcoming { list-style: none; padding: 0; margin: 0; }
+.upcoming li { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.upcoming .when { display: inline-block; width: 52px; }
+.upcoming .left { display: inline-block; width: 80px; color: var(--muted); }
+.upcoming li.soon .left { color: #e0a030; }
+.upcoming li.overdue .left { color: var(--bad); }
