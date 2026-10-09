@@ -286,3 +286,8 @@ main { padding: 16px 20px; }
 .upcoming .left { display: inline-block; width: 80px; color: var(--muted); }
 .upcoming li.soon .left { color: #e0a030; }
 .upcoming li.overdue .left { color: var(--bad); }
+
+/* Pools: drag a sheep between rooms */
+.pool-card[draggable="true"] { cursor: grab; }
+.pool-card.dragging { opacity: 0.4; }
+.pen.pool.drop-target { outline: 2px dashed var(--good); outline-offset: 2px; }

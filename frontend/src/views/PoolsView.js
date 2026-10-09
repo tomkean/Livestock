@@ -76,6 +76,7 @@ export class PoolsView extends View {
         if (this.refreshTimer) return;
         this.refreshTimer = setTimeout(() => {
             this.refreshTimer = null;
+            if (this.dragging) return this.onAutoSeen();  // not mid-drag: try again shortly
             if (!this.destroyed) this.render();
         }, 3000);
     }
@@ -117,7 +118,7 @@ export class PoolsView extends View {
             const moving = to && to !== a.pen && !skipped.has(`${a.id}>${to}`)
                 ? `<div class="hint move">→ move to <b>${esc(to)}</b> <button class="skip" data-skip="${a.id}>${esc(to)}" title="Not doing this one: skip it">✕</button></div>` : '';
             const role = heads.has(a.id) ? `<div class="hint">harem ram${to && to !== a.pen ? ` for ${esc(to)}` : ''}</div>` : '';
-            return `<div class="pool-card">${animalCardHtml(a)}${role}${moving}${verdict}</div>`;
+            return `<div class="pool-card" draggable="true" data-drag="${a.id}" title="Drag to another room to record a move">${animalCardHtml(a)}${role}${moving}${verdict}</div>`;
         };
         const grid = (list) => `<div class="pen-grid">${list.map(card).join('') || '<p class="empty">None</p>'}</div>`;
         const section = (name, kind) => {
@@ -130,7 +131,7 @@ export class PoolsView extends View {
             const waiting = planned && planned.pen !== name ? planned : null;  // its ram is elsewhere (e.g. overnight)
             const sorted = (list) => list.sort((x, y) => (order[plan.verdicts[x.id]?.verdict] ?? -1) - (order[plan.verdicts[y.id]?.verdict] ?? -1));
             return `
-                <section class="pen pool${kind === 'holding' ? ' holding' : ''}">
+                <section class="pen pool${kind === 'holding' ? ' holding' : ''}" data-room="${esc(name)}">
                     <h2>${esc(name)} <span class="muted">(${kind})</span> <span class="count" title="seen in the last 2 hours / recorded here, against the crowding limit">${inside.filter(confirmed).length}${inside.some(a => !confirmed(a)) ? ` of ${inside.length}` : ''} / ${cfg.site_cap || 9}</span></h2>
                     ${inside.some(a => !confirmed(a)) ? `<p class="hint">Unconfirmed (not seen for 2 h): ${inside.filter(a => !confirmed(a)).map(a => esc(a.name || a.code)).join(', ')}</p>` : ''}
                     ${plan.quiet?.[name] ? `<p class="hint quiet">No new pregnancies for ${plan.quiet[name].minutes ?? 'a long time'}${plan.quiet[name].minutes != null ? ' min' : ''} with ${plan.quiet[name].ready.length} ewe${plan.quiet[name].ready.length === 1 ? '' : 's'} ready (${plan.quiet[name].ready.map(esc).join(', ')}). Try swapping rams with another harem, or taking the ram for a short walk outside.</p>` : ''}
@@ -194,6 +195,35 @@ export class PoolsView extends View {
             ${crowded}${overflow}${loggingOff}
             <div class="pools">${harems}${holdingHtml}</div>`;
 
+        // Drag a sheep onto another room to record that you've moved it there.
+        this.container.querySelectorAll('[data-drag]').forEach(el => el.addEventListener('dragstart', e => {
+            e.dataTransfer.setData('text/plain', el.dataset.drag);
+            e.dataTransfer.effectAllowed = 'move';
+            el.classList.add('dragging');
+            this.dragging = true;
+        }));
+        this.container.querySelectorAll('[data-drag]').forEach(el => el.addEventListener('dragend', () => {
+            el.classList.remove('dragging');
+            this.dragging = false;
+        }));
+        this.container.querySelectorAll('[data-room]').forEach(room => {
+            room.addEventListener('dragover', e => { e.preventDefault(); room.classList.add('drop-target'); });
+            room.addEventListener('dragleave', e => { if (!room.contains(e.relatedTarget)) room.classList.remove('drop-target'); });
+            room.addEventListener('drop', async e => {
+                e.preventDefault();
+                room.classList.remove('drop-target');
+                const id = Number(e.dataTransfer.getData('text/plain'));
+                const a = byId[id];
+                if (!a || a.pen === room.dataset.room) return;
+                try {
+                    await api.patch(`/api/animals/${id}`, { pen: room.dataset.room });
+                    toast(`${a.name || a.code}: ${a.pen || 'not placed'} → ${room.dataset.room}`);
+                    this.render();
+                } catch (err) {
+                    toast(err.message, 'error');
+                }
+            });
+        });
         this.container.querySelectorAll('[data-species]').forEach(btn => btn.addEventListener('click', () => {
             this.species = btn.dataset.species;
             this.render();
