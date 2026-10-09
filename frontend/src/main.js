@@ -103,7 +103,13 @@ on('location', msg => {
     currentView?.onAutoSeen?.(msg);  // e.g. Pools: "Take from <here>"
 });
 // The vendor reader: each offer as it's read, and the sale when the visit ends.
-on('vendor_offer', msg => toast(`${msg.name}, offer ${msg.number}${msg.rare ? ' (rare mood!)' : ''}: ${msg.items}`, 'info'));
+on('vendor_offer', msg => {
+    // The verdict: worth to you (your item values) against the book value, and take it or wait for the next offer.
+    const verdict = msg.take === undefined ? '' :
+        ` - worth ~${msg.worth} to you (book ${msg.book})${msg.unknown ? ', plus an item it can\'t value' : ''}. ` +
+        `${msg.take ? 'TAKE IT' : 'TURN IT DOWN'}: ${msg.why}`;
+    toast(`${msg.name}, offer ${msg.number}${msg.rare ? ' (rare mood!)' : ''}: ${msg.items}${verdict}`, msg.take === false ? 'warn' : 'info', 15000);
+});
 on('vendor_refused', msg => toast(`Offers turned down - ${msg.name} stays in the herd`, 'info'));
 on('vendor_unsure', msg => toast(`${msg.name}'s offers recorded but NOT marked sold (too valuable to assume). If you did sell, mark it sold on the Herd tab.`, 'warn'));
 on('vendor_sold', msg => {

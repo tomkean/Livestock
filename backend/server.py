@@ -21,6 +21,7 @@ from sqlmodel import Session, func, or_, select
 import card_reader
 import constraints
 import housekeeping
+import offer_value
 import vendor_reader
 import genetics
 import inference
@@ -1188,8 +1189,10 @@ async def _vendor_frame(session: Session, frame, now: datetime) -> Optional[dict
             unknown = vendor_reader.LIBRARY_DIR / "_unknown"
             unknown.mkdir(parents=True, exist_ok=True)
             cv2.imwrite(str(unknown / f"{capture.id}_{k}.png"), item["icon"])
+    past = [json.loads(o.items) for o in session.exec(select(Offer).where(Offer.rare == False, Offer.id != offer.id))]  # noqa: E712
+    advice = offer_value.advise(items, offer.number, offer.rare, past, settings_store.load().get("item_worth"))
     await hub.broadcast({"type": "vendor_offer", "name": animal.name if animal else reading["name"],
-                         "number": offer.number, "rare": offer.rare, "items": _item_text(items)})
+                         "number": offer.number, "rare": offer.rare, "items": _item_text(items), **advice})
     return {"vendor": True, "offer": offer.number, "name": reading["name"]}
 
 

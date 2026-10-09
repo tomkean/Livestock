@@ -2,12 +2,12 @@ import { api } from './services/api.js';
 
 let toastTimer = null;
 
-export function toast(message, kind = 'info') {
+export function toast(message, kind = 'info', ms = 4000) {
     const el = document.getElementById('toast');
     el.textContent = message;
     el.className = `show ${kind}`;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.className = ''; }, 4000);
+    toastTimer = setTimeout(() => { el.className = ''; }, ms);
 }
 
 export function esc(value) {

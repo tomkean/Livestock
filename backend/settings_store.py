@@ -23,6 +23,9 @@ DEFAULTS = {
     # Where the player is (picked on the Capture tab until Rust+ can tell): a building name, "Vendor" or "".
     # Automatic capture files every animal it recognises under this building, and captures are tagged with it.
     "location": "",
+    # What vendor items are worth to you, as a fraction of their scrap value (offer_value.DEFAULT_WORTH has the rest):
+    # e.g. {"horse_saddle": 0, "armored_double_door": 2}. The vendor toast says whether to take each offer.
+    "item_worth": {},
     "pools": {"harems": ["Harem #1", "Harem #2"], "holding": "Death Row", "harem_ewes": 7, "holding_size": 7, "site_cap": 9},
 }
 
