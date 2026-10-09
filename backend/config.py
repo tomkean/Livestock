@@ -12,6 +12,8 @@ CARD_DIR = DATA_DIR / "cards"
 NAME_DIR = DATA_DIR / "names"
 DB_PATH = DATA_DIR / "livestock.db"
 SETTINGS_PATH = DATA_DIR / "settings.json"
+# Tesseract language files beside the repo (eng + rus, so Cyrillic names read too). Used when it has rus.traineddata.
+TESSDATA_DIR = Path(os.environ.get("LIVESTOCK_TESSDATA", PROJECT_DIR / "tessdata"))
 
 PORT = int(os.environ.get("LIVESTOCK_PORT", 8100))
 

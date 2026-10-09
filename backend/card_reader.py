@@ -11,13 +11,14 @@ Offsets were measured on 3840x2160 captures and scale with the frame width.
 """
 from pathlib import Path
 
+import os
 import re
 import shutil
 
 import cv2
 import numpy as np
 
-from config import DATA_DIR
+from config import DATA_DIR, TESSDATA_DIR
 
 try:
     import pytesseract
@@ -163,15 +164,48 @@ AGE_PATTERN = re.compile(r"(\d+)\s*(SECOND|MINUTE|HOUR|DAY)S?")
 AGE_UNIT_MINUTES = {"SECOND": 1 / 60, "MINUTE": 1, "HOUR": 60, "DAY": 1440}
 AGE_THRESHOLDS = (110, 140, 170)  # one threshold alone misreads digits ("52" as "92"), so read at several and vote
 LAMB_MAX_AGE = 60  # minutes: a lamb grows up at 60, so a lamb card never shows more
-NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9 '-]{0,38}$")  # digits for "Jay the 3rd"
+NAME_PATTERN = re.compile(r"^[A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё0-9 '-]{0,38}$")  # digits for "Jay the 3rd"
+CYRILLIC = re.compile(r"[А-Яа-яЁё]")
+# Russian names, read in Cyrillic and kept in Latin letters (Станислав -> Stanislav, Снежана -> Snezhana), so they can be
+# typed and matched like any other name.
+_LATIN = dict(zip("абвгдезийклмнопрстуфыэ", "abvgdeziyklmnoprstufye")) | {
+    "ё": "e", "ж": "zh", "х": "kh", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "shch", "ъ": "", "ь": "", "ю": "yu", "я": "ya"}
+# Russian first names ending in -a or -ya that are male; otherwise those endings are female and the rest male.
+RUSSIAN_MALE_A = {"никита", "илья", "кузьма", "фома", "савва", "лука", "данила", "гаврила", "миша", "саша", "паша",
+                  "гоша", "дима", "ваня", "петя", "коля", "толя", "серёжа", "сережа", "лёша", "леша", "вова", "слава"}
 NAME_MIN_CONFIDENCE = 75
 PREGNANT_SUFFIX = re.compile(r"\s+pregnant$", re.I)
 WINDOWS_TESSERACT = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
 
 
+def _name_languages() -> str:
+    return "eng+rus" if (TESSDATA_DIR / "rus.traineddata").exists() else "eng"
+
+
+def to_latin(text: str) -> str:
+    """Cyrillic letters to Latin ones, keeping capitals; anything else is left as it is."""
+    out = []
+    for ch in text:
+        latin = _LATIN.get(ch.lower())
+        out.append(ch if latin is None else latin.capitalize() if ch.isupper() else latin)
+    return "".join(out)
+
+
+def russian_sex(name: str) -> str | None:
+    """Sex from a Russian first name in Cyrillic: -a/-ya endings are female, apart from a few male names."""
+    first = name.strip().split()[0].lower() if name.strip() else ""
+    if not CYRILLIC.search(first):
+        return None
+    if first in RUSSIAN_MALE_A:
+        return "M"
+    return "F" if first[-1] in "ая" else "M"
+
+
 def _tesseract_ready() -> bool:
     if pytesseract is None:
         return False
+    if _name_languages() != "eng":
+        os.environ.setdefault("TESSDATA_PREFIX", str(TESSDATA_DIR))
     if shutil.which("tesseract"):
         return True
     if WINDOWS_TESSERACT.exists():
@@ -181,10 +215,10 @@ def _tesseract_ready() -> bool:
 
 
 def read_name(image: np.ndarray, box: list[float]) -> str | None:
-    """The animal's name as text, but only when it reads cleanly as Latin letters.
+    """The animal's name as text, but only when it reads cleanly, in Latin or (with the rus language file) Cyrillic.
 
-    Names can be in any script. Turning a Cyrillic or Chinese name into Latin letters wouldn't help anyone match it
-    in game, so anything that isn't a confident Latin read comes back as None and the app uses its own ID instead.
+    Names can be in any script. Anything else (Chinese, say) that isn't a confident read comes back as None, and the
+    app uses its own ID instead. read_card turns Cyrillic into Latin letters.
     """
     if not _tesseract_ready():
         return None
@@ -200,7 +234,8 @@ def read_name(image: np.ndarray, box: list[float]) -> str | None:
     _, fixed = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY_INV)
     _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
     for ink in (fixed, otsu):
-        data = pytesseract.image_to_data(ink, config="--psm 7", output_type=pytesseract.Output.DICT)
+        data = pytesseract.image_to_data(ink, lang=_name_languages(), config="--psm 7",
+                                         output_type=pytesseract.Output.DICT)
         words = [(t, float(c)) for t, c in zip(data["text"], data["conf"]) if t.strip() and float(c) >= 0]
         if not words:
             continue
@@ -400,7 +435,8 @@ def read_card(image: np.ndarray) -> dict:
     # A pregnant ewe's card prints "Pregnant" after her name: it's her status, not part of the name.
     raw_name = read_name(image, name_box) or ""
     pregnant = bool(PREGNANT_SUFFIX.search(raw_name))
-    name = PREGNANT_SUFFIX.sub("", raw_name).strip() or None
+    native = PREGNANT_SUFFIX.sub("", raw_name).strip()
+    name = to_latin(native) or None
     return {
         "found": True,
         "score": round(score, 3),
@@ -413,7 +449,7 @@ def read_card(image: np.ndarray) -> dict:
         "name_box": name_box,
         "name": name,
         "pregnant": pregnant,
-        "sex_guess": sex_from_name(name),
+        "sex_guess": russian_sex(native) or sex_from_name(name),  # a Cyrillic name follows Russian usage (Nikita: M)
         # The AGE line is only trustworthy on lambs: adult cards have shown "0 SECONDS" and ages far too low.
         "conditions": read_conditions(image, anchor),
         "yield": read_yield(image, anchor),
