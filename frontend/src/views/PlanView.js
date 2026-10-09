@@ -88,8 +88,8 @@ export class PlanView extends View {
                     <span class="spacer"></span>
                     <div class="seg" id="vehicle">
                         <button data-vehicle="lead" title="One animal at a time on the lead">Leading</button>
-                        <button data-vehicle="single" title="1 sheep, ram or lamb per trip; no grown cows">Small flatbed</button>
-                        <button data-vehicle="double" title="2 sheep, rams or lambs per trip, or 1 cow">Large flatbed</button>
+                        <button data-vehicle="small" title="1 sheep, ram or lamb per trip; no grown cows">Small flatbed</button>
+                        <button data-vehicle="large" title="2 sheep, rams or lambs per trip, or 1 cow">Large flatbed</button>
                     </div>
                 </div>
                 <div id="trip"></div>
@@ -133,7 +133,7 @@ export class PlanView extends View {
             target.innerHTML = `<p class="error">${esc(e.message)}</p>`;
             return;
         }
-        this.container.querySelectorAll('[data-vehicle]').forEach(b => b.classList.toggle('on', b.dataset.vehicle === settings.vehicle));
+        this.container.querySelectorAll('[data-vehicle]').forEach(b => b.classList.toggle('on', b.dataset.vehicle === ({ single: 'small', double: 'large' }[settings.vehicle] || settings.vehicle)));
         const young = this.species === 'cow' ? 'calf' : 'lamb';
         const label = (sex) => (sex === 'M' ? (this.species === 'cow' ? 'bull' : 'ram') : (this.species === 'cow' ? 'cow' : 'ewe'));
         const buy = trip.buy.length

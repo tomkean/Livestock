@@ -689,7 +689,7 @@ def barn_trip(species: str = "sheep", keep_ids: str = "", session: Session = Dep
         view.is_lamb = a.sex == "?" or (born is not None and (now - born).total_seconds() < planner.GROWTH * 60)
         animals.append(view)
     inf = inferred(session)
-    return planner.trip_plan(animals, species, settings.get("vehicle", "single"), settings.get("pen_capacity") or {}, planned,
+    return planner.trip_plan(animals, species, settings.get("vehicle", "small"), settings.get("pen_capacity") or {}, planned,
                              settings.get("target_genes") or "DLYFH", inf["posterior"] if inf else None)
 
 

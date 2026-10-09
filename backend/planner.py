@@ -368,9 +368,10 @@ def plan(animals, runs: int = 300, seed: int = 1, keep: dict | None = None, targ
 # How many animals one trip carries, by vehicle and species (MECHANICS.md, transport). Calves count as sheep.
 TRUCK = {
     "lead": {"sheep": 1, "calf": 1, "cow": 1},  # on foot, e.g. a base beside the barn; one animal at a time assumed
-    "single": {"sheep": 1, "calf": 1, "cow": 0},
-    "double": {"sheep": 2, "calf": 2, "cow": 1},
+    "small": {"sheep": 1, "calf": 1, "cow": 0},  # small flatbed, whatever vehicle it's fitted to
+    "large": {"sheep": 2, "calf": 2, "cow": 1},  # large flatbed
 }
+OLD_VEHICLE = {"single": "small", "double": "large"}  # earlier settings named the truck module, not the flatbed
 RAMS_KEPT = 2
 
 
@@ -410,6 +411,7 @@ def trip_plan(animals, species: str, vehicle: str, keep: dict, planned: set = fr
     def last_carrier(b, pool):
         return any(b.goods[i] > 0.5 and not any(o is not b and o.goods[i] > 0.5 for o in pool) for i in range(N_GENES))
 
+    vehicle = OLD_VEHICLE.get(vehicle, vehicle)
     adult_cap = TRUCK[vehicle]["cow" if species == "cow" else "sheep"]
     lamb_cap = TRUCK[vehicle]["calf" if species == "cow" else "sheep"]
 
