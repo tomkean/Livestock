@@ -82,6 +82,7 @@ function showWhere(settings) {
     setPaused(away);
     showWatching();
     where.innerHTML = `<option value="">Where am I?</option><option value="${AWAY}" ${away ? 'selected' : ''}>Away from livestock</option>`
+        + `<option value="Farm" ${here === 'Farm' ? 'selected' : ''}>Whole farm (room not tracked)</option>`
         + places.map(p => `<option value="${p.replace(/"/g, '&quot;')}" ${p === here ? 'selected' : ''}>${p.replace(/</g, '&lt;')}</option>`).join('');
 }
 api.get('/api/settings').then(showWhere).catch(() => {});

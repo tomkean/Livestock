@@ -882,6 +882,18 @@ def _match_reading(session: Session, reading: dict) -> Optional[Animal]:
     return unnamed[0] if len(unnamed) == 1 and not name else None
 
 
+FARM = "Farm"  # "Where am I?": somewhere on the farm, room unknown - watch, but never move anyone between rooms
+
+
+def _room_for(sex: str) -> str:
+    """Where a newly registered animal goes when the player's room isn't known: its sex's holding room, if set."""
+    cfg = settings_store.load().get("pools") or {}
+    by_sex = cfg.get("holding_by_sex") or {}
+    holding = cfg.get("holding") or []
+    holding = [holding] if isinstance(holding, str) else list(holding)
+    return by_sex.get(sex) or by_sex.get("F") or (holding[0] if holding else "")
+
+
 def _buildings() -> list[str]:
     cfg = settings_store.load().get("pools") or {}
     holding = cfg.get("holding") or []
@@ -937,7 +949,7 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
     data = {"name": name, "species": species, "sex": sex, "origin": "bred" if (lamb or parent) else "ranch",
             "genes_top": reading["genes_top"], "genes_bottom": reading.get("genes_bottom"),
             "herd_top": reading.get("herd_top"), "herd_bottom": reading.get("herd_bottom"),
-            "pen": here if here in _buildings() else ""}
+            "pen": here if here in _buildings() else (_room_for(sex) if here == FARM else "")}
     if parent is not None:
         data["mother_id" if parent.sex == "F" else "father_id"] = parent.id
         born = now - timedelta(minutes=reading.get("age_minutes") or 0)
@@ -1195,10 +1207,11 @@ async def _roll_call(session: Session, building: str, now: datetime):
     if looks < MIA_LOOKS or len({aid for _, aid, _ in recent}) < MIA_DISTINCT:
         return  # staring at one sheep isn't looking round the building
     then = pens_at(session, start)
+    rooms = _buildings() if building == FARM else [building]  # the whole farm: every room
     missing = []
-    for a in session.exec(select(Animal).where(Animal.status == "alive", Animal.pen == building)).all():
+    for a in session.exec(select(Animal).where(Animal.status == "alive", Animal.pen.in_(rooms))).all():
         seen = _utc(a.seen_at)
-        if then.get(a.id) != building or _utc(a.created_at) >= start or (seen is not None and seen >= start):
+        if then.get(a.id) not in rooms or _utc(a.created_at) >= start or (seen is not None and seen >= start):
             continue
         a.status = "missing"
         log(session, "missing", a.id, notes=f"not seen in {building} in {looks} looks over 30 minutes (roll call)")
@@ -1292,7 +1305,7 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     if (reading.get("yield") or {}).get("per_hour") and reading["yield"].get("product", "wool") == "wool":
         animal.wool_per_hour = reading["yield"]["per_hour"]
         animal.wool_per_shear, animal.wool_regrow_min = reading["yield"]["amount"], reading["yield"]["minutes"]
-    if animal.status == "missing" and (settings_store.load().get("location") or "") in _buildings():
+    if animal.status == "missing" and (settings_store.load().get("location") or "") in _buildings() + [FARM]:
         animal.status = "alive"  # back in a building; seen outside one (grazing by the vendor, say) it stays missing
         log(session, "alive", animal.id, notes="found (automatic capture)")
     if reading.get("name"):
@@ -1321,11 +1334,13 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     here = settings.get("location") or ""
     if here in buildings:
         _sightings.setdefault(here, []).append((now, animal.id, animal.pen == here))
+    elif here == FARM:  # room unknown: counts towards the whole farm's roll call, moves nobody
+        _sightings.setdefault(FARM, []).append((now, animal.id, animal.pen in buildings))
     if here in buildings and animal.pen != here:
         log(session, "moved", animal.id, notes=f"{animal.pen or 'not placed'} -> {here} (seen there)")
         animal.pen = here
     session.commit()
-    if here in buildings:
+    if here in buildings or here == FARM:
         await _roll_call(session, here, now)
     await hub.broadcast({"type": "auto_seen", "id": animal.id, "name": animal.name or animal.code, **cond})
     return {"card": True, "id": animal.id, "name": animal.name or animal.code, "conditions": cond}
