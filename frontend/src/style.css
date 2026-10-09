@@ -274,6 +274,6 @@ main { padding: 16px 20px; }
 
 /* Hidden copies still possible, one column per gene */
 .hidden-row { align-items: flex-start; }
-.hidden-col { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 34px; flex: none; }  /* under a 30px circle + border */
+.hidden-col { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 30px; flex: none; }  /* exactly a top-row circle (border-box), so columns sit under their gene */
 .hidden-col .dot.small { margin: 0; }
 .dot.truth { outline: 2px solid #fff; outline-offset: 1px; }
