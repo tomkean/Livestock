@@ -1435,8 +1435,8 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
         log(session, "moved", animal.id, notes=f"{animal.pen or 'not placed'} -> {here} (seen there)")
         animal.pen = here
     session.commit()
-    if here in buildings or here == FARM:
-        await _roll_call(session, here, now)
+    # No roll call: not being seen for a while never changes an animal's room or status (it pulled sheep out of their
+    # rooms while the player was watching one pen). Cards show "Not seen for ..." instead; the player decides.
     await hub.broadcast({"type": "auto_seen", "id": animal.id, "name": animal.name or animal.code, **cond})
     return {"card": True, "id": animal.id, "name": animal.name or animal.code, "conditions": cond}
 

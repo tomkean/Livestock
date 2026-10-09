@@ -38,6 +38,16 @@ export function geneDots(a) {
     return `<div class="genes"><div class="gene-row">${top}</div><div class="gene-row hidden-row">${columns}</div></div>`;
 }
 
+/** "Not seen for 25 min" once automatic capture hasn't seen a live animal for 10 minutes. Information only. */
+function unseenTag(a) {
+    if (a.status !== 'alive' || !a.seen_at) return '';
+    const seen = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(a.seen_at) ? a.seen_at : a.seen_at + 'Z');
+    const minutes = Math.round((Date.now() - seen) / 60000);
+    if (minutes < 10) return '';
+    const text = minutes < 120 ? `${minutes} min` : minutes < 2880 ? `${Math.round(minutes / 60)} h` : `${Math.round(minutes / 1440)} days`;
+    return `<span class="tag unseen" title="Automatic capture last saw this card ${seen.toLocaleString()}">Not seen for ${text}</span>`;
+}
+
 export function displayName(a) {
     return a.name || a.code;
 }
@@ -53,7 +63,8 @@ export function animalCardHtml(a) {
         a.pregnant ? '<span class="tag pregnant">Pregnant</span>' : '',
         cooling ? `<span class="tag free" title="Cooldown after her last lamb">Free again ${free.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>` : '',
         a.origin === 'ranch' ? '<span class="tag">Ranch</span>' : '',
-        a.status !== 'alive' ? `<span class="tag gone">${esc(a.status)}</span>` : ''
+        a.status !== 'alive' ? `<span class="tag gone">${esc(a.status)}</span>` : '',
+        unseenTag(a)
     ].join('');
     const lamb = a.status === 'alive' ? lambStatus(a) : null;
     const timer = lamb ? `<div class="lamb-timer${lamb.due ? ' due' : ''}" data-animal="${a.id}">${esc(lamb.text)}</div>` : '';
