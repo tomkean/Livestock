@@ -694,7 +694,8 @@ def _pools_view(session: Session, species: str) -> tuple[list, dict]:
     result = pools.arrange(animals, settings.get("target_genes") or "DLYFH", inf["posterior"] if inf else None,
                            cfg.get("harems") or ["Harem #1", "Harem #2"], cfg.get("holding") or "Death Row",
                            int(cfg.get("harem_ewes") or 5), int(cfg.get("holding_size") or 4),
-                           previous=_last_plan.get(species), harem_sizes=cfg.get("harem_sizes") or {})
+                           previous=_last_plan.get(species), harem_sizes=cfg.get("harem_sizes") or {},
+                           holding_by_sex=cfg.get("holding_by_sex"))
     result["quiet"] = _quiet_harems(session, cfg.get("harems") or [], now)
     # Remember this plan's rams and promotions, so the next one sticks with them unless something is clearly better.
     _last_plan[species] = ({h["ram"] for h in result["harems"].values() if h["ram"]}

@@ -56,7 +56,8 @@ def _value(goods, weights) -> float:
 
 
 def arrange(animals, target: str, posterior: dict | None, harems: list[str], holding, harem_ewes: int = 8,
-            holding_size: int = 4, previous: set | None = None, harem_sizes: dict | None = None) -> dict:
+            holding_size: int = 4, previous: set | None = None, harem_sizes: dict | None = None,
+            holding_by_sex: dict | None = None) -> dict:
     """Suggested pen for every animal, plus a verdict and a reason for each one in holding.
 
     `holding` is one room name or a list of them; animals waiting there fill the rooms in order, `holding_size` each
@@ -224,6 +225,17 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
     waiting = sorted((a for a in animals if pen[a.id] == holding),
                      key=lambda a: (order[verdicts[a.id]["verdict"]], -value[a.id]))
     overflow = []
+    if holding_by_sex:
+        # Separate rooms for rams and ewes ("Gentlemen" / "Ladies"): no unplanned matings while they wait, and the
+        # ewes are calmer to shear. Unsexed lambs wait with the ewes until their horns show.
+        filled = {}
+        for a in waiting:
+            room = holding_by_sex.get(a.sex) or holding_by_sex.get("F") or holding_rooms[0]
+            pen[a.id] = room
+            filled[room] = filled.get(room, 0) + 1
+            if filled[room] > holding_size:
+                overflow.append(a.id)
+        waiting = []
     for k, a in enumerate(waiting):
         room = k // max(1, holding_size)
         if room < len(holding_rooms):

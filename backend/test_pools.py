@@ -59,6 +59,14 @@ class Pools(unittest.TestCase):
         self.assertTrue(all(r["pen"][i] == "Row" for i in replaced))
         self.assertTrue(all(len(h["ewes"]) <= 1 for h in r["harems"].values()))
 
+    def test_holding_by_sex_puts_rams_and_ewes_in_their_own_rooms(self):
+        herd = self.herd + [a(7, "?", "OOOOO", "OOOOO", lamb=True)]
+        r = pools.arrange(herd, "DLYFH", None, ["VIP"], ["Gentlemen", "Ladies"], 1, 9,
+                          holding_by_sex={"M": "Gentlemen", "F": "Ladies"})
+        for x in herd:
+            if r["pen"][x.id] in ("Gentlemen", "Ladies"):
+                self.assertEqual(r["pen"][x.id], "Gentlemen" if x.sex == "M" else "Ladies")
+
     def test_harems_never_exceed_their_size(self):
         r = self.arrange(self.herd, ewes=1)
         self.assertTrue(all(len(h["ewes"]) <= 1 for h in r["harems"].values()))
