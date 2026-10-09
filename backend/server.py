@@ -421,7 +421,7 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
             changed.append(field)
     check_animal(session, animal)
     if "pen" in changed:  # the moves log is how the parent finder knows who was where
-        log(session, "moved", animal.id, notes=f"{old_pen or 'unplaced'} -> {animal.pen or 'unplaced'}")
+        _log_move(session, animal, old_pen)
         changed.remove("pen")
         if animal.pen and animal.status == "missing":
             animal.status = "alive"  # put in a building: found
@@ -488,6 +488,27 @@ def logic(session: Session) -> Optional[dict]:
 
 
 _MOVE = re.compile(r"^(.*?) -> (.*?)(?: \(seen there\))?$")
+DRAG_MERGE_SECONDS = 30  # a second drag this soon after the first is one move made in steps (drag, scroll, drag)
+
+
+def _log_move(session: Session, animal: Animal, old_pen: str) -> None:
+    """Log a move the player made. A drag that has to stop on the way (to scroll the page) drops the sheep in a room
+    for a moment that it was never in: a follow-on drag within DRAG_MERGE_SECONDS joins the first into one move, so
+    the room history never shows the stopover (it could make a ram look like a lamb's father)."""
+    now = datetime.now(timezone.utc)
+    last = session.exec(select(Event).where(Event.kind == "moved", Event.animal_id == animal.id)
+                        .order_by(Event.at.desc())).first()
+    step = _MOVE.match(last.notes) if last else None
+    if (step and not last.notes.endswith("(seen there)") and step.group(2) == (old_pen or "unplaced")
+            and (now - _utc(last.at)).total_seconds() <= DRAG_MERGE_SECONDS):
+        start = step.group(1)
+        if start == (animal.pen or "unplaced"):
+            session.delete(last)  # dragged back where it started: no move at all
+        else:
+            last.notes, last.at = f"{start} -> {animal.pen or 'unplaced'}", now
+            session.add(last)
+        return
+    log(session, "moved", animal.id, notes=f"{old_pen or 'unplaced'} -> {animal.pen or 'unplaced'}")
 
 
 def pens_at(session: Session, when: datetime) -> dict[int, str]:

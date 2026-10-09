@@ -85,6 +85,7 @@ export class PoolsView extends View {
     destroy() {
         super.destroy();
         this.destroyed = true;  // the tabs share one container: never redraw over the next page
+        window.removeEventListener('dragover', this.edgeScroll);
         clearTimeout(this.refreshTimer);
     }
 
@@ -212,7 +213,17 @@ export class PoolsView extends View {
             const a = byId[Number(el.dataset.drag)];
             if (a) openAnimalEditor(a, animals, this.settings || {}, () => this.render());
         }));
-        // Drag a sheep onto another room to record that you've moved it there.
+        // Drag a sheep onto another room to record that you've moved it there. Near the top or bottom of the window
+        // the page scrolls, so a far room can be reached in one drag (no stopping in a room on the way).
+        if (!this.edgeScroll) {
+            const EDGE = 90;
+            this.edgeScroll = e => {
+                if (!this.dragging) return;
+                const step = e.clientY < EDGE ? -(EDGE - e.clientY) / 3 : e.clientY > innerHeight - EDGE ? (e.clientY - innerHeight + EDGE) / 3 : 0;
+                if (step) window.scrollBy(0, step);
+            };
+            window.addEventListener('dragover', this.edgeScroll);
+        }
         this.container.querySelectorAll('[data-drag]').forEach(el => el.addEventListener('dragstart', e => {
             e.dataTransfer.setData('text/plain', el.dataset.drag);
             e.dataTransfer.effectAllowed = 'move';
