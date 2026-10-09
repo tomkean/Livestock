@@ -81,8 +81,9 @@ function showWhere(settings) {
     away = here === AWAY;
     setPaused(away);
     showWatching();
-    where.innerHTML = `<option value="">Where am I?</option><option value="${AWAY}" ${away ? 'selected' : ''}>Away from livestock</option>`
-        + `<option value="Farm" ${here === 'Farm' ? 'selected' : ''}>Whole farm (room not tracked)</option>`
+    // No blank choice: not knowing the room is "Somewhere on the farm" (watches, files by sex, moves nobody).
+    where.innerHTML = `<option value="Farm" ${here === 'Farm' || !here ? 'selected' : ''}>Somewhere on the farm</option>`
+        + `<option value="${AWAY}" ${away ? 'selected' : ''}>Away from livestock</option>`
         + places.map(p => `<option value="${p.replace(/"/g, '&quot;')}" ${p === here ? 'selected' : ''}>${p.replace(/</g, '&lt;')}</option>`).join('');
 }
 api.get('/api/settings').then(showWhere).catch(() => {});
@@ -92,7 +93,7 @@ where.addEventListener('change', async () => {
         away = where.value === AWAY;
         setPaused(away);
         showWatching();
-        toast(away ? 'Away from livestock: not watching' : where.value ? `At ${where.value}` : 'Location cleared');
+        toast(away ? 'Away from livestock: not watching' : where.value === 'Farm' ? 'Somewhere on the farm: watching, rooms not tracked' : `At ${where.value}`);
     } catch (e) {
         toast(e.message, 'error');
     }

@@ -940,7 +940,7 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
     if parent is not None and parent.species != species:
         parent = None
     sex = parent.sex if parent is not None and parent.sex in ("M", "F") else (reading.get("sex_guess") or "?")
-    here = settings_store.load().get("location") or ""
+    here = settings_store.load().get("location") or FARM
     file = f"{now:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}.jpg"
     cv2.imwrite(str(CAPTURE_DIR / file), frame)
     capture = Capture(path=file, width=frame.shape[1], height=frame.shape[0], location=here)
@@ -1305,7 +1305,7 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     if (reading.get("yield") or {}).get("per_hour") and reading["yield"].get("product", "wool") == "wool":
         animal.wool_per_hour = reading["yield"]["per_hour"]
         animal.wool_per_shear, animal.wool_regrow_min = reading["yield"]["amount"], reading["yield"]["minutes"]
-    if animal.status == "missing" and (settings_store.load().get("location") or "") in _buildings() + [FARM]:
+    if animal.status == "missing" and (settings_store.load().get("location") or FARM) in _buildings() + [FARM]:
         animal.status = "alive"  # back in a building; seen outside one (grazing by the vendor, say) it stays missing
         log(session, "alive", animal.id, notes="found (automatic capture)")
     if reading.get("name"):
@@ -1331,7 +1331,7 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     pools_cfg = settings.get("pools") or {}
     holding = pools_cfg.get("holding") or []
     buildings = list(pools_cfg.get("harems") or []) + ([holding] if isinstance(holding, str) else list(holding))
-    here = settings.get("location") or ""
+    here = settings.get("location") or FARM  # unset means somewhere on the farm
     if here in buildings:
         _sightings.setdefault(here, []).append((now, animal.id, animal.pen == here))
     elif here == FARM:  # room unknown: counts towards the whole farm's roll call, moves nobody
