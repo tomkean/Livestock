@@ -232,7 +232,10 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
             v = verdicts.get(a.id)
             if a.sex == "M" and v and v["verdict"] in ("sell", "cull"):
                 v["verdict"] = "reject"
-                v["reason"] = f"{v['reason']} - keep for wool in {reject_room}, sell when the barn is quiet"
+                if a in unwanted:  # a lamb: its own note was about growing it in holding, which no longer applies
+                    v["reason"] = f"not needed for breeding: grow it in {reject_room}, keep it for wool, sell when the barn is quiet"
+                else:
+                    v["reason"] = f"{v['reason']} - keep for wool in {reject_room}, sell when the barn is quiet"
                 pen[a.id] = reject_room
         waiting = [a for a in waiting if pen[a.id] != reject_room]
     if holding_by_sex:
