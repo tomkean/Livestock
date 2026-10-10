@@ -177,14 +177,14 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
             members[h] = [e]
             pen[r.id] = pen[e.id] = h
         later = pick([a for a in animals if a.sex in ("M", "?")], [a for a in animals if a.sex in ("F", "?")])
-        for r, e in later:
+        future = rooms_for(later)  # the rooms once the lambs are grown, so the notes agree with each other
+        future_room = {x.id: h for h, pair in future.items() for x in pair}
+        for h, (r, e) in future.items():
             for lamb, partner in ((r, e), (e, r)):
                 if getattr(lamb, "is_lamb", False) and lamb.id not in soon:
-                    room = next((h for h, pair in now_pairs.items() if partner in pair), None)
-                    replaced = None
-                    if room is not None:
-                        replaced = now_pairs[room][0] if lamb is r else now_pairs[room][1]
-                    soon[lamb.id] = (room, partner, replaced)
+                    now = now_pairs.get(h)
+                    out = None if now is None else (now[0] if lamb is r else now[1])
+                    soon[lamb.id] = (h, partner, out, future_room.get(out.id) if out is not None else None)
 
     # Verdicts for everything in holding, best first: each promotion takes its place in the harems before the next
     # animal is judged, so two lambs are never both told to replace the same ewe.
@@ -220,10 +220,14 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
                     else f"promote to {harems[0]}")
         ewe_text = f"promote to {best_h}" + ("" if room or weakest_ewe is None else f", replacing {weakest_ewe.name}")
         if a.id in soon:
-            room, partner, replaced = soon[a.id]
-            where = f" in {room}" if room else ""
-            verdict, reason = "promote", (f"pair with {partner.name}{where} once grown" +
-                                          (f", replacing {replaced.name}" if replaced is not None else "") +
+            room, partner, out, out_to = soon[a.id]
+            if out is None or out is partner:
+                change = ""
+            elif out_to is not None:
+                change = f"; {out.name} moves to {out_to}"  # still breeding, in another pair
+            else:
+                change = f", replacing {out.name}"
+            verdict, reason = "promote", (f"pair with {partner.name} in {room} once grown{change}" +
                                           (" (check horns)" if a.sex == "?" else ""))
         elif spare:
             verdict, reason = "keep", "good enough to breed: waits for a place in a pair"
