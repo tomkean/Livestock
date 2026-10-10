@@ -154,6 +154,12 @@ export class PoolsView extends View {
                 </section>`;
         };
         const harems = Object.keys(plan.harems).map(name => section(name, 'harem')).join('');
+        // When the farm is overcrowded: who goes first. Breeding pairs, promoted lambs and pregnant ewes never appear.
+        const cull = plan.cull_order || [];
+        const cullHtml = cull.length ? `
+            <div class="panel cull-order"><h2>If you need space: remove in this order</h2>
+                <ol>${cull.map(c => `<li><b>${esc(c.name)}</b> <span class="muted">${esc(c.room || 'room unknown')} - ${esc(c.why)}</span></li>`).join('')}</ol>
+            </div>` : '';
         // A sheep's room is only ever where it was seen or where you put it: new arrivals start here.
         const rooms_known = new Set([...Object.keys(plan.harems), ...(plan.holding_rooms || [])]);
         const unknown = here.filter(a => !rooms_known.has(a.pen));
@@ -212,7 +218,7 @@ export class PoolsView extends View {
                 <ul>${headcount}</ul>
             </div>
             ${crowded}${overflow}${loggingOff}
-            <div class="pools">${harems}${holdingHtml}${unknownHtml}</div>`;
+            <div class="pools">${harems}${holdingHtml}${unknownHtml}</div>${cullHtml}`;
 
         // Click a sheep to edit it (pregnant, sold, room...); drag it onto another room to record a move.
         this.container.querySelectorAll('[data-drag]').forEach(el => el.addEventListener('click', e => {

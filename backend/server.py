@@ -783,7 +783,30 @@ def pools_plan(species: str = "sheep", session: Session = Depends(get_session)):
     current = {a.id: a.pen for a in animals}
     result["moves"] = [{"id": a.id, "name": a.name or a.code, "from": current[a.id] or None, "to": result["pen"][a.id]}
                        for a in animals if current[a.id] != result["pen"][a.id]]
+    result["cull_order"] = _cull_order(animals, result)
     return result
+
+
+def _cull_order(animals: list, result: dict) -> list[dict]:
+    """Who to remove first when the farm is overcrowded. Animals the plan has no use for go first - poor wool before
+    good (Y is wool), least valuable first - then spares kept for breeding. Never listed: breeding pairs, lambs
+    promoted for a future pair, the only carrier of a Good copy, pregnant ewes."""
+    y = genetics.GENES.index("Y")
+    breeding = {i for h in result["harems"].values() for i in [h["ram"], *h["ewes"]] if i}
+    value = result.get("value", {})
+    ranked = []
+    for a in animals:
+        v = result["verdicts"].get(a.id) or result["verdicts"].get(str(a.id)) or {}
+        if a.id in breeding or a.pregnant or v.get("verdict") == "promote" or "only carrier" in v.get("reason", ""):
+            continue
+        unwanted = v.get("verdict") in ("reject", "sell", "cull")
+        if not unwanted and v.get("verdict") != "keep":
+            continue
+        good_wool = a.genes_top[y] == "G"
+        group = (0 if not good_wool else 1) if unwanted else 2
+        why = ("not useful for mating" + ("" if good_wool else ", poor wool")) if unwanted else "spare for breeding"
+        ranked.append(((group, value.get(a.id, 0)), {"id": a.id, "name": a.name or a.code, "room": a.pen, "why": why}))
+    return [entry for _, entry in sorted(ranked, key=lambda r: r[0])]
 
 
 def _rams_wait_while_ewes_busy(session: Session, animals: list, result: dict):
