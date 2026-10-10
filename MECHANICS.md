@@ -214,6 +214,8 @@ The list continued with a "Commands:" section that has not been captured yet.
 
 **Doors for a sheep farm (user, 10 Oct 2026):** sheep can't get through saloon doors, so players pass and sheep don't, like half walls (which players hop). Saloon doors swing, so when open they still stand in the way; a garage door rises out of the way completely - better for doors the app opens and shuts.
 
+**Narrow rooms cost condition (11 Oct 2026, user):** sheep in a 1x3-square room lost condition compared with those in wider rooms - bad for breeding, which needs 70% overall. Fits personal space from the pen's floor area (or its shape). The user swapped room roles: the 1x3 room became the ewes' holding room, a wider room the breeding room.
+
 **Wool is the business, selling animals the sideline (8 Oct 2026):** this run's 63 recorded sales gave about 5,330 scrap (about 85 per sheep) plus items; 1,000 wool gave 700 scrap plus items. A sheep is one sale per trip (a truck carries at most two), needs leading or trucking to the barn and is a risk on the way; wool travels by the backpack-load (e.g. by minicopter), sells 400 per lot with no cooldown, and can't wander off. A god herd is the ideal wool farm (Y: 16 per shear every 3 min; L: longest life; H: least feed). Realistically one shearing round per visit: 10 Good-Y sheep sheared every 15-30 min give about 320-640 wool an hour. So site a farm for safety, space and feed, not for closeness to the barn; sell animals only to clear surplus.
 
 | Item | Value | Confidence |
