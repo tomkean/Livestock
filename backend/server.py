@@ -540,12 +540,32 @@ def _parents(session: Session, child) -> list[dict]:
     inf = inferred(session)
     # Where everyone was when it was conceived (the father was with the mother then) and when it was born (beside its
     # mother). A ewe moved between harems while pregnant still points at her old harem's ram.
-    then, now_pens = pens_at(session, conceived), pens_at(session, born)
+    # Birth times come from the card's age, so conception is checked over a few minutes either side.
+    slack = timedelta(minutes=CONCEPTION_SLACK_MINUTES)
+    around = [pens_at(session, conceived + timedelta(minutes=k))
+              for k in range(-CONCEPTION_SLACK_MINUTES, CONCEPTION_SLACK_MINUTES + 1)]
+    now_pens = pens_at(session, born)
     pen = getattr(child, "pen", "") or ""
+    # A ewe seen pregnant between conception and birth: the ram in her room when she was seen is the father's best
+    # clue, and the lamb may be found anywhere (wandered or moved before its card was read). A ewe seen pregnant in
+    # the 41 minutes before conception was pregnant or resting: she can't be the mother.
+    sighted, busy = {}, set()
+    for e in session.exec(select(Event).where(Event.kind == "pregnant")):
+        at = _utc(e.at)
+        if conceived - slack <= at <= born + slack:
+            sighted.setdefault(e.animal_id, at)
+        elif conceived - timedelta(minutes=EWE_MIN_REST_MINUTES) <= at < conceived - slack:
+            busy.add(e.animal_id)
+    with_her = {m_id: pens_at(session, at) for m_id, at in sighted.items()}
 
     def places(m, f):
-        together = bool(then.get(m.id)) and then.get(m.id) == then.get(f.id)
-        mother_there = not pen or now_pens.get(m.id) == pen
+        if m.id in busy:
+            return False, False
+        together = any(p.get(m.id) and p.get(m.id) == p.get(f.id) for p in around)
+        if m.id in with_her:
+            seen = with_her[m.id]
+            together = together or bool(seen.get(m.id)) and seen.get(m.id) == seen.get(f.id)
+        mother_there = not pen or now_pens.get(m.id) == pen or m.id in sighted
         return together, mother_there
     child_view = visible(child)
     child_view.born_at = born  # so parents too young for it are ruled out, even for a lamb just captured
@@ -1001,6 +1021,11 @@ def _other_parent(session: Session, known: Animal, conceived: datetime) -> Optio
     return session.get(Animal, found.pop()) if len(found) == 1 else None
 
 
+EWE_MIN_REST_MINUTES = 41  # the shortest rest after lambing (Good F): a ewe seen pregnant this recently can't conceive
+AUTO_PARENTS_CHANCE = 0.8  # a lamb whose name names no parent gets the top pair only when it is this sure...
+AUTO_PARENTS_LEAD = 5.0  # ...and this many times likelier than the next pair
+
+
 def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Optional[Animal]:
     """Register an animal seen for the first time from a clean read of its card, so the player doesn't have to.
 
@@ -1043,8 +1068,18 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
                     age_minutes=reading.get("age_minutes") if lamb else None)
     animal = create_animal(body, session, auto=True)
     animal.card_name = name
+    found_by = ""
+    if parent is None and lamb and not bought:
+        # No parent in its name ("Shelby", "Lucia"): the parent finder's top pair, but only when it's clear-cut.
+        session.flush()
+        ranked = _parents(session, animal)
+        if ranked and ranked[0]["chance"] >= AUTO_PARENTS_CHANCE and (
+                len(ranked) == 1 or ranked[0]["chance"] >= AUTO_PARENTS_LEAD * ranked[1]["chance"]):
+            animal.mother_id, animal.father_id = ranked[0]["mother_id"], ranked[0]["father_id"]
+            found_by = f"parents from the room and pregnancy records ({ranked[0]['chance']:.0%} sure)"
     log(session, "captured", animal.id, notes="registered automatically from its card"
         + (f"; {'mother' if parent.sex == 'F' else 'father'} from its name" if parent is not None else "")
+        + (f"; {found_by}" if found_by else "")
         + ("; sex from its name" if parent is None and sex != "?" else ""))
     session.commit()
     return animal
