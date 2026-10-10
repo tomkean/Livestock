@@ -181,7 +181,7 @@ export class PoolsView extends View {
                 <span class="spacer"></span>
                 <div class="seg">
                     <button data-species="sheep" class="${this.species === 'sheep' ? 'on' : ''}">🐑 Sheep</button>
-                    <button data-species="cow" class="${this.species === 'cow' ? 'on' : ''}">🐄 Cows</button>
+                    <button data-species="cow" class="${this.species === 'cow' ? 'on' : ''}">🐄 Cattle</button>
                 </div>
             </div>
             <p class="hint">Each harem's ram mates his ewes by himself: no arranging matings. Keep each harem to ${cfg.harem_ewes || 8} ewes

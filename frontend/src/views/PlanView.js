@@ -71,7 +71,7 @@ export class PlanView extends View {
                     <span class="spacer"></span>
                     <div class="seg">
                         <button data-species="sheep" class="${this.species === 'sheep' ? 'on' : ''}">🐑 Sheep</button>
-                        <button data-species="cow" class="${this.species === 'cow' ? 'on' : ''}">🐄 Cows</button>
+                        <button data-species="cow" class="${this.species === 'cow' ? 'on' : ''}">🐄 Cattle</button>
                     </div>
                     <label class="hint" title="Test servers with livestock.panelalleles show the hidden row. Leave this off to plan as on a live server: hidden copies are then inferred from top rows and family.">
                         <input type="checkbox" id="second-row" ${this.secondRow ? 'checked' : ''}> Second row visible (test server)</label>
@@ -88,8 +88,8 @@ export class PlanView extends View {
                     <span class="spacer"></span>
                     <div class="seg" id="vehicle">
                         <button data-vehicle="lead" title="One animal at a time on the lead">Leading</button>
-                        <button data-vehicle="small" title="1 sheep, ram or lamb per trip; no grown cows">Small flatbed</button>
-                        <button data-vehicle="large" title="2 sheep, rams or lambs per trip, or 1 cow">Large flatbed</button>
+                        <button data-vehicle="small" title="1 sheep, ram or lamb per trip; no grown cattle">Small flatbed</button>
+                        <button data-vehicle="large" title="2 sheep, rams or lambs per trip, or 1 grown cow or bull">Large flatbed</button>
                     </div>
                 </div>
                 <div id="trip"></div>
@@ -141,7 +141,7 @@ export class PlanView extends View {
             : '<li class="muted">Nothing: every gene shows green and the pens are full.</li>';
         const sell = trip.sell.length
             ? trip.sell.map(a => `<li>${esc(a.name)} (${label(a.sex)})</li>`).join('')
-            : `<li class="muted">${trip.capacity.adults === 0 ? "A small flatbed can't carry a grown cow." : 'Nothing to sell yet.'}</li>`;
+            : `<li class="muted">${trip.capacity.adults === 0 ? "A small flatbed can't carry grown cattle." : 'Nothing to sell yet.'}</li>`;
         target.innerHTML = `
             <div class="trip-cols">
                 <div><h3>Take to sell</h3><ul>${sell}</ul></div>
