@@ -27,7 +27,8 @@ class Pools(unittest.TestCase):
         herd = self.herd + [a(7, "?", "GGGGG", "GGGGG", lamb=True), a(8, "?", "BBBBB", "BBBBB", lamb=True)]
         r = self.arrange(herd, ewes=1)
         self.assertEqual(r["verdicts"][7]["verdict"], "promote")
-        self.assertIn("if a ram", r["verdicts"][7]["reason"])
+        self.assertIn("once grown", r["verdicts"][7]["reason"])  # one-ewe rooms: pair mode
+        self.assertIn("check horns", r["verdicts"][7]["reason"])
         self.assertEqual(r["verdicts"][8]["verdict"], "sell")
 
     def test_a_hopeless_lamb_is_culled_when_holding_is_full(self):
@@ -50,14 +51,21 @@ class Pools(unittest.TestCase):
         self.assertEqual(r["pen"][1], "H2")  # the best ram isn't moved just to head the first harem
         self.assertEqual(r["pen"][2], "H1")
 
-    def test_a_promoted_ewe_lamb_goes_straight_to_its_harem(self):
+    def test_a_promoted_ewe_lamb_grows_up_in_holding_then_joins_her_pair(self):
+        # One-ewe rooms: a lamb in a breeding room would keep the ram out, so she waits until grown.
         herd = self.herd + [a(7, "F", "GGGGG", "GGGGG", lamb=True)]
         r = self.arrange(herd, ewes=1)
         self.assertEqual(r["verdicts"][7]["verdict"], "promote")
-        self.assertIn(r["pen"][7], ("H1", "H2"))
-        replaced = [i for i, v in r["verdicts"].items() if v["reason"].startswith("replaced in")]
-        self.assertTrue(all(r["pen"][i] == "Row" for i in replaced))
+        self.assertIn("once grown", r["verdicts"][7]["reason"])
+        self.assertEqual(r["pen"][7], "Row")
         self.assertTrue(all(len(h["ewes"]) <= 1 for h in r["harems"].values()))
+
+    def test_pair_mode_gives_a_ewe_the_ram_that_completes_her(self):
+        # The ewe has no Good Y. Ram 2 is worth more overall, but ram 1 is Good/Good on Y: the pair that can make a
+        # god animal wins over the higher-valued ram.
+        herd = [a(1, "M", "OGGOG", "BGGBB"), a(2, "M", "GGGGO", "GOOOB"), a(4, "F", "GGOGG", "GGBGG")]
+        r = pools.arrange(herd, "DLYFH", None, ["VIP"], "Row", 1, 4)
+        self.assertEqual(r["harems"]["VIP"]["ram"], 1)
 
     def test_holding_by_sex_puts_rams_and_ewes_in_their_own_rooms(self):
         herd = self.herd + [a(7, "?", "OOOOO", "OOOOO", lamb=True)]
