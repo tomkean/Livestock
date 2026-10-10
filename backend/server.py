@@ -594,6 +594,10 @@ def delete_animal(animal_id: int, session: Session = Depends(get_session)):
             child.father_id = None
     for capture in session.exec(select(Capture).where(Capture.animal_id == animal_id)):
         capture.animal_id = None
+    for reading in session.exec(select(Reading).where(Reading.animal_id == animal_id)):
+        session.delete(reading)  # its conditions history goes with it
+    for offer in session.exec(select(Offer).where(Offer.animal_id == animal_id)):
+        offer.animal_id = None  # the vendor's offers stay as price data
     for image in (animal.card_image, animal.name_image):
         if image:
             (DATA_DIR / image).unlink(missing_ok=True)
@@ -954,7 +958,7 @@ def _match_reading(session: Session, reading: dict) -> Optional[Animal]:
     def fits(a):
         same_genes = all(r == "?" or r == g for r, g in zip(top, a.genes_top))
         return same_genes and (herd is None or a.herd_top is None or a.herd_top == herd)
-    named = [a for a in candidates if name and (a.name or "").lower() == name and fits(a)]
+    named = [a for a in candidates if name and name in ((a.name or "").lower(), (a.card_name or "").lower()) and fits(a)]
     if len(named) == 1:
         return named[0]
     unnamed = [a for a in candidates if fits(a) and "?" not in top and herd is not None and a.herd_top == herd]
@@ -1038,6 +1042,7 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
     body = AnimalIn(**data, capture_id=capture.id, card_box=reading.get("card_box"), name_box=reading.get("name_box"),
                     age_minutes=reading.get("age_minutes") if lamb else None)
     animal = create_animal(body, session, auto=True)
+    animal.card_name = name
     log(session, "captured", animal.id, notes="registered automatically from its card"
         + (f"; {'mother' if parent.sex == 'F' else 'father'} from its name" if parent is not None else "")
         + ("; sex from its name" if parent is None and sex != "?" else ""))
@@ -1389,6 +1394,8 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     if animal.status == "missing" and (settings_store.load().get("location") or FARM) in _buildings() + [FARM]:
         animal.status = "alive"  # back in a building; seen outside one (grazing by the vendor, say) it stays missing
         log(session, "alive", animal.id, notes="found (automatic capture)")
+    if reading.get("name") and animal.card_name != reading["name"]:
+        animal.card_name = reading["name"]  # the name as the card shows it, whatever the player renamed it to
     if reading.get("name"):
         # "Pregnant" after the name. It lingers a few seconds after the lamb appears, and no ewe can be pregnant again
         # within 40 minutes of lambing (the shortest cooldown is 41), so a recent lamb means it's that echo.

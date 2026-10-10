@@ -166,6 +166,7 @@ AGE_THRESHOLDS = (110, 140, 170)  # one threshold alone misreads digits ("52" as
 LAMB_MAX_AGE = 60  # minutes: a lamb grows up at 60, so a lamb card never shows more
 NAME_PATTERN = re.compile(r"^[A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё0-9 '-]{0,38}$")  # digits for "Jay the 3rd"
 CYRILLIC = re.compile(r"[А-Яа-яЁё]")
+ALL_CAPS_WORD = re.compile(r"\b[A-Z]{2,}\b")
 # Russian names, read in Cyrillic and kept in Latin letters (Станислав -> Stanislav, Снежана -> Snezhana), so they can be
 # typed and matched like any other name.
 _LATIN = dict(zip("абвгдезийклмнопрстуфыэ", "abvgdeziyklmnoprstufye")) | {
@@ -245,7 +246,16 @@ def read_name(image: np.ndarray, box: list[float]) -> str | None:
         text = " ".join(t for t, _ in words).strip()
         sure = min(c for _, c in words)
         if sure >= NAME_MIN_CONFIDENCE and NAME_PATTERN.match(text) and (best is None or sure > best[0]):
-            best = (sure, text)
+            best = (sure, text, ink)
+    if best and _name_languages() != "eng" and ALL_CAPS_WORD.search(best[1]):
+        # Card names are never in capitals, but Cyrillic lower case looks like Latin small capitals: "Антон" reads as
+        # "AHTOH". Read it again as Russian alone.
+        data = pytesseract.image_to_data(best[2], lang="rus", config="--psm 7", output_type=pytesseract.Output.DICT)
+        words = [(t, float(c)) for t, c in zip(data["text"], data["conf"]) if t.strip() and float(c) >= 0]
+        # The look-alike can bite again the other way ("АНТОН"): card names are never in capitals.
+        text = " ".join(t.capitalize() if len(t) > 1 and t.isupper() else t for t, _ in words).strip()
+        if words and min(c for _, c in words) >= NAME_MIN_CONFIDENCE and NAME_PATTERN.match(text) and CYRILLIC.search(text):
+            return text
     return best[1] if best else None
 
 

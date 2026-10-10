@@ -28,6 +28,7 @@ ADDED_COLUMNS = [
     ("animal", "wool_per_hour", "FLOAT"),
     ("animal", "wool_per_shear", "INTEGER"),
     ("animal", "wool_regrow_min", "FLOAT"),
+    ("animal", "card_name", "VARCHAR NOT NULL DEFAULT ''"),
 ]
 
 

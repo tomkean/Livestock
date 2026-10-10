@@ -14,6 +14,9 @@ class Animal(SQLModel, table=True):
     # Display name: the in-game name when it reads cleanly as Latin text, otherwise the code. Editable.
     # The name image is what identifies the animal in game, whatever script its name is in.
     name: str = ""
+    # The name as the card reader last read it (Latin letters). Matching uses it as well as `name`, so renaming an
+    # animal (AHTOH -> ANTON) doesn't make the next sighting look like a new one.
+    card_name: str = ""
     species: str  # cattle | sheep
     sex: str  # M | F | ? (lambs: sex only shows as horns once grown)
     origin: str = "ranch"  # ranch (bought from the NPC) | bred
