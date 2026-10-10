@@ -133,7 +133,7 @@ export class PlanView extends View {
             target.innerHTML = `<p class="error">${esc(e.message)}</p>`;
             return;
         }
-        this.container.querySelectorAll('[data-vehicle]').forEach(b => b.classList.toggle('on', b.dataset.vehicle === ({ single: 'small', double: 'large' }[settings.vehicle] || settings.vehicle)));
+        this.container.querySelectorAll('[data-vehicle]').forEach(b => b.classList.toggle('on', b.dataset.vehicle === settings.vehicle));
         const young = this.species === 'cattle' ? 'calf' : 'lamb';
         const label = (sex) => (sex === 'M' ? (this.species === 'cattle' ? 'bull' : 'ram') : (this.species === 'cattle' ? 'cow' : 'ewe'));
         const buy = trip.buy.length
