@@ -52,6 +52,10 @@ class ScreenCaptureManager {
                 this.videoEl.style.display = 'none';
                 document.body.appendChild(this.videoEl);
             }
+            // What was picked: the browser's label (often the window title) and the kind of surface.
+            const track = this.stream.getVideoTracks()[0];
+            this.sourceLabel = track?.label || '';
+            this.surface = track?.getSettings?.().displaySurface || '';
             this.videoEl.srcObject = this.stream;
             await this.videoEl.play().catch(e => console.warn("[ScreenCapture] Video autoplay muted:", e));
 

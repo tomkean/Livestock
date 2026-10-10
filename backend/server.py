@@ -13,6 +13,7 @@ import cv2
 import numpy as np
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
@@ -1492,6 +1493,15 @@ async def trigger_capture():
     return {"capturers": sent}
 
 
+@app.get("/api/autocapture/last.jpg")
+def last_autocapture():
+    """The latest frame Auto sent (the strip it reads), so a wrong shared window (Steam, Discord) is easy to spot."""
+    path = DATA_DIR / "last_autocapture.jpg"
+    if not path.exists():
+        raise HTTPException(404, "no frame yet")
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
 # ---------------------------------------------------------------- websocket
 
 class Hub:
@@ -1499,6 +1509,7 @@ class Hub:
 
     def __init__(self):
         self.clients: dict[WebSocket, bool] = {}
+        self.source = ""  # what the sharing browser says it shares (a window title, or "screen:0:0"), for every device
 
     async def broadcast(self, msg: dict, capturers_only=False):
         for ws, capturer in list(self.clients.items()):
@@ -1510,7 +1521,7 @@ class Hub:
                 self.clients.pop(ws, None)
 
     async def broadcast_status(self):
-        await self.broadcast({"type": "status", "capturers": sum(self.clients.values())})
+        await self.broadcast({"type": "status", "capturers": sum(self.clients.values()), "source": self.source})
 
     async def request_capture(self) -> int:
         await self.broadcast({"type": "capture_request"}, capturers_only=True)
@@ -1535,7 +1546,8 @@ async def websocket_endpoint(ws: WebSocket):
                 # Turn automatic capture on or off on the browser sharing the screen, from any device.
                 await hub.broadcast({"type": "auto_capture", "enabled": bool(msg.get("enabled"))}, capturers_only=True)
             elif msg.get("type") == "auto_status":
-                await hub.broadcast({"type": "auto_status", "enabled": bool(msg.get("enabled"))})
+                hub.source = str(msg.get("source") or "")[:200]
+                await hub.broadcast({"type": "auto_status", "enabled": bool(msg.get("enabled")), "source": hub.source})
             elif msg.get("type") == "request_capture":
                 if not await hub.request_capture():
                     await ws.send_json({"type": "capture_warning",

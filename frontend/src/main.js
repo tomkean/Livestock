@@ -28,10 +28,20 @@ async function showTab(name) {
     }
 }
 
+// What the sharing browser says it shares. Browsers label a window share with its title (usually) or an ID; a title
+// that isn't Rust's means the wrong window was picked (Steam, Discord) and every frame would be ignored.
+let shareSource = '';
+const looksLikeTitle = (label) => label && !/^(screen|window|web-contents-media-stream):/i.test(label);
+const notRust = (label) => looksLikeTitle(label) && !/rust/i.test(label);
 function updateShareStatus() {
     const pill = document.getElementById('capture-status');
-    if (ScreenCaptureService.isCapturing()) {
-        pill.textContent = 'Sharing this screen';
+    const label = ScreenCaptureService.isCapturing() ? (ScreenCaptureService.sourceLabel || '') : shareSource;
+    pill.title = label ? `Shared: ${label}` : '';
+    if (notRust(label)) {
+        pill.textContent = `Sharing "${label.slice(0, 30)}" - not Rust?`;
+        pill.className = 'pill warn';
+    } else if (ScreenCaptureService.isCapturing()) {
+        pill.textContent = looksLikeTitle(label) ? `Sharing: ${label.slice(0, 30)}` : 'Sharing this screen';
         pill.className = 'pill live';
     } else if (sharers > 0) {
         pill.textContent = 'Gaming PC screen shared';
@@ -64,12 +74,23 @@ document.getElementById('btn-auto').addEventListener('click', () => {
 });
 onAutoChange(on => {
     showWatching();
-    send({ type: 'auto_status', enabled: on });
+    send({ type: 'auto_status', enabled: on, source: ScreenCaptureService.sourceLabel || '' });
 });
 on('auto_status', msg => {
     remoteWatching = msg.enabled;
+    shareSource = msg.source || '';
     showWatching();
+    updateShareStatus();
 });
+// A small live view of the latest frame Auto read, on every device: a wrong window shows at a glance.
+const preview = document.getElementById('auto-preview');
+setInterval(() => {
+    const watching = (ScreenCaptureService.isCapturing() ? isAutoOn() : remoteWatching) && !away;
+    preview.classList.toggle('hidden', !watching);
+    if (watching) preview.src = `/api/autocapture/last.jpg?t=${Date.now()}`;
+}, 5000);
+preview.addEventListener('error', () => preview.classList.add('hidden'));
+preview.addEventListener('click', () => window.open(preview.src, '_blank'));
 let lastSeenToast = 0;
 // Where the player is: picked here until Rust+ can tell. Every open app follows the same choice.
 const where = document.getElementById('where');
@@ -144,6 +165,7 @@ ScreenCaptureService.onStatusChange(status => {
 
 on('status', msg => {
     sharers = msg.capturers;
+    if (msg.source !== undefined) shareSource = msg.source;
     updateShareStatus();
 });
 on('capture_request', () => {

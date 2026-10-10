@@ -299,3 +299,7 @@ main { padding: 16px 20px; }
 .tag.unseen { background: rgba(224,160,48,0.18); color: #e0a030; }
 
 .verdict.v-reject { border-color: #e0a030; color: #e0a030; }
+
+/* Header: what Auto sees, and a warning when the shared window is not Rust */
+.auto-preview { height: 36px; border: 1px solid var(--panel-border); border-radius: 4px; cursor: zoom-in; }
+.pill.warn { border-color: #e0a030; color: #e0a030; }
