@@ -82,10 +82,12 @@ on('auto_status', msg => {
     showWatching();
     updateShareStatus();
 });
-// A small live view of the latest frame Auto read, on every device: a wrong window shows at a glance.
+// A small live view of the latest frame Auto read: a wrong window shows at a glance. Only on the Capture tab, so the
+// game PC spends nothing on it while playing.
 const preview = document.getElementById('auto-preview');
 setInterval(() => {
-    const watching = (ScreenCaptureService.isCapturing() ? isAutoOn() : remoteWatching) && !away;
+    const onCapture = document.querySelector('#tabs button.active')?.dataset.tab === 'capture';
+    const watching = onCapture && (ScreenCaptureService.isCapturing() ? isAutoOn() : remoteWatching) && !away;
     preview.classList.toggle('hidden', !watching);
     if (watching) preview.src = `/api/autocapture/last.jpg?t=${Date.now()}`;
 }, 5000);
