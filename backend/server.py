@@ -815,8 +815,9 @@ def _rams_wait_while_ewes_busy(session: Session, animals: list, result: dict):
                                       "until": max(due).isoformat() if due and not lambs else None}
         result.setdefault("verdicts", {})[ram.id] = {
             "verdict": "keep",
-            "reason": f"{harem}'s ram: waits in {wait_room} while {why}"
-                      + (" - back once her lambs are moved out" if pregnant else " - back once they're moved out")}
+            "reason": f"waits in {wait_room} until " + (
+                f"{pregnant[0].name or pregnant[0].code} has lambed" if pregnant else
+                f"{', '.join(l.name or l.code for l in lambs)} {'are' if len(lambs) > 1 else 'is'} out of {harem}")}
 
 
 @app.get("/api/animals/{animal_id}/readings")

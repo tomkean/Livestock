@@ -108,18 +108,25 @@ export class PoolsView extends View {
         const elsewhere = moves.filter(m => !fromHere.includes(m));
         const here = animals.filter(a => a.species === this.species && a.status === 'alive');
         const rooms = plan.holding_rooms || [cfg.holding];
+        // Who breeds where, and with whom: the first line on each breeding animal's card.
         const heads = new Set(Object.values(plan.harems).map(h => h.ram).filter(Boolean));
+        const pairOf = {};
+        const nameOf = (id) => byId[id]?.name || byId[id]?.code || '';
+        for (const [room, h] of Object.entries(plan.harems)) {
+            if (h.ram) pairOf[h.ram] = { room, with: h.ewes.map(nameOf).join(', ') };
+            for (const e of h.ewes) pairOf[e] = { room, with: h.ram ? nameOf(h.ram) : '' };
+        }
         const order = { promote: 0, keep: 1, sell: 2, reject: 2, cull: 3 };
         // Each card sits in the building the animal is in now; the plan shows as a note.
         // Seen by automatic capture in the last 2 hours; anything else may already have gone (sold, lost) unnoticed.
         const confirmed = (a) => { const t = seenAt(a); return t && Date.now() - t < 2 * 3600000; };
         const card = (a) => {
             const v = plan.verdicts[a.id];
-            const verdict = v ? `<div class="verdict v-${v.verdict}"><b>${VERDICT_LABEL[v.verdict]}</b> ${esc(v.reason)}${v.verdict === 'cull' ? ' <span class="muted">(lead it over a barrier and let go - never shoot one while the herd is awake: they all attack)</span>' : ''}</div>` : '';
+            const verdict = v ? `<div class="verdict v-${v.verdict}"><b>${VERDICT_LABEL[v.verdict]}</b> ${esc(v.reason)}</div>` : '';
             const to = plan.pen[a.id];
             const moving = to && to !== a.pen && !skipped.has(`${a.id}>${to}`)
                 ? `<div class="hint move">→ move to <b>${esc(to)}</b> <button class="skip" data-skip="${a.id}>${esc(to)}" title="Not doing this one: skip it">✕</button></div>` : '';
-            const role = heads.has(a.id) ? `<div class="hint">harem ram${to && to !== a.pen ? ` for ${esc(to)}` : ''}</div>` : '';
+            const role = pairOf[a.id] ? `<div class="hint role">Breeds in <b>${esc(pairOf[a.id].room)}</b>${pairOf[a.id].with ? ` with ${esc(pairOf[a.id].with)}` : ''}</div>` : '';
             return `<div class="pool-card" draggable="true" data-drag="${a.id}" title="Drag to another room to record a move">${animalCardHtml(a)}${role}${moving}${verdict}</div>`;
         };
         const grid = (list) => `<div class="pen-grid">${list.map(card).join('') || '<p class="empty">None</p>'}</div>`;

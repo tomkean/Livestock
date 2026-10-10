@@ -35,7 +35,7 @@ class Pools(unittest.TestCase):
         herd = self.herd + [a(8, "?", "BBBBB", "BBBBB", lamb=True)]
         r = self.arrange(herd, ewes=1, holding_size=1)
         self.assertEqual(r["verdicts"][8]["verdict"], "cull")
-        self.assertIn("full", r["verdicts"][8]["reason"])
+        self.assertEqual(r["verdicts"][8]["reason"], "not useful for mating")  # no room to grow it: released
 
     def test_two_lambs_never_replace_the_same_ewe(self):
         herd = self.herd + [a(7, "F", "GGGGG", "GGGGG", lamb=True), a(8, "F", "GGGGG", "GGGGO", lamb=True)]
@@ -80,7 +80,7 @@ class Pools(unittest.TestCase):
         r = pools.arrange(herd, "DLYFH", None, ["VIP"], ["Gentlemen", "Ladies"], 1, 9,
                           holding_by_sex={"M": "Gentlemen", "F": "Ladies"})
         self.assertEqual(r["pen"][9], "Ladies")
-        self.assertIn("grow it in Ladies", r["verdicts"][9]["reason"])
+        self.assertEqual(r["verdicts"][9]["reason"], "not useful for mating: sell once grown")
 
     def test_unwanted_rams_go_to_rejects(self):
         r = pools.arrange(self.herd, "DLYFH", None, ["VIP"], ["Gentlemen", "Ladies", "Rejects"], 1, 9,

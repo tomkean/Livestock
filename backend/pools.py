@@ -216,25 +216,18 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         if pair_mode:
             as_ram = as_ewe = False  # the pairing above decided who breeds
         lamb = getattr(a, "is_lamb", False)
-        ram_text = (f"promote to {harem_of(weakest_ram)}, replacing {weakest_ram.name}" if weakest_ram
-                    else f"promote to {harems[0]}")
-        ewe_text = f"promote to {best_h}" + ("" if room or weakest_ewe is None else f", replacing {weakest_ewe.name}")
+        ram_text = f"breeds in {harem_of(weakest_ram) if weakest_ram else harems[0]}"
+        ewe_text = f"breeds in {best_h}"
         if a.id in soon:
-            room, partner, out, out_to = soon[a.id]
-            if out is None or out is partner:
-                change = ""
-            elif out_to is not None:
-                change = f"; {out.name} moves to {out_to}"  # still breeding, in another pair
-            else:
-                change = f", replacing {out.name}"
-            verdict, reason = "promote", (f"pair with {partner.name} in {room} once grown{change}" +
-                                          (" (check horns)" if a.sex == "?" else ""))
+            # Its pair is settled when it's grown (the plan then lists it under its room): no partner named yet, as
+            # the herd will have changed by then.
+            verdict, reason = "promote", "breeding candidate once grown" + (" (check horns)" if a.sex == "?" else "")
         elif spare:
-            verdict, reason = "keep", "good enough to breed: waits for a place in a pair"
+            verdict, reason = "keep", "spare for breeding"
         elif a.sex == "M":
-            verdict, reason = ("promote", ram_text) if as_ram else                 ("keep", "only carrier of a Good copy") if last_carrier(a) else                 ("keep", "spare ram, nearly as good as the harem rams") if weakest_ram is not None and v >= 0.9 * value[weakest_ram.id] else                 ("cull" if lamb else "sell", "not better than the harem rams")
+            verdict, reason = ("promote", ram_text) if as_ram else                 ("keep", "only carrier of a Good copy") if last_carrier(a) else                 ("keep", "spare for breeding") if weakest_ram is not None and v >= 0.9 * value[weakest_ram.id] else                 ("cull" if lamb else "sell", "not useful for mating")
         elif a.sex == "F":
-            verdict, reason = ("promote", ewe_text) if as_ewe else                 ("keep", "only carrier of a Good copy") if last_carrier(a) else                 ("keep", "spare ewe, nearly as good as the harems'") if v >= 0.9 * floor else                 ("cull" if lamb else "sell", "not better than the harem ewes")
+            verdict, reason = ("promote", ewe_text) if as_ewe else                 ("keep", "only carrier of a Good copy") if last_carrier(a) else                 ("keep", "spare for breeding") if v >= 0.9 * floor else                 ("cull" if lamb else "sell", "not useful for mating")
         else:  # unsexed lamb: horns show at maturity
             if as_ram or as_ewe:
                 parts = ([f"if a ram: {ram_text}"] if as_ram else []) + ([f"if a ewe: {ewe_text}"] if as_ewe else [])
@@ -242,13 +235,7 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
             elif last_carrier(a):
                 verdict, reason = "keep", "only carrier of a Good copy"
             else:
-                verdict, reason = "cull", "no better than what the harems have, whatever its sex"
-        now_in = getattr(a, "pen", "")
-        if now_in in harems and verdict != "promote":
-            # It's in a harem today but the plan has no place for it there.
-            places = sum(size(h) for h in harems) if a.sex == "F" else len(harems)
-            kind = "ewes" if a.sex == "F" else "rams"
-            reason = f"out of {now_in}: {places} better {kind} fill the harem places" +                 (f" - but keep it: {reason}" if verdict == "keep" else "")
+                verdict, reason = "cull", "not useful for mating"
         verdicts[a.id] = {"verdict": verdict, "reason": reason}
         if verdict == "promote" and not pair_mode:  # it takes the place it was promised (both, for an unsexed lamb)
             out, goes_to = None, None
@@ -268,7 +255,7 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
                 pen[a.id] = goes_to
                 if out is not None and pen.get(out.id) != holding:
                     pen[out.id] = holding
-                    verdicts[out.id] = {"verdict": "sell", "reason": f"replaced in {goes_to} by {a.name}"}
+                    verdicts[out.id] = {"verdict": "sell", "reason": "not useful for mating"}
 
     # A lamb not worth keeping is still worth selling once grown (an hour), so it only gets culled when holding has no
     # room to grow it. Best lambs get the free places first.
@@ -278,17 +265,14 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
     for a in unwanted:
         if taken >= places:
             break
-        verdicts[a.id] = {"verdict": "sell", "reason": "not needed for breeding: grow it in {room} for an hour, then sell"}
+        verdicts[a.id] = {"verdict": "sell", "reason": "not useful for mating: sell once grown"}
         taken += 1
-    for a in unwanted:
-        if verdicts[a.id]["verdict"] == "cull":
-            verdicts[a.id]["reason"] += " - and {room} is full"
 
     # The vendor won't buy a pregnant ewe: a sale waits for the lamb.
     for a in animals:
         v = verdicts.get(a.id)
         if v and v["verdict"] == "sell" and getattr(a, "pregnant", False):
-            v["reason"] += " - after she lambs (the vendor won't buy a pregnant ewe)"
+            v["reason"] += ": sell after she lambs"
 
     # Spread the animals waiting in holding across the holding rooms, most valuable first.
     order = {"promote": 0, "keep": 1, "sell": 2, "reject": 2, "cull": 3}
@@ -302,10 +286,7 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
             v = verdicts.get(a.id)
             if a.sex == "M" and v and v["verdict"] in ("sell", "cull"):
                 v["verdict"] = "reject"
-                if a in unwanted:  # a lamb: its own note was about growing it in holding, which no longer applies
-                    v["reason"] = f"not needed for breeding: grow it in {reject_room}, keep it for wool, sell when the barn is quiet"
-                else:
-                    v["reason"] = f"{v['reason']} - keep for wool in {reject_room}, sell when the barn is quiet"
+                v["reason"] = "not useful for mating"
                 pen[a.id] = reject_room
         waiting = [a for a in waiting if pen[a.id] != reject_room]
     if holding_by_sex:
