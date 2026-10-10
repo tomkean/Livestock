@@ -10,8 +10,7 @@ import statistics
 import sys
 from types import SimpleNamespace
 
-sys.path.insert(0, r"C:\Projects\Rust\Livestock\Github\backend")
-import pools  # noqa: E402
+import pools
 
 TARGET = sys.argv[1] if len(sys.argv) > 1 else "LYFH"
 RUNS = int(sys.argv[2]) if len(sys.argv) > 2 else 40
