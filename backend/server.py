@@ -1369,6 +1369,7 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
     frame = np.zeros((full_height, full_width, 3), np.uint8)
     frame[crop_y:crop_y + h, crop_x:crop_x + w] = strip
     reading = card_reader.read_card(frame)
+    cv2.imwrite(str(DATA_DIR / "last_autocapture.jpg"), strip)  # the latest frame, overwritten: for checking what Auto sees
     if not reading.get("found"):
         return await _vendor_frame(session, frame, datetime.now(timezone.utc)) or {"card": False}
     now = datetime.now(timezone.utc)
