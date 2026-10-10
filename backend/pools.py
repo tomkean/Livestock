@@ -274,11 +274,11 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
     for a in unwanted:
         if taken >= places:
             break
-        verdicts[a.id] = {"verdict": "sell", "reason": f"not needed for breeding: grow it in {holding_rooms[0]} for an hour, then sell"}
+        verdicts[a.id] = {"verdict": "sell", "reason": "not needed for breeding: grow it in {room} for an hour, then sell"}
         taken += 1
     for a in unwanted:
         if verdicts[a.id]["verdict"] == "cull":
-            verdicts[a.id]["reason"] += f" - and {holding_rooms[0]} is full"
+            verdicts[a.id]["reason"] += " - and {room} is full"
 
     # The vendor won't buy a pregnant ewe: a sale waits for the lamb.
     for a in animals:
@@ -322,6 +322,12 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         else:
             pen[a.id] = holding_rooms[-1]
             overflow.append(a.id)
+
+    # Notes about growing a lamb name the room it is actually given (its own sex's room, not the first holding room).
+    for a in animals:
+        v = verdicts.get(a.id)
+        if v and "{room}" in v["reason"]:
+            v["reason"] = v["reason"].replace("{room}", pen[a.id])
 
     return {
         "holding_rooms": holding_rooms,

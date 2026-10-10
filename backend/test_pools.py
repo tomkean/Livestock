@@ -75,6 +75,13 @@ class Pools(unittest.TestCase):
             if r["pen"][x.id] in ("Gentlemen", "Ladies"):
                 self.assertEqual(r["pen"][x.id], "Gentlemen" if x.sex == "M" else "Ladies")
 
+    def test_a_ewe_lamb_grows_up_in_the_ewes_room(self):
+        herd = self.herd + [a(9, "F", "BBBBB", "BBBBB", lamb=True)]
+        r = pools.arrange(herd, "DLYFH", None, ["VIP"], ["Gentlemen", "Ladies"], 1, 9,
+                          holding_by_sex={"M": "Gentlemen", "F": "Ladies"})
+        self.assertEqual(r["pen"][9], "Ladies")
+        self.assertIn("grow it in Ladies", r["verdicts"][9]["reason"])
+
     def test_unwanted_rams_go_to_rejects(self):
         r = pools.arrange(self.herd, "DLYFH", None, ["VIP"], ["Gentlemen", "Ladies", "Rejects"], 1, 9,
                           holding_by_sex={"M": "Gentlemen", "F": "Ladies"}, reject_room="Rejects")
