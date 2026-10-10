@@ -71,7 +71,7 @@ export class PlanView extends View {
                     <span class="spacer"></span>
                     <div class="seg">
                         <button data-species="sheep" class="${this.species === 'sheep' ? 'on' : ''}">🐑 Sheep</button>
-                        <button data-species="cow" class="${this.species === 'cow' ? 'on' : ''}">🐄 Cattle</button>
+                        <button data-species="cattle" class="${this.species === 'cattle' ? 'on' : ''}">🐄 Cattle</button>
                     </div>
                     <label class="hint" title="Test servers with livestock.panelalleles show the hidden row. Leave this off to plan as on a live server: hidden copies are then inferred from top rows and family.">
                         <input type="checkbox" id="second-row" ${this.secondRow ? 'checked' : ''}> Second row visible (test server)</label>
@@ -134,8 +134,8 @@ export class PlanView extends View {
             return;
         }
         this.container.querySelectorAll('[data-vehicle]').forEach(b => b.classList.toggle('on', b.dataset.vehicle === ({ single: 'small', double: 'large' }[settings.vehicle] || settings.vehicle)));
-        const young = this.species === 'cow' ? 'calf' : 'lamb';
-        const label = (sex) => (sex === 'M' ? (this.species === 'cow' ? 'bull' : 'ram') : (this.species === 'cow' ? 'cow' : 'ewe'));
+        const young = this.species === 'cattle' ? 'calf' : 'lamb';
+        const label = (sex) => (sex === 'M' ? (this.species === 'cattle' ? 'bull' : 'ram') : (this.species === 'cattle' ? 'cow' : 'ewe'));
         const buy = trip.buy.length
             ? trip.buy.map(sex => `<li>1 ${label(sex)} ${young}</li>`).join('')
             : '<li class="muted">Nothing: every gene shows green and the pens are full.</li>';
@@ -148,7 +148,7 @@ export class PlanView extends View {
                 <div><h3>Buy</h3><ul>${buy}</ul></div>
             </div>
             ${trip.missing.length ? `<p class="warn">No animal shows green on ${trip.missing.join(', ')} yet: keep buying until every gene shows green somewhere.</p>` : ''}
-            <p class="hint">Only grown animals sell. Never sold: the best ${this.species === 'cow' ? 'bulls' : 'rams'}, pregnant females (mark them Pregnant), any animal that is the last one showing green on a gene,
+            <p class="hint">Only grown animals sell. Never sold: the best ${this.species === 'cattle' ? 'bulls' : 'rams'}, pregnant females (mark them Pregnant), any animal that is the last one showing green on a gene,
                 and${this.planned ? '' : ' (once you press Plan)'} any animal the plan wants to mate now.</p>`;
     }
 

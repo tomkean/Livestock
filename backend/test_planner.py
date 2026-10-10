@@ -45,8 +45,8 @@ class Planner(unittest.TestCase):
         self.assertEqual([s["id"] for s in trip["sell"]], [3])  # ram 2 is the only one showing green L
         self.assertEqual(trip["buy"], ["F", "F"])
         self.assertEqual(planner.trip_plan([], "sheep", "small", {"F": 8})["buy"], ["M"])
-        cows = planner.trip_plan(herd, "cow", "small", {"F": 8})
-        self.assertEqual((cows["sell"], cows["buy"]), ([], ["F"]))  # a small flatbed can't carry a grown cow
+        cattle = planner.trip_plan(herd, "cattle", "small", {"F": 8})
+        self.assertEqual((cattle["sell"], cattle["buy"]), ([], ["F"]))  # a small flatbed can't carry a grown cow
 
 
     def test_trip_skips_a_pregnant_ewe_for_the_next_weakest(self):

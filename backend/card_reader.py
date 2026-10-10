@@ -374,7 +374,7 @@ LAMB_MAX_SCORE = 0.9  # adult portraits matched the adult template at >= 0.98, l
 
 
 # Every adult of a species shares one portrait; a cow's scored 0.14 against the sheep's.
-ADULT_PORTRAITS = {"sheep": "adult_portrait.png", "cow": "adult_portrait_cow.png"}
+ADULT_PORTRAITS = {"sheep": "adult_portrait.png", "cattle": "adult_portrait_cattle.png"}
 
 
 def adult_species(image: np.ndarray, anchor) -> str | None:

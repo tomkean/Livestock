@@ -4,7 +4,7 @@ from datetime import timezone
 
 GENES = ("D", "L", "Y", "F", "H")  # dung, lifespan, yield, fertility, hardiness
 ALLELES = "GOB?"  # good, ok, bad, unknown
-SPECIES = ("cow", "sheep")
+SPECIES = ("cattle", "sheep")
 
 
 def normalise_row(row: str) -> str:

@@ -14,7 +14,7 @@ class Animal(SQLModel, table=True):
     # Display name: the in-game name when it reads cleanly as Latin text, otherwise the code. Editable.
     # The name image is what identifies the animal in game, whatever script its name is in.
     name: str = ""
-    species: str  # cow | sheep
+    species: str  # cattle | sheep
     sex: str  # M | F | ? (lambs: sex only shows as horns once grown)
     origin: str = "ranch"  # ranch (bought from the NPC) | bred
     # One letter per gene in genetics.GENES order: G(ood) O(k) B(ad) or ? (unread)

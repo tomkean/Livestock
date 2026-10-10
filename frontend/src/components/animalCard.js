@@ -3,7 +3,7 @@ import { lambStatus, parseTime } from './lambTimer.js';
 
 export const GENES = ['D', 'L', 'Y', 'F', 'H'];
 export const GENE_NAMES = { D: 'Dung', L: 'Lifespan', Y: 'Yield', F: 'Fertility', H: 'Hardiness' };
-export const SPECIES_ICON = { cow: '🐄', sheep: '🐑' };
+export const SPECIES_ICON = { cattle: '🐄', sheep: '🐑' };
 
 function dot(allele, gene, small) {
     return `<span class="dot a-${allele === '?' ? 'U' : allele}${small ? ' small' : ''}"

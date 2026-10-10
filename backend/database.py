@@ -39,6 +39,8 @@ def init_db():
             existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
             if column not in existing:
                 conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+        # Values renamed since: the species is cattle (a cow is the female), not "cow".
+        conn.exec_driver_sql("UPDATE animal SET species = 'cattle' WHERE species = 'cow'")
 
 
 def get_session():

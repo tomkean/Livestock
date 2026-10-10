@@ -181,7 +181,7 @@ def get_animal(session: Session, animal_id: int) -> Animal:
 
 
 def next_code(session: Session, species: str) -> str:
-    prefix = "C" if species == "cow" else "S"
+    prefix = "C" if species == "cattle" else "S"
     codes = session.exec(select(Animal.code).where(Animal.code.startswith(f"{prefix}-"))).all()
     n = max((int(c.split("-")[1]) for c in codes), default=0) + 1
     return f"{prefix}-{n:02d}"
