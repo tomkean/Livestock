@@ -524,16 +524,27 @@ def pens_at(session: Session, when: datetime) -> dict[int, str]:
     return pens
 
 
+def _gone_since(session: Session) -> dict[int, datetime]:
+    """When each animal left: sold or dead, or marked missing and not found since (a missing ewe's last room still says
+    VIP 2, but she isn't there - Shelby the 7th's mother was left blank because Susie and Bana still 'counted')."""
+    gone = {}
+    for a in session.exec(select(Animal).where(Animal.status.in_(["sold", "dead", "missing"]))):
+        kinds = ["missing"] if a.status == "missing" else ["sold", "dead"]
+        last = session.exec(select(Event).where(Event.animal_id == a.id, Event.kind.in_(kinds))
+                            .order_by(Event.at.desc())).first()
+        if last is not None:
+            gone[a.id] = _utc(last.at)
+    return gone
+
+
 def _parents(session: Session, child) -> list[dict]:
     # Conceived 10 minutes before birth. Birth time unknown: when it was first registered, or now for a fresh capture.
     born = _utc(getattr(child, "born_at", None) or getattr(child, "created_at", None) or datetime.now(timezone.utc))
     conceived = born - timedelta(minutes=planner.GESTATION)
-    # Sold and dead animals can be parents of lambs conceived before they went, but not after.
-    gone_at = {}
-    for e in session.exec(select(Event).where(Event.kind.in_(["sold", "dead"]))):
-        gone_at[e.animal_id] = max(gone_at.get(e.animal_id, _utc(e.at)), _utc(e.at))
+    # Sold, dead and missing animals can be parents of lambs conceived before they went, but not after.
+    gone_at = _gone_since(session)
     animals = [visible(a) for a in session.exec(select(Animal)).all()
-               if a.status not in ("sold", "dead") or gone_at.get(a.id, conceived) >= conceived]
+               if a.status not in ("sold", "dead", "missing") or gone_at.get(a.id, conceived) >= conceived]
     for a in animals:  # bred here and captured as a lamb: registered within the hour it was born
         if a.born_at is None and a.origin == "bred":
             a.born_at = a.created_at
@@ -1026,7 +1037,7 @@ def _other_parent(session: Session, known: Animal, conceived: datetime) -> Optio
     """The one adult of the other sex that was with the known parent around the time the lamb was conceived, if there
     was exactly one (a harem's ram, say). Checked across a few minutes either side, since the birth time is only as
     good as the card's age. None when it's ambiguous: better a blank than a wrong parent."""
-    gone = {e.animal_id: _utc(e.at) for e in session.exec(select(Event).where(Event.kind.in_(["sold", "dead"])))}
+    gone = _gone_since(session)
     want = "M" if known.sex == "F" else "F"
     candidates = session.exec(select(Animal).where(Animal.species == known.species, Animal.sex == want)).all()
     found = set()
