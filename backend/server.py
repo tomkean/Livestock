@@ -1123,7 +1123,7 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
 
 # ---------------------------------------------------------------- vendor
 
-ITEM_LABELS = {"metal_fragments": "metal fragments", "hqm_ore": "HQM ore", "rifle_ammo_556": "5.56 rifle ammo",
+ITEM_LABELS = {"metal_fragments": "metal fragments", "hqm_ore": "HQM ore", "low_grade_fuel": "low grade fuel", "rifle_ammo_556": "5.56 rifle ammo",
                "cctv_camera": "CCTV camera", "smg_body": "SMG body", "high_caliber_revolver": "High Caliber Revolver",
                "python_revolver": "Python revolver", "rifle_body": "rifle body",
                "semi_automatic_rifle": "semi-automatic rifle", "thompson": "Thompson",

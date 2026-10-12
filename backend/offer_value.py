@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Scrap value of one of each item, solved from recorded offers (MECHANICS.md, vendor_values.py). Rope is per foot.
 BOOK = {
-    "scrap": 1.0, "metal_fragments": 0.21, "gunpowder": 0.55, "hqm_ore": 3.2,
+    "scrap": 1.0, "metal_fragments": 0.21, "low_grade_fuel": 0.55, "hqm_ore": 3.2,
     "pistol_bullets": 4.4, "incendiary_pistol_bullets": 4.4, "rifle_ammo_556": 4.4,
     "rope": 2.3, "tarp": 8, "targeting_computer": 21, "gears": 28, "blue_keycard": 42, "cctv_camera": 44,
     "horse_saddle": 47, "blueprint_fragment": 47, "smg_body": 79, "rifle_body": 84,
@@ -24,7 +24,7 @@ DEFAULT_WORTH = {
     "scrap": 1.0,
     "armored_double_door": 2.0, "armored_ladder_hatch": 2.0,  # what we actually want from the vendor
     "cctv_camera": 1.0, "targeting_computer": 1.0,  # useful
-    "metal_fragments": 0.4, "gunpowder": 0.4, "hqm_ore": 0.4,  # fine, but we have plenty
+    "metal_fragments": 0.4, "low_grade_fuel": 0.4, "hqm_ore": 0.4,  # fine, but we have plenty
     "pistol_bullets": 0.4, "incendiary_pistol_bullets": 0.4, "rifle_ammo_556": 0.4,
     "gears": 0.5, "blueprint_fragment": 0.5, "blue_keycard": 0.5,
     # tier 2 guns and their parts: plenty from raiding, they end up sold cheaply in the shop

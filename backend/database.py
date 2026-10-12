@@ -42,6 +42,9 @@ def init_db():
                 conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
         # Values renamed since: the species is cattle (a cow is the female), not "cow".
         conn.exec_driver_sql("UPDATE animal SET species = 'cattle' WHERE species = 'cow'")
+        # The jar icon is low grade fuel; it was filed as "gunpowder" until 12 Oct 2026.
+        conn.exec_driver_sql("""UPDATE offer SET items = replace(items, '"gunpowder"', '"low_grade_fuel"')
+                                WHERE items LIKE '%"gunpowder"%'""")
 
 
 def get_session():

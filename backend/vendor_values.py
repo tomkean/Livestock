@@ -59,9 +59,9 @@ for (sale,) in db.execute("select distinct sale from offer"):
 # The wool lots (recorded only in MECHANICS.md).
 W = [[(85, {"armoured ladder hatch": 1, "smg body": 1}), (35, {"incendiary pistol bullets": 41, "rifle body": 2}),
       (265, {"gears": 5, "cctv camera": 1})],
-     [(295, {"gunpowder": 100, "metal fragments": 200}), (65, {"metal fragments": 500, "rifle body": 2}),
+     [(295, {"low grade fuel": 100, "metal fragments": 200}), (65, {"metal fragments": 500, "rifle body": 2}),
       (280, {"rifle body": 1, "hqm ore": 8})],
-     [(15, {"targeting computer": 1, "gunpowder": 220}), (75, {"blueprint fragment": 1, "cctv camera": 1}),
+     [(15, {"targeting computer": 1, "low grade fuel": 220}), (75, {"blueprint fragment": 1, "cctv camera": 1}),
       (155, {"targeting computer": 1, "metal fragments": 60})]]
 alias = {"smg_body": "smg body", "rifle_body": "rifle body", "cctv_camera": "cctv camera", "hqm_ore": "hqm ore",
          "metal_fragments": "metal fragments", "targeting_computer": "targeting computer",

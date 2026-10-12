@@ -20,7 +20,7 @@ ITEM_NAMES = [
     (r"5\.56( rifle ammo)?", "rifle_ammo_556"),
     (r"metal frag(ment)?s?", "metal_fragments"),
     (r"hqm ore", "hqm_ore"),
-    (r"gunpowder", "gunpowder"),
+    (r"gunpowder|low grade( fuel)?", "low_grade_fuel"),  # the jar icon is low grade fuel; early notes called it gunpowder
     (r"gears?", "gears"),
     (r"scrap", "scrap"),
     (r"horse saddle", "horse_saddle"),

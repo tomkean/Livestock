@@ -70,6 +70,18 @@ def _ocr(crop, threshold=None, config="--psm 7") -> str:
     return pytesseract.image_to_string(ink, config=config).strip()
 
 
+def _read_short_qty(crop) -> str:
+    """A short quantity ("x2") that the line read missed: larger, the left third dropped (the icon can poke into the
+    box there), a white margin, and only the characters a quantity can have."""
+    if crop.size == 0 or not _tesseract_ready():
+        return ""
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
+    big = cv2.resize(gray, None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC)
+    _, ink = cv2.threshold(big, QTY_TEXT, 255, cv2.THRESH_BINARY_INV)
+    ink = cv2.copyMakeBorder(ink[:, ink.shape[1] // 3:], 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=255)
+    return pytesseract.image_to_string(ink, config="--psm 7 -c tessedit_char_whitelist=x0123456789ft").strip()
+
+
 def _icon_key(icon) -> np.ndarray:
     return cv2.resize(icon, (64, 44), interpolation=cv2.INTER_AREA).astype(np.float32)
 
@@ -180,6 +192,11 @@ def read_sale(image: np.ndarray) -> dict:
                         config="--psm 7")
         length = LENGTH_PATTERN.search(qty_text)
         m = None if length else QTY_PATTERN.search(qty_text)
+        if not length and not m and qty_text:
+            # Text there but no number ("x2" read as "a?"): read it again more carefully. No text at all is a single
+            # item, which has no quantity label - a retry there only reads noise (a door became 7).
+            again = _read_short_qty(slot[qy:qy + qh, qx:qx + qw])
+            m = re.search(r"x(\d+)$", again)  # only with its "x": anything else is noise
         item, score = identify(icon)
         items.append({"item": item, "match": round(score, 3), "amount": int(m.group(1)) if m else 1,
                       "length_ft": int(length.group(1)) if length else None, "icon": icon})
