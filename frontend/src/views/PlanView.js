@@ -170,6 +170,15 @@ export class PlanView extends View {
             box.innerHTML = '<p class="hint">Breeding towards the god animal. Switch to Wool production once you have a god ram and ewe.</p>';
             return;
         }
+        const prod = plan.production;
+        const grades = prod ? Object.entries(prod.grades).map(([w, n]) => `${n} &times; ${w}`).join(', ') : '';
+        const prodHtml = prod ? `
+            <div class="production">
+                <p><b>Herd ${prod.herd}</b> of target
+                    <input type="number" id="wool-herd" min="1" max="99" value="${prod.target}" style="width:4em">
+                    &middot; one shearing round: <b>${prod.per_round} wool</b> (${grades} per shear)</p>
+                <p class="hint">${esc(prod.breeding)}.</p>
+            </div>` : '';
         const rows = (plan.reserve_status || []).map(r => `
             <tr class="${r.warn ? 'warn' : ''}">
                 <td>${esc(r.name)}</td><td>${r.sex === 'M' ? 'ram' : 'ewe'}</td>
@@ -181,11 +190,17 @@ export class PlanView extends View {
             </tr>`).join('');
         const rams = (plan.reserve_status || []).filter(r => r.sex === 'M').length;
         const ewes = (plan.reserve_status || []).filter(r => r.sex === 'F').length;
-        box.innerHTML = `
+        box.innerHTML = `${prodHtml}
             <p class="hint">God reserve: the best 2 rams and 2 ewes (80%+ god chance), never sold or culled. They age out
                 (L green: about 72 h, 48 h if inbred), so replacements are bred before anyone has under 12 h left.
                 ${plan.reserve_short ? `<b class="warn">Short (${rams} rams, ${ewes} ewes): one breeding room is making god lambs until it's full again.</b>` : 'Full.'}</p>
             <table class="reserve">${rows || '<tr><td class="muted">No animal is 80%+ yet.</td></tr>'}</table>`;
+        box.querySelector('#wool-herd')?.addEventListener('change', async (e) => {
+            const n = Math.max(1, Math.min(99, Number(e.target.value) || 12));
+            await api.put('/api/settings', { pools: { ...(settings.pools || {}), wool_herd: n } });
+            toast(`Wool herd target: ${n}`);
+            this.showGoal();
+        });
     }
 
     /** What to sell and buy at the barn this trip, within what the truck carries. */

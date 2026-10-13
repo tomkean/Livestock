@@ -124,7 +124,8 @@ def p_inbred_lamb(x, y) -> float:
 
 def arrange(animals, target: str, posterior: dict | None, harems: list[str], holding, harem_ewes: int = 8,
             holding_size: int = 4, previous: set | None = None, harem_sizes: dict | None = None,
-            holding_by_sex: dict | None = None, reject_room: str | None = None, goal: str = "god") -> dict:
+            holding_by_sex: dict | None = None, reject_room: str | None = None, goal: str = "god",
+            wool_herd: int = 12) -> dict:
     """Suggested pen for every animal, plus a verdict and a reason for each one in holding.
 
     `holding` is one room name or a list of them; animals waiting there fill the rooms in order, `holding_size` each
@@ -181,11 +182,27 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         def lasting(a):  # old age: one about to die can't be counted on
             left = hours_left(a, now)
             return left is None or left >= RESERVE_HOURS_LEFT
+        ageing = set()
         for sex in "MF":
-            best = sorted((a for a in grown if a.sex == sex and chance[a.id] >= RESERVE_MIN), key=lambda a: -chance[a.id])
-            reserve |= {a.id for a in best[:RESERVE_SIZE]}  # kept while alive, even near the end
-            best = [a for a in best if lasting(a)]
-            short = short or len(best) < RESERVE_SIZE
+            good = sorted((a for a in grown if a.sex == sex and chance[a.id] >= RESERVE_MIN), key=lambda a: -chance[a.id])
+            fresh = [a for a in good if lasting(a)]
+            reserve |= {a.id for a in fresh[:RESERVE_SIZE]}  # the reserve is chosen from those with life ahead...
+            old = [a for a in good if not lasting(a)][:RESERVE_SIZE]
+            ageing |= {a.id for a in old}  # ...while the best near the end stay protected until they go
+            reserve |= ageing
+            short = short or len(fresh) < RESERVE_SIZE
+
+    # Production breeds only when it must: a god pair while the reserve is short, wool pairs while the herd is below
+    # its target. Otherwise the breeding rooms stand empty and every sheep just produces wool.
+    wool_pairs = len(harems)
+    breeding_why = ""
+    if goal == "wool":
+        herd_now = len(animals)  # lambs count: they're on their way to producing
+        wool_pairs = max(0, len(harems) - (1 if short else 0)) if herd_now < wool_herd else 0
+        reasons = (["the god reserve is short (or ageing)"] if short else []) + \
+                  ([f"the herd ({herd_now}) is below its target of {wool_herd}"] if wool_pairs else [])
+        breeding_why = ("Breeding because " + " and ".join(reasons)) if reasons else \
+            f"No breeding: the herd ({herd_now}) is at its target of {wool_herd} and the god reserve is full"
 
     if goal == "wool":
         # Production: the god animals are done. Breed lambs that show green Y (full wool) and aren't inbred (a grade
@@ -250,8 +267,9 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
                               key=lambda t: t[0])
                 out.append((r, e))
                 used |= {r.id, e.id}
+            limit = min(len(harems), len(out) + wool_pairs)  # production: only the pairs it needs
             for _, r, e in options:
-                if len(out) == len(harems):
+                if len(out) >= limit:
                     break
                 if r.id not in used and e.id not in used:
                     out.append((r, e))
@@ -422,10 +440,17 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         for a in animals:  # the god reserve: never surplus, whatever its wool
             v = verdicts.get(a.id)
             if a.id in reserve and v is not None:
-                verdicts[a.id] = {"verdict": "keep", "reason": f"god reserve ({chance[a.id]:.0%})"}
+                verdicts[a.id] = {"verdict": "keep", "reason": f"god reserve ({chance[a.id]:.0%})"
+                                  + (", near the end of its life" if a.id in ageing else "")}
                 pen[a.id] = (holding_by_sex or {}).get(a.sex) or pen[a.id]
             elif short and getattr(a, "is_lamb", False) and chance[a.id] >= RESERVE_MIN:
                 verdicts[a.id] = {"verdict": "promote", "reason": f"god reserve candidate once grown ({chance[a.id]:.0%})"}
+            elif v is not None and v["verdict"] in ("keep", "promote"):
+                # Everyone else in production is a wool producer: say what it gives, not what it might breed.
+                w = wool_per_shear(a)
+                grade = f"{w} per shear" + (" (inbred)" if getattr(a, "inbred", None) else "")
+                verdicts[a.id] = ({"verdict": "promote", "reason": f"producer once grown: {grade}"}
+                                  if getattr(a, "is_lamb", False) else {"verdict": "keep", "reason": f"producer: {grade}"})
 
     # Notes about growing a lamb name the room it is actually given (its own sex's room, not the first holding room).
     for a in animals:
@@ -443,6 +468,11 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         "goal": goal,
         "reserve": sorted(reserve),
         "reserve_short": short,
+        "production": ({"herd": len(animals), "target": wool_herd, "breeding": breeding_why,
+                        "per_round": sum(wool_per_shear(a) for a in animals if not getattr(a, "is_lamb", False)),
+                        "grades": {str(w): sum(1 for a in animals if wool_per_shear(a) == w and not getattr(a, "is_lamb", False))
+                                   for w in sorted({wool_per_shear(a) for a in animals}, reverse=True)}}
+                       if goal == "wool" else None),
     }
 
 
