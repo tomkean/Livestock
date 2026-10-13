@@ -527,3 +527,63 @@ def safe_arrange(animals, target: str, posterior: dict | None, harems: list[str]
         "goal": "safe", "safe_mode": True,
         "reserve": sorted(a.id for a in rams[:2] + ewes[:2] if chance[a.id] >= RESERVE_MIN), "reserve_short": False,
     }
+
+
+def place_in_rooms(animals, rooms: list[dict], breeding: dict, value: dict) -> tuple[dict, list]:
+    """Where everyone goes, given the rooms' capacities and the breeding pairs already placed.
+
+    A breeding room holds its pair only. Every other room holds one sex - lambs with their own sex, an unsexed lamb
+    with the ewes - so nothing breeds by accident. Animals stay where they are when their room keeps their sex and has
+    space (fewest moves); the rest fill the free places, most valuable first, the biggest room last. Whoever doesn't
+    fit is overflow: there is no room for them in good health. Returns (pen by id, overflow ids)."""
+    pen, overflow = {}, []
+    placed = {i for ids in breeding.values() for i in ids}
+    for room, ids in breeding.items():
+        for i in ids:
+            pen[i] = room
+    free = {r["name"]: r["capacity"] for r in rooms if r["name"] not in breeding}
+    sex_of = lambda a: "M" if a.sex == "M" else "F"  # noqa: E731
+    waiting = {"M": [], "F": []}
+    for a in sorted((a for a in animals if a.id not in placed), key=lambda a: -value.get(a.id, 0)):
+        waiting[sex_of(a)].append(a)
+    room_sex = {}
+    # Rooms keep the sex most of their current occupants have, if any; biggest rooms are settled first.
+    for room in sorted(free, key=lambda r: -free[r]):
+        here = [a for a in animals if a.id not in placed and getattr(a, "pen", "") == room]
+        if here:
+            counts = {s: sum(1 for a in here if sex_of(a) == s) for s in "MF"}
+            room_sex[room] = max("MF", key=lambda s: counts[s])
+    for room in sorted(free, key=lambda r: -free[r]):
+        if room not in room_sex:  # an empty room: the sex with the most still to place
+            room_sex[room] = max("MF", key=lambda s: len(waiting[s]) - sum(free[r] for r, x in room_sex.items() if x == s))
+    biggest = max(free, key=lambda r: free[r]) if free else None
+    fill_order = sorted((r for r in free if r != biggest), key=lambda r: -free[r]) + ([biggest] if biggest else [])
+    # Stay put where possible, then fill.
+    for sex in "MF":
+        rest = []
+        for a in waiting[sex]:
+            room = getattr(a, "pen", "")
+            if room_sex.get(room) == sex and free.get(room, 0) > 0:
+                pen[a.id] = room
+                free[room] -= 1
+            else:
+                rest.append(a)
+        for a in rest:  # most valuable first, into the mid-sized rooms; the biggest (the flock's) fills last
+            room = next((r for r in fill_order if room_sex.get(r) == sex and free[r] > 0), None)
+            if room is None:
+                overflow.append(a.id)
+                pen[a.id] = getattr(a, "pen", "") or ""
+            else:
+                pen[a.id] = room
+                free[room] -= 1
+    return pen, overflow
+
+
+def breeding_rooms(rooms: list[dict]) -> list[str]:
+    """Rooms a breeding pair can use: those holding two or more, except the biggest, which is kept for the flock
+    (unless it's the only one)."""
+    big = [r for r in rooms if r["capacity"] >= 2]
+    if len(big) <= 1:
+        return [r["name"] for r in big]
+    biggest = max(big, key=lambda r: r["capacity"])
+    return [r["name"] for r in big if r is not biggest]

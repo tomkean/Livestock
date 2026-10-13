@@ -54,3 +54,21 @@ def test_safe_mode_keeps_every_room_single_sex_and_spreads_the_best():
     assert all(len(s) == 1 for s in sexes.values())  # no room with both sexes: no breeding
     assert not any(h["ram"] for h in r["harems"].values())
     assert {r["pen"][1], r["pen"][2]} == {"VIP"} and {r["pen"][4], r["pen"][6]} == {"VIP 2"}
+
+
+def test_rooms_hold_one_sex_within_capacity():
+    rooms = [{"name": "VIP", "capacity": 3}, {"name": "VIP 2", "capacity": 3}, {"name": "Gents", "capacity": 1},
+             {"name": "Ladies", "capacity": 1}, {"name": "Big", "capacity": 5}]
+    assert pools.breeding_rooms(rooms) == ["VIP", "VIP 2"]  # the biggest is kept for the flock
+    herd = [a(i, "M" if i < 6 else "F", "OGGGG", "OGGGG", 3, True) for i in range(1, 12)]
+    value = {x.id: 1.0 - x.id / 100 for x in herd}
+    pen, overflow = pools.place_in_rooms(herd, rooms, {"VIP": [1, 6]}, value)
+    assert pen[1] == pen[6] == "VIP"
+    counts, sexes = {}, {}
+    for x in herd:
+        counts[pen[x.id]] = counts.get(pen[x.id], 0) + 1
+        sexes.setdefault(pen[x.id], set()).add(x.sex)
+    caps = {r["name"]: r["capacity"] for r in rooms}
+    assert all(counts[r] <= caps[r] for r in counts if r)
+    assert all(len(s) == 1 for r, s in sexes.items() if r != "VIP")
+    assert sum(1 for x in herd if x.id not in overflow) <= sum(caps.values())

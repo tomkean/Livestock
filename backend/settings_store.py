@@ -39,7 +39,24 @@ def load() -> dict:
     data = dict(DEFAULTS)
     if SETTINGS_PATH.exists():
         data.update(json.loads(SETTINGS_PATH.read_text(encoding="utf-8")))
+    data["pools"] = dict(data.get("pools") or {})
+    data["pools"]["rooms"] = rooms_of(data["pools"])
     return data
+
+
+def rooms_of(pools: dict) -> list[dict]:
+    """The farm's rooms: a name and how many animals it holds in good health. Rooms have no fixed job - the plan
+    decides each round which hold breeding pairs and which hold rams or ewes. Older settings (harems, holding rooms
+    with jobs) are turned into rooms, with the capacities those jobs implied."""
+    if pools.get("rooms"):
+        return [{"name": str(r["name"]), "capacity": max(1, int(r.get("capacity") or 1))} for r in pools["rooms"] if r.get("name")]
+    rooms = [{"name": h, "capacity": 3} for h in pools.get("harems") or []]
+    holding = pools.get("holding") or []
+    for h in ([holding] if isinstance(holding, str) else holding):
+        if h not in [r["name"] for r in rooms]:
+            single = h in (pools.get("holding_by_sex") or {}).values()
+            rooms.append({"name": h, "capacity": 1 if single else int(pools.get("holding_size") or 5)})
+    return rooms
 
 
 def save(changes: dict) -> dict:

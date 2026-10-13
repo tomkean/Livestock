@@ -97,9 +97,7 @@ let lastSeenToast = 0;
 // Where the player is: picked here until Rust+ can tell. Every open app follows the same choice.
 const where = document.getElementById('where');
 function showWhere(settings) {
-    const pools = settings?.pools || {};
-    const holding = Array.isArray(pools.holding) ? pools.holding : pools.holding ? [pools.holding] : [];
-    const places = [...(pools.harems || []), ...holding, 'Vendor'];
+    const places = [...((settings?.pools?.rooms) || []).map(r => r.name), 'Vendor'];
     const here = settings?.location || '';
     away = here === AWAY;
     setPaused(away);

@@ -140,9 +140,12 @@ export class PoolsView extends View {
             const resting = plan.ram_waits?.[name];  // its ewes are all pregnant or resting: the ram waits elsewhere
             const waiting = planned && planned.pen !== name && !resting ? planned : null;  // its ram is elsewhere (e.g. overnight)
             const sorted = (list) => list.sort((x, y) => (order[plan.verdicts[x.id]?.verdict] ?? -1) - (order[plan.verdicts[y.id]?.verdict] ?? -1));
+            const room = (plan.rooms || []).find(r => r.name === name) || {};
+            const over = inside.length > (room.capacity || Infinity);
             return `
-                <section class="pen pool${kind === 'holding' ? ' holding' : ''}" data-room="${esc(name)}">
-                    <h2>${esc(name)} <span class="muted">(${kind})</span> <span class="count" title="seen in the last 2 hours / recorded here, against the crowding limit">${inside.filter(confirmed).length}${inside.some(a => !confirmed(a)) ? ` of ${inside.length}` : ''} / ${cfg.site_cap || 9}</span></h2>
+                <section class="pen pool${kind === 'holding' ? ' holding' : ''}${over ? ' over' : ''}" data-room="${esc(name)}">
+                    <h2>${esc(name)} ${kind === 'harem' ? '<span class="muted">(breeding)</span>' : ''} <span class="count${over ? ' warn' : ''}" title="animals here now / the room's capacity">${inside.length} / ${room.capacity ?? '?'}</span></h2>
+                    ${over ? `<p class="warn">Over capacity: ${inside.length} in a room for ${room.capacity}.</p>` : ''}
                     ${inside.some(a => !confirmed(a)) ? `<p class="hint">Unconfirmed (not seen for 2 h): ${inside.filter(a => !confirmed(a)).map(a => esc(a.name || a.code)).join(', ')}</p>` : ''}
                     ${plan.quiet?.[name] ? `<p class="hint quiet">No new pregnancies for ${plan.quiet[name].minutes ?? 'a long time'}${plan.quiet[name].minutes != null ? ' min' : ''} with ${plan.quiet[name].ready.length} ewe${plan.quiet[name].ready.length === 1 ? '' : 's'} ready (${plan.quiet[name].ready.map(esc).join(', ')}). Try swapping rams with another harem, or taking the ram for a short walk outside.</p>` : ''}
                     ${resting ? `<p class="hint">Ram ${esc(byId[resting.ram]?.name || '')} waits in ${esc(resting.room)}: ${esc(resting.why)}${resting.until ? ` (lamb due about ${new Date(resting.until).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })})` : ''}. Bring him back once the lambs are out of here.</p>` : ''}
@@ -153,7 +156,7 @@ export class PoolsView extends View {
                     ${inside.length ? '' : '<p class="empty">Empty</p>'}
                 </section>`;
         };
-        const harems = Object.keys(plan.harems).map(name => section(name, 'harem')).join('');
+        const harems = (plan.rooms || []).map(r => section(r.name, plan.harems[r.name] ? 'harem' : 'holding')).join('');
         // When the farm is overcrowded: who goes first. Breeding pairs, promoted lambs and pregnant ewes never appear.
         const cull = plan.cull_order || [];
         const cullHtml = cull.length ? `
@@ -161,14 +164,14 @@ export class PoolsView extends View {
                 <ol>${cull.map(c => `<li><b>${esc(c.name)}</b> <span class="muted">${esc(c.room || 'room unknown')} - ${esc(c.why)}</span></li>`).join('')}</ol>
             </div>` : '';
         // A sheep's room is only ever where it was seen or where you put it: new arrivals start here.
-        const rooms_known = new Set([...Object.keys(plan.harems), ...(plan.holding_rooms || [])]);
+        const rooms_known = new Set((plan.rooms || []).map(r => r.name));
         const unknown = here.filter(a => !rooms_known.has(a.pen));
         const unknownHtml = unknown.length ? `
                 <section class="pen pool" data-room="">
                     <h2>Room unknown <span class="muted">(drag each one to the room it's in)</span> <span class="count">${unknown.length}</span></h2>
                     ${grid(unknown)}
                 </section>` : '';
-        const holdingHtml = rooms.map(room => section(room, 'holding')).join('');
+        const holdingHtml = '';  // every room is drawn above, whatever it's used for this round
         const known = new Set([...Object.keys(plan.harems), ...rooms]);
         const unplaced = here.filter(a => !known.has(a.pen));
         const unplacedHtml = unplaced.length ? `
@@ -177,16 +180,27 @@ export class PoolsView extends View {
                     ${grid(unplaced)}
                 </section>` : '';
         const overflow = (plan.overflow || []).length
-            ? `<p class="warn">Holding is full: ${plan.overflow.map(id => esc(byId[id]?.name || id)).join(', ')} won't fit - sell or cull.</p>` : '';
+            ? `<p class="warn">The rooms hold ${plan.capacity} and there's no place for ${plan.overflow.map(id => esc(byId[id]?.name || id)).join(', ')}: see the removal order below, or add a room.</p>` : '';
         // Each harem and holding area is its own building, 5+ foundations from the others. Past 9 of a species in one
         // (lambs and wild ones included) personal space falls ~17 points per animal: 10 still breeds, 11 doesn't.
         const cap = cfg.site_cap || 9;
-        const crowded = [...Object.keys(plan.harems), ...rooms].map(site => {
-            const n = here.filter(a => a.pen === site && confirmed(a)).length;  // only what's been seen counts
-            return n > cap ? `<p class="warn">${esc(site)} has ${n}: over ${cap} they lose personal space (${n === cap + 1 ? 'about 83%, still breeding' : 'too low to breed'}). Move, sell or cull ${n - cap}.</p>` : '';
-        }).join('');
-        const headcount = [...Object.keys(plan.harems), ...rooms].map(site => siteHeadcount(site, here, cap)).join('');
-        const loggingOff = `<p class="hint">Logging off: move every harem ram to ${esc(rooms[0] || 'holding')}, or the ewes keep lambing overnight and the harem overcrowds and starves.</p>`;
+        const crowded = '';
+        const headcount = '';
+        const loggingOff = '';
+        // The rooms: names and capacities only - the plan decides each round what each one is for.
+        const roomRows = (plan.rooms || []).map((r, i) => `
+            <tr><td><input data-room-name="${i}" value="${esc(r.name)}"></td>
+                <td><input type="number" min="1" max="99" data-room-cap="${i}" value="${r.capacity}" style="width:4em"></td>
+                <td><button data-room-del="${i}" title="Remove this room">✕</button></td></tr>`).join('');
+        const roomsHtml = `
+            <details class="panel rooms-editor"${(plan.rooms || []).length ? '' : ' open'}>
+                <summary><b>Rooms</b> <span class="muted">${(plan.rooms || []).length} rooms, ${plan.capacity ?? 0} places</span></summary>
+                <p class="hint">Name each room and how many sheep it holds in good health. Rooms have no fixed job: each
+                    round the plan puts breeding pairs in rooms for two or more (the biggest is kept for the flock) and
+                    everyone else one sex per room, within these numbers.</p>
+                <table>${roomRows}</table>
+                <p><button id="room-add">Add a room</button> <button id="room-save" class="primary">Save rooms</button></p>
+            </details>`;
 
         this.container.innerHTML = `
             <div class="toolbar">
@@ -197,11 +211,8 @@ export class PoolsView extends View {
                     <button data-species="cattle" class="${this.species === 'cattle' ? 'on' : ''}">🐄 Cattle</button>
                 </div>
             </div>
-            <p class="hint">Each harem's ram mates his ewes by himself: no arranging matings. Keep each harem to ${cfg.harem_ewes || 8} ewes
-                (crowding stops breeding). Crowding has two rules: about 9 sheep at most within 20 m of each other (walls
-                and floors don't count, so a bigger herd needs a second site at least 20 m away), and no clumps within
-                about 3 m (several troughs at different spots, no corners to pile into).
-                Capture every newborn: it gets a verdict here straight away.</p>
+            <p class="hint">Each breeding room holds one pair; every other room one sex, within its capacity. Capture every
+                newborn: it gets a verdict here straight away.</p>
             <div class="panel">
                 <h3>${location ? `Take from ${esc(location)}` : 'Moves'}</h3>
                 ${fromHere.length ? `<ul class="moves">${fromHere.map(m => `<li><b>${esc(m.name)}</b> → ${esc(m.to)}${growingNote(byId[m.id])}
@@ -212,14 +223,36 @@ export class PoolsView extends View {
                 <p class="hint">Moves record themselves: Auto capture sees the sheep in its new building. Easier by day: sleeping sheep break off the lead.</p>
                 ${skippedHere.length ? `<p class="hint">${skippedHere.length} skipped. <button id="btn-unskip">Show them again</button></p>` : ''}
             </div>
-            <div class="panel">
-                <h3>Headcount</h3>
-                <p class="hint">Recorded in each building, and the middle personal space on cards read in the last ${RECENT_MIN} minutes. Since the 8 Oct change personal space is local (it varies across a pen and with small moves), so it no longer tells how many are in range.</p>
-                <ul>${headcount}</ul>
-            </div>
-            ${crowded}${overflow}${loggingOff}
+            ${roomsHtml}${overflow}
             ${plan.safe_mode ? `<div class="panel safe-banner"><b>Safe Mode</b>: one sex per room, no breeding, the best animals spread out.${plan.overflow?.length ? ` <span class="warn">${plan.overflow.length} ewe(s) share the ewes' room: no room of their own.</span>` : ''} Turn it off on the Plan page.</div>` : ''}
             <div class="pools">${harems}${holdingHtml}${unknownHtml}</div>${cullHtml}`;
+
+        // The rooms editor: names and capacities, saved together.
+        const editor = this.container.querySelector('.rooms-editor');
+        const readRooms = () => [...editor.querySelectorAll('[data-room-name]')].map(input => ({
+            name: input.value.trim(),
+            capacity: Number(editor.querySelector(`[data-room-cap="${input.dataset.roomName}"]`).value) || 1,
+        })).filter(r => r.name);
+        const saveRooms = async (rooms) => {
+            const names = rooms.map(r => r.name);
+            if (new Set(names).size !== names.length) { toast('Two rooms have the same name', 'error'); return; }
+            const settings = await api.get('/api/settings');
+            await api.put('/api/settings', { pools: { ...(settings.pools || {}), rooms } });
+            toast(`Rooms saved: ${rooms.length} rooms, ${rooms.reduce((n, r) => n + r.capacity, 0)} places`);
+            this.render();
+        };
+        editor?.querySelector('#room-add')?.addEventListener('click', () => {
+            const rooms = readRooms();
+            rooms.push({ name: `Room ${rooms.length + 1}`, capacity: 2 });
+            saveRooms(rooms);
+        });
+        editor?.querySelector('#room-save')?.addEventListener('click', () => saveRooms(readRooms()));
+        editor?.querySelectorAll('[data-room-del]').forEach(b => b.addEventListener('click', () => {
+            const rooms = readRooms();
+            const gone = rooms.splice(Number(b.dataset.roomDel), 1)[0];
+            if (gone && here.some(a => a.pen === gone.name) && !confirm(`${gone.name} still has sheep recorded in it. Remove the room anyway?`)) return;
+            saveRooms(rooms);
+        }));
 
         // Click a sheep to edit it (pregnant, sold, room...); drag it onto another room to record a move.
         this.container.querySelectorAll('[data-drag]').forEach(el => el.addEventListener('click', e => {

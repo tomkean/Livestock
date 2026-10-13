@@ -783,19 +783,31 @@ def _pools_view(session: Session, species: str) -> tuple[list, dict]:
         view.is_lamb = a.sex == "?" or (born is not None and (now - born).total_seconds() < planner.GROWTH * 60)
         animals.append(view)
     inf = inferred(session)
-    if settings.get("safe_mode"):  # Safe Mode: no breeding, nothing crowded, the best animals spread out
-        result = pools.safe_arrange(animals, settings.get("target_genes") or "DLYFH", inf["posterior"] if inf else None,
-                                    cfg.get("harems") or [], cfg.get("holding") or "Death Row", cfg.get("holding_by_sex"),
-                                    cfg.get("reject_room"))
-        result["quiet"] = {}
-        return animals, {**result, "config": cfg}
-    result = pools.arrange(animals, settings.get("target_genes") or "DLYFH", inf["posterior"] if inf else None,
-                           cfg.get("harems") or ["Harem #1", "Harem #2"], cfg.get("holding") or "Death Row",
-                           int(cfg.get("harem_ewes") or 5), int(cfg.get("holding_size") or 4),
-                           previous=_last_plan.get(species), harem_sizes=cfg.get("harem_sizes") or {},
-                           holding_by_sex=cfg.get("holding_by_sex"), reject_room=cfg.get("reject_room"),
-                           goal=settings.get("goal") or "god", wool_herd=int(cfg.get("wool_herd") or 12))
-    result["quiet"] = _quiet_harems(session, cfg.get("harems") or [], now)
+    rooms = cfg["rooms"]
+    names = [r["name"] for r in rooms]
+    capacity = sum(r["capacity"] for r in rooms)
+    target = settings.get("target_genes") or "DLYFH"
+    posterior = inf["posterior"] if inf else None
+    if settings.get("safe_mode"):  # Safe Mode: no breeding, one sex per room, the best animals spread out
+        result = pools.safe_arrange(animals, target, posterior, [], names, None, None)
+        breeding = {}
+    else:
+        # Rooms have no fixed jobs: pairs go to rooms that hold two or more (the biggest is kept for the flock)...
+        candidates = pools.breeding_rooms(rooms)
+        result = pools.arrange(animals, target, posterior, candidates, [n for n in names if n not in candidates] or names,
+                               1, 99, previous=_last_plan.get(species), harem_sizes={h: 1 for h in candidates},
+                               goal=settings.get("goal") or "god", wool_herd=int(cfg.get("wool_herd") or capacity))
+        breeding = {h: [x["ram"], *x["ewes"]] for h, x in result["harems"].items() if x["ram"] and x["ewes"]}
+        result["harems"] = {h: x for h, x in result["harems"].items() if h in breeding}
+    # ...and everyone else is placed one sex per room, within each room's capacity.
+    pen, overflow = pools.place_in_rooms(animals, rooms, breeding, result.get("value", {}))
+    result["pen"], result["overflow"] = pen, overflow
+    result["holding_rooms"] = names
+    result["rooms"] = [{**r, "planned": sum(1 for p in pen.values() if p == r["name"]),
+                        "now": sum(1 for a in animals if a.pen == r["name"]), "breeding": r["name"] in breeding}
+                       for r in rooms]
+    result["capacity"] = capacity
+    result["quiet"] = _quiet_harems(session, list(breeding), now)
     # Remember this plan's rams and promotions, so the next one sticks with them unless something is clearly better.
     _last_plan[species] = ({h["ram"] for h in result["harems"].values() if h["ram"]}
                            | {i for i, v in result["verdicts"].items() if v["verdict"] == "promote"})
@@ -910,8 +922,16 @@ def _rams_wait_while_ewes_busy(session: Session, animals: list, result: dict):
     A ewe merely resting after lambing is no risk, so he can go in early to wait for her."""
     now = datetime.now(timezone.utc)
     by_id = {a.id: a for a in animals}
-    cfg = settings_store.load().get("pools") or {}
-    wait_room = (cfg.get("holding_by_sex") or {}).get("M")
+    # He waits in a room the plan gives to rams (one with space if there is one).
+    breeding = {i for x in result["harems"].values() for i in [x["ram"], *x["ewes"]] if i}
+    ram_rooms = {}
+    for a in animals:
+        room = result["pen"].get(a.id)
+        if room and a.id not in breeding and a.sex == "M":
+            ram_rooms[room] = ram_rooms.get(room, 0) + 1
+    caps = {r["name"]: r["capacity"] for r in result.get("rooms", [])}
+    spare = [r for r in ram_rooms if ram_rooms[r] < caps.get(r, 0)]
+    wait_room = (spare or list(ram_rooms) or [None])[0]
     if not wait_room:
         return
     last_pregnant = {}
@@ -1109,9 +1129,7 @@ FARM = "Farm"  # "Where am I?": somewhere on the farm, room unknown - watch, but
 
 
 def _buildings() -> list[str]:
-    cfg = settings_store.load().get("pools") or {}
-    holding = cfg.get("holding") or []
-    return list(cfg.get("harems") or []) + ([holding] if isinstance(holding, str) else list(holding))
+    return [r["name"] for r in settings_store.load()["pools"]["rooms"]]
 
 
 CONCEPTION_SLACK_MINUTES = 5  # birth times come from the card's age in whole minutes, so conception is +/- a few
@@ -1594,9 +1612,7 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
         animal.born_at = now - timedelta(minutes=reading["age_minutes"])
     # Seen while the player says they're in a building: that's where it is.
     settings = settings_store.load()
-    pools_cfg = settings.get("pools") or {}
-    holding = pools_cfg.get("holding") or []
-    buildings = list(pools_cfg.get("harems") or []) + ([holding] if isinstance(holding, str) else list(holding))
+    buildings = [r["name"] for r in settings["pools"]["rooms"]]
     here = settings.get("location") or FARM  # unset means somewhere on the farm
     if here in buildings:
         _sightings.setdefault(here, []).append((now, animal.id, animal.pen == here))

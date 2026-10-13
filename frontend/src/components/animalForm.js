@@ -17,9 +17,7 @@ const BLANK = {
 
 /** The buildings set up in Pools (harems, then holding), for the Building picker. */
 export function buildingsFrom(settings) {
-    const pools = settings?.pools || {};
-    const holding = Array.isArray(pools.holding) ? pools.holding : pools.holding ? [pools.holding] : [];
-    return [...(pools.harems || []), ...holding];
+    return ((settings?.pools?.rooms) || []).map(r => r.name);
 }
 
 /**
