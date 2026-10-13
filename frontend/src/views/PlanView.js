@@ -1,7 +1,7 @@
 import { View } from './View.js';
 import { api } from '../services/api.js';
 import { GENES, GENE_NAMES, SPECIES_ICON } from '../components/animalCard.js';
-import { esc, media } from '../ui.js';
+import { esc, media, toast } from '../ui.js';
 
 const hours = (minutes) => (minutes == null ? '—' : `${(minutes / 60).toFixed(1)} h`);
 
@@ -63,6 +63,17 @@ export class PlanView extends View {
         }
         this.container.innerHTML = `
             <div class="panel"><h2>Next on the farm</h2><div id="upcoming"></div></div>
+            <div class="panel goal">
+                <div class="toolbar">
+                    <h2>Goal</h2>
+                    <span class="spacer"></span>
+                    <div class="seg" id="goal">
+                        <button data-goal="god" title="Breed towards Good/Good on every target gene">God animals</button>
+                        <button data-goal="wool" title="Production: lambs that show green Y and aren't inbred (16 wool per shear), with a god reserve kept alive">Wool production</button>
+                    </div>
+                </div>
+                <div id="reserve"></div>
+            </div>
             <div class="panel plan">
                 <div class="toolbar">
                     <h2>Plan to a male Good/Good on</h2>
@@ -119,7 +130,47 @@ export class PlanView extends View {
             await api.put('/api/settings', { vehicle: btn.dataset.vehicle });
             this.showTrip();
         }));
+        this.container.querySelectorAll('[data-goal]').forEach(btn => btn.addEventListener('click', async () => {
+            await api.put('/api/settings', { goal: btn.dataset.goal });
+            toast(btn.dataset.goal === 'wool' ? 'Wool production: the Pools plan now breeds for wool and keeps a god reserve'
+                : 'Breeding for god animals');
+            this.showGoal();
+        }));
         this.showTrip();
+        this.showGoal();
+    }
+
+    /** The goal switch, and in production the god reserve: the animals the line depends on, and how they're doing. */
+    async showGoal() {
+        const box = this.container.querySelector('#reserve');
+        if (!box) return;
+        let settings, plan;
+        try {
+            [settings, plan] = await Promise.all([api.get('/api/settings'), api.get(`/api/pools?species=${this.species}`)]);
+        } catch (e) {
+            box.innerHTML = `<p class="error">${esc(e.message)}</p>`;
+            return;
+        }
+        const goal = settings.goal || 'god';
+        this.container.querySelectorAll('[data-goal]').forEach(b => b.classList.toggle('on', b.dataset.goal === goal));
+        if (goal !== 'wool') {
+            box.innerHTML = '<p class="hint">Breeding towards the god animal. Switch to Wool production once you have a god ram and ewe.</p>';
+            return;
+        }
+        const rows = (plan.reserve_status || []).map(r => `
+            <tr class="${r.warn ? 'warn' : ''}">
+                <td>${esc(r.name)}</td><td>${r.sex === 'M' ? 'ram' : 'ewe'}</td>
+                <td>${esc(r.breeding ? `breeding in ${r.breeding}` : r.room || 'room unknown')}</td>
+                <td>${r.age_hours != null ? `${r.age_hours} h old` : ''}</td>
+                <td>${r.overall != null ? `${r.overall}% overall` : ''}</td>
+                <td>${r.unseen_hours == null ? 'never seen' : r.unseen_hours < 0.1 ? 'seen just now' : `seen ${r.unseen_hours} h ago`}</td>
+            </tr>`).join('');
+        const rams = (plan.reserve_status || []).filter(r => r.sex === 'M').length;
+        const ewes = (plan.reserve_status || []).filter(r => r.sex === 'F').length;
+        box.innerHTML = `
+            <p class="hint">God reserve: the best ${2} rams and ${2} ewes (80%+ god chance), never sold or culled.
+                ${plan.reserve_short ? `<b class="warn">Short (${rams} rams, ${ewes} ewes): one breeding room is making god lambs until it's full again.</b>` : 'Full.'}</p>
+            <table class="reserve">${rows || '<tr><td class="muted">No animal is 80%+ yet.</td></tr>'}</table>`;
     }
 
     /** What to sell and buy at the barn this trip, within what the truck carries. */

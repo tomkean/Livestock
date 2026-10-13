@@ -77,6 +77,7 @@ class AnimalIn(CaptureCrop):
     genes_bottom: Optional[str] = None
     herd_top: Optional[int] = None
     herd_bottom: Optional[int] = None
+    inbred: Optional[bool] = None
     pregnant: bool = False
     mother_id: Optional[int] = None
     father_id: Optional[int] = None
@@ -94,6 +95,7 @@ class AnimalPatch(CaptureCrop):
     genes_bottom: Optional[str] = None
     herd_top: Optional[int] = None
     herd_bottom: Optional[int] = None
+    inbred: Optional[bool] = None
     pregnant: Optional[bool] = None
     status: Optional[str] = None
     mother_id: Optional[int] = None
@@ -467,7 +469,9 @@ def visible(a):
     view = SimpleNamespace(**(a.model_dump() if hasattr(a, "model_dump") else vars(a)))
     if live_mode():
         view.genes_bottom = None
-        view.herd_bottom = view.herd_top if getattr(view, "herd_bottom", None) == view.herd_top else None
+        # An inbred card (red INBRED label) says the hidden herd number is the same as the one shown.
+        view.herd_bottom = view.herd_top if (getattr(view, "herd_bottom", None) == view.herd_top
+                                             or getattr(view, "inbred", None)) else None
     return view
 
 
@@ -744,7 +748,8 @@ def _pools_view(session: Session, species: str) -> tuple[list, dict]:
                            cfg.get("harems") or ["Harem #1", "Harem #2"], cfg.get("holding") or "Death Row",
                            int(cfg.get("harem_ewes") or 5), int(cfg.get("holding_size") or 4),
                            previous=_last_plan.get(species), harem_sizes=cfg.get("harem_sizes") or {},
-                           holding_by_sex=cfg.get("holding_by_sex"), reject_room=cfg.get("reject_room"))
+                           holding_by_sex=cfg.get("holding_by_sex"), reject_room=cfg.get("reject_room"),
+                           goal=settings.get("goal") or "god")
     result["quiet"] = _quiet_harems(session, cfg.get("harems") or [], now)
     # Remember this plan's rams and promotions, so the next one sticks with them unless something is clearly better.
     _last_plan[species] = ({h["ram"] for h in result["harems"].values() if h["ram"]}
@@ -795,7 +800,32 @@ def pools_plan(species: str = "sheep", session: Session = Depends(get_session)):
     result["moves"] = [{"id": a.id, "name": a.name or a.code, "from": current[a.id] or None, "to": result["pen"][a.id]}
                        for a in animals if current[a.id] != result["pen"][a.id]]
     result["cull_order"] = _cull_order(animals, result)
+    result["reserve_status"] = _reserve_status(session, result)
     return result
+
+
+RESERVE_UNSEEN_HOURS = 2
+
+
+def _reserve_status(session: Session, result: dict) -> list[dict]:
+    """The god reserve (production mode): where each one is, how it's doing, and how long since it was seen - the
+    animals the whole line depends on, so a death or a starving one should be noticed early."""
+    now = datetime.now(timezone.utc)
+    out = []
+    breeding = {i: h for h, x in result["harems"].items() for i in [x["ram"], *x["ewes"]] if i}
+    for i in result.get("reserve", []):
+        a = session.get(Animal, i)
+        if a is None:
+            continue
+        seen = _utc(a.seen_at)
+        born = _utc(a.born_at)
+        hours_unseen = round((now - seen).total_seconds() / 3600, 1) if seen else None
+        out.append({"id": a.id, "name": a.name or a.code, "sex": a.sex, "room": a.pen, "breeding": breeding.get(a.id),
+                    "age_hours": round((now - born).total_seconds() / 3600, 1) if born else None,
+                    "overall": a.overall, "food": a.food, "unseen_hours": hours_unseen,
+                    "warn": (hours_unseen is None or hours_unseen > RESERVE_UNSEEN_HOURS
+                             or (a.overall is not None and a.overall < 30))})
+    return out
 
 
 def _cull_order(animals: list, result: dict) -> list[dict]:
@@ -803,19 +833,25 @@ def _cull_order(animals: list, result: dict) -> list[dict]:
     good (Y is wool), least valuable first - then spares kept for breeding. Never listed: breeding pairs, lambs
     promoted for a future pair, the only carrier of a Good copy, pregnant ewes."""
     y = genetics.GENES.index("Y")
+    wool_goal = (settings_store.load().get("goal") or "god") == "wool"
     breeding = {i for h in result["harems"].values() for i in [h["ram"], *h["ewes"]] if i}
     value = result.get("value", {})
     ranked = []
     for a in animals:
         v = result["verdicts"].get(a.id) or result["verdicts"].get(str(a.id)) or {}
-        if a.id in breeding or a.pregnant or v.get("verdict") == "promote" or "only carrier" in v.get("reason", ""):
+        if (a.id in breeding or a.pregnant or v.get("verdict") == "promote" or "only carrier" in v.get("reason", "")
+                or a.id in result.get("reserve", [])):
             continue
         unwanted = v.get("verdict") in ("reject", "sell", "cull")
         if not unwanted and v.get("verdict") != "keep":
             continue
-        good_wool = a.genes_top[y] == "G"
+        good_wool = a.genes_top[y] == "G" and not (wool_goal and getattr(a, "inbred", None))
         group = (0 if not good_wool else 1) if unwanted else 2
+        if wool_goal:  # production: least wool first, whatever the verdict
+            group = pools.wool_per_shear(a)
         why = ("not useful for mating" + ("" if good_wool else ", poor wool")) if unwanted else "spare for breeding"
+        if wool_goal:
+            why = f"{pools.wool_per_shear(a)} wool per shear" + (" (inbred)" if getattr(a, "inbred", None) else "")
         ranked.append(((group, value.get(a.id, 0)), {"id": a.id, "name": a.name or a.code, "room": a.pen, "why": why}))
     return [entry for _, entry in sorted(ranked, key=lambda r: r[0])]
 
@@ -1093,6 +1129,7 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
             "origin": "ranch" if bought else ("bred" if (lamb or parent) else "ranch"),
             "genes_top": reading["genes_top"], "genes_bottom": reading.get("genes_bottom"),
             "herd_top": reading.get("herd_top"), "herd_bottom": reading.get("herd_bottom"),
+            "inbred": reading.get("inbred"),
             "pen": here if here in _buildings() else ""}  # room unknown until seen in one or placed by the player
     if parent is not None and not bought:
         data["mother_id" if parent.sex == "F" else "father_id"] = parent.id
@@ -1449,6 +1486,8 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
         await hub.broadcast({"type": "capture_ready", "capture": capture.model_dump(mode="json"), "auto": True})
         return {"card": True, "new": True, "filed": True, "name": reading.get("name")}
 
+    if reading.get("inbred") is not None and animal.inbred != reading["inbred"]:
+        animal.inbred = reading["inbred"]  # the card's INBRED label (fixed for life; read again on every sighting)
     cond = reading.get("conditions") or {}
     keys = ("food", "water", "personal_space", "overall")
     # The bars read a point either way from frame to frame: only a real change counts.

@@ -26,6 +26,9 @@ DEFAULTS = {
     # What vendor items are worth to you, as a fraction of their scrap value (offer_value.DEFAULT_WORTH has the rest):
     # e.g. {"horse_saddle": 0, "armored_double_door": 2}. The vendor toast says whether to take each offer.
     "item_worth": {},
+    # What the breeding plan aims for: "god" (Good/Good on the target genes) or "wool" (production: lambs that show
+    # green Y and aren't inbred).
+    "goal": "god",
     "pools": {"harems": ["Harem #1", "Harem #2"], "holding": "Death Row", "harem_ewes": 7, "holding_size": 7, "site_cap": 9},
 }
 

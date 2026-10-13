@@ -24,6 +24,8 @@ class Animal(SQLModel, table=True):
     genes_top: str = "?????"
     genes_bottom: Optional[str] = None  # hidden copy; normal players can't see it, so usually None
     herd_top: Optional[int] = None
+    # The card's red INBRED label: its two herd numbers match. Costs a grade of wool (Good Y gives 10, not 16).
+    inbred: Optional[bool] = None
     herd_bottom: Optional[int] = None
     pregnant: bool = False
     born_at: Optional[datetime] = None
