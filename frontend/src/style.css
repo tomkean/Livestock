@@ -309,3 +309,4 @@ table.reserve { border-collapse: collapse; width: 100%; }
 table.reserve td { padding: 3px 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
 table.reserve tr.warn td { color: #e0a030; }
 .warn { color: #e0a030; }
+.safe-banner { border-color: #e0a030; }

@@ -218,6 +218,7 @@ export class PoolsView extends View {
                 <ul>${headcount}</ul>
             </div>
             ${crowded}${overflow}${loggingOff}
+            ${plan.safe_mode ? `<div class="panel safe-banner"><b>Safe Mode</b>: one sex per room, no breeding, the best animals spread out.${plan.overflow?.length ? ` <span class="warn">${plan.overflow.length} ewe(s) share the ewes' room: no room of their own.</span>` : ''} Turn it off on the Plan page.</div>` : ''}
             <div class="pools">${harems}${holdingHtml}${unknownHtml}</div>${cullHtml}`;
 
         // Click a sheep to edit it (pregnant, sold, room...); drag it onto another room to record a move.

@@ -444,3 +444,56 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         "reserve": sorted(reserve),
         "reserve_short": short,
     }
+
+
+def safe_arrange(animals, target: str, posterior: dict | None, harems: list[str], holding, holding_by_sex: dict | None,
+                 reject_room: str | None) -> dict:
+    """Safe Mode, for when the player is away: nobody can breed and no room gets crowded.
+
+    Every room holds one sex (lambs go with their own sex, so no son grows up beside his mother). The most valuable
+    animals - god chance first, then wool - are spread out so one failure can't take them all: the top two rams share
+    the first breeding room, the top two ewes the second, the next ram and ewe get the rams' and ewes' rooms to
+    themselves, and the remaining rams go to the rejects room (the big one). Ewes left over have nowhere of their own:
+    they share the ewes' room and are listed as overflow."""
+    holding_rooms = [holding] if isinstance(holding, str) else list(holding)
+    by_sex = holding_by_sex or {}
+    chance = {a.id: god_chance(a, target, posterior) for a in animals}
+    now = datetime.now(timezone.utc)
+
+    def future(a):  # an animal with under a day to live is worth proportionally less to protect (Yuriy over Shelby 7)
+        left = hours_left(a, now)
+        return 1.0 if left is None else max(0.05, min(1.0, left / 24))
+    value = {a.id: (chance[a.id] + 0.01 * wool_per_shear(a) / 16) * future(a) for a in animals}
+
+    def ranked(sex):  # an unsexed lamb waits with the ewes
+        return sorted((a for a in animals if a.sex == sex or (sex == "F" and a.sex == "?")), key=lambda a: -value[a.id])
+    rams, ewes = ranked("M"), ranked("F")
+    rooms = []  # (room, sex, places)
+    if harems:
+        rooms.append((harems[0], "M", 2))
+    if len(harems) > 1:
+        rooms.append((harems[1], "F", 2))
+    if by_sex.get("M"):
+        rooms.append((by_sex["M"], "M", 1))
+    if by_sex.get("F"):
+        rooms.append((by_sex["F"], "F", 1))
+    pen, overflow = {}, []
+    queue = {"M": list(rams), "F": list(ewes)}
+    for room, sex, places in rooms:
+        for a in queue[sex][:places]:
+            pen[a.id] = room
+        queue[sex] = queue[sex][places:]
+    for a in queue["M"]:
+        pen[a.id] = reject_room or by_sex.get("M") or (holding_rooms[0] if holding_rooms else "")
+    for a in queue["F"]:
+        pen[a.id] = by_sex.get("F") or (harems[1] if len(harems) > 1 else holding_rooms[0])
+        overflow.append(a.id)
+    verdicts = {a.id: {"verdict": "keep", "reason": "Safe Mode" + (" - check horns: kept with the ewes" if a.sex == "?" else "")}
+                for a in animals}
+    return {
+        "holding_rooms": holding_rooms, "overflow": overflow, "pen": pen,
+        "harems": {h: {"ram": None, "ewes": []} for h in harems},
+        "verdicts": verdicts, "value": {k: round(v, 3) for k, v in value.items()},
+        "goal": "safe", "safe_mode": True,
+        "reserve": sorted(a.id for a in rams[:2] + ewes[:2] if chance[a.id] >= RESERVE_MIN), "reserve_short": False,
+    }

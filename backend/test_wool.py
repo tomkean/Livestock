@@ -40,3 +40,17 @@ def test_a_short_reserve_breeds_the_best_god_pair():
     assert r["reserve_short"]
     pairs = {(h["ram"], tuple(h["ewes"])) for h in r["harems"].values()}
     assert (1, (3,)) in pairs  # one room makes god lambs to refill the reserve
+
+
+def test_safe_mode_keeps_every_room_single_sex_and_spreads_the_best():
+    herd = [a(1, "M", "OGGGG", "OGGGG", 3, True), a(2, "M", "OGGGG", "OGGGG", 3, True), a(3, "M", "OGGGG", "OOOOO", 0, False),
+            a(5, "M", "OOOOO", "OOOOO", 0, False), a(4, "F", "OGGGG", "OGGGG", 3, True), a(6, "F", "OGGGG", "OGGGG", 3, True),
+            a(7, "F", "OGGGG", "OOOOO", 0, False), a(8, "M", "OGGGG", "OGGGG", 3, True, lamb=True)]
+    r = pools.safe_arrange(herd, "LYFH", None, ["VIP", "VIP 2"], ["Gentlemen", "Ladies", "Rejects"],
+                           {"M": "Gentlemen", "F": "Ladies"}, "Rejects")
+    sexes = {}
+    for x in herd:
+        sexes.setdefault(r["pen"][x.id], set()).add(x.sex)
+    assert all(len(s) == 1 for s in sexes.values())  # no room with both sexes: no breeding
+    assert not any(h["ram"] for h in r["harems"].values())
+    assert {r["pen"][1], r["pen"][2]} == {"VIP"} and {r["pen"][4], r["pen"][6]} == {"VIP 2"}

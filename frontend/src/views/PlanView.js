@@ -71,6 +71,7 @@ export class PlanView extends View {
                         <button data-goal="god" title="Breed towards Good/Good on every target gene">God animals</button>
                         <button data-goal="wool" title="Production: lambs that show green Y and aren't inbred (16 wool per shear), with a god reserve kept alive">Wool production</button>
                     </div>
+                    <div class="seg"><button id="safe-mode" title="For time away: every room one sex (no breeding, no lambs piling up), the best animals spread across rooms. Turn off when you're back.">Safe Mode</button></div>
                 </div>
                 <div id="reserve"></div>
             </div>
@@ -136,6 +137,13 @@ export class PlanView extends View {
                 : 'Breeding for god animals');
             this.showGoal();
         }));
+        this.container.querySelector('#safe-mode').addEventListener('click', async () => {
+            const settings = await api.get('/api/settings');
+            await api.put('/api/settings', { safe_mode: !settings.safe_mode });
+            toast(!settings.safe_mode ? 'Safe Mode: the Pools plan now separates the sexes and spreads out the best animals'
+                : 'Safe Mode off: back to the breeding plan');
+            this.showGoal();
+        });
         this.showTrip();
         this.showGoal();
     }
@@ -153,6 +161,11 @@ export class PlanView extends View {
         }
         const goal = settings.goal || 'god';
         this.container.querySelectorAll('[data-goal]').forEach(b => b.classList.toggle('on', b.dataset.goal === goal));
+        this.container.querySelector('#safe-mode').classList.toggle('on', !!settings.safe_mode);
+        if (settings.safe_mode) {
+            box.innerHTML = '<p class="hint"><b>Safe Mode is on.</b> The Pools page shows where everyone goes: one sex per room, the best animals spread out. Turn it off when you are back to breed again.</p>';
+            return;
+        }
         if (goal !== 'wool') {
             box.innerHTML = '<p class="hint">Breeding towards the god animal. Switch to Wool production once you have a god ram and ewe.</p>';
             return;

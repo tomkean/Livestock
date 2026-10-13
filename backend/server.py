@@ -744,6 +744,12 @@ def _pools_view(session: Session, species: str) -> tuple[list, dict]:
         view.is_lamb = a.sex == "?" or (born is not None and (now - born).total_seconds() < planner.GROWTH * 60)
         animals.append(view)
     inf = inferred(session)
+    if settings.get("safe_mode"):  # Safe Mode: no breeding, nothing crowded, the best animals spread out
+        result = pools.safe_arrange(animals, settings.get("target_genes") or "DLYFH", inf["posterior"] if inf else None,
+                                    cfg.get("harems") or [], cfg.get("holding") or "Death Row", cfg.get("holding_by_sex"),
+                                    cfg.get("reject_room"))
+        result["quiet"] = {}
+        return animals, {**result, "config": cfg}
     result = pools.arrange(animals, settings.get("target_genes") or "DLYFH", inf["posterior"] if inf else None,
                            cfg.get("harems") or ["Harem #1", "Harem #2"], cfg.get("holding") or "Death Row",
                            int(cfg.get("harem_ewes") or 5), int(cfg.get("holding_size") or 4),

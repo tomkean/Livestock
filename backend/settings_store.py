@@ -29,6 +29,8 @@ DEFAULTS = {
     # What the breeding plan aims for: "god" (Good/Good on the target genes) or "wool" (production: lambs that show
     # green Y and aren't inbred).
     "goal": "god",
+    # Safe Mode, for time away: rooms are single-sex (no breeding) and the best animals spread out. Off returns to `goal`.
+    "safe_mode": False,
     "pools": {"harems": ["Harem #1", "Harem #2"], "holding": "Death Row", "harem_ewes": 7, "holding_size": 7, "site_cap": 9},
 }
 
