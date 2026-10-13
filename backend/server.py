@@ -427,6 +427,14 @@ def update_animal(animal_id: int, body: AnimalPatch, session: Session = Depends(
     if "pen" in changed:  # the moves log is how the parent finder knows who was where
         _log_move(session, animal, old_pen)
         changed.remove("pen")
+        if (animal.origin == "bred" and (animal.mother_id is None or animal.father_id is None)
+                and "mother_id" not in data and "father_id" not in data):
+            born = _utc(animal.born_at or animal.created_at)
+            if born and (datetime.now(timezone.utc) - born).total_seconds() < 2 * 3600:
+                session.flush()
+                found = _fill_parents(session, animal)  # its room is known now: maybe its parents are too
+                if found:
+                    log(session, "edited", animal.id, notes=f"parents filled in once placed: {found}")
         if animal.pen and animal.status == "missing":
             animal.status = "alive"  # put in a building: found
             log(session, "alive", animal.id, notes=f"placed in {animal.pen}")
@@ -528,16 +536,28 @@ def pens_at(session: Session, when: datetime) -> dict[int, str]:
     return pens
 
 
+LAMBING_SEEN_MINUTES = 15  # a 'no longer pregnant' sighting this long after a lamb was first seen marks its mother
+TWINS_MINUTES = 3  # lambs first seen this close together may be twins: one ewe's lambing counts for both
+
+
 def _gone_since(session: Session) -> dict[int, datetime]:
     """When each animal left: sold or dead, or marked missing and not found since (a missing ewe's last room still says
     VIP 2, but she isn't there - Shelby the 7th's mother was left blank because Susie and Bana still 'counted')."""
     gone = {}
     for a in session.exec(select(Animal).where(Animal.status.in_(["sold", "dead", "missing"]))):
-        kinds = ["missing"] if a.status == "missing" else ["sold", "dead"]
-        last = session.exec(select(Event).where(Event.animal_id == a.id, Event.kind.in_(kinds))
-                            .order_by(Event.at.desc())).first()
-        if last is not None:
-            gone[a.id] = _utc(last.at)
+        events = session.exec(select(Event).where(Event.animal_id == a.id,
+                                                  Event.kind.in_(["missing", "alive", "sold", "dead"]))
+                              .order_by(Event.at)).all()
+        # The start of its final absence: the last time it went missing without being found again, or else the
+        # departure itself (Susie went missing on the 11th but was only marked dead the next morning).
+        since = None
+        for e in events:
+            if e.kind == "alive":
+                since = None
+            elif since is None:
+                since = _utc(e.at)
+        if since is not None:
+            gone[a.id] = since
     return gone
 
 
@@ -572,6 +592,24 @@ def _parents(session: Session, child) -> list[dict]:
             sighted.setdefault(e.animal_id, at)
         elif conceived - timedelta(minutes=EWE_MIN_REST_MINUTES) <= at < conceived - slack:
             busy.add(e.animal_id)
+    # A ewe whose card stops saying Pregnant just after a lamb is first seen has just lambed (Bana Junior's label
+    # went 2 seconds after Shelby the 6th was registered). Each such sighting belongs to the lamb registered last
+    # before it - or to twins registered together: Susie's label went 10 seconds after Evan appeared, so it says
+    # nothing about Shelby the 4th, registered 8 minutes earlier. Where it points at a ewe, it outweighs the
+    # 'Pregnant' sightings: she is the mother, wherever the lamb was found.
+    seen_at = _utc(getattr(child, "created_at", None)) or datetime.now(timezone.utc)
+    lambs = sorted(_utc(a.created_at) for a in session.exec(select(Animal).where(Animal.origin == "bred"))
+                   if a.created_at is not None and getattr(child, "id", None) != a.id)
+    lambed = {}
+    for e in session.exec(select(Event).where(Event.kind == "not_pregnant")):
+        at = _utc(e.at)
+        if not seen_at <= at <= seen_at + timedelta(minutes=LAMBING_SEEN_MINUTES):
+            continue
+        later = [t for t in lambs if seen_at + timedelta(minutes=TWINS_MINUTES) < t <= at]
+        if not later:  # no lamb registered in between: this lambing is ours
+            lambed.setdefault(e.animal_id, at)
+    if lambed:
+        sighted = lambed
     with_her = {m_id: pens_at(session, at) for m_id, at in sighted.items()}
 
     def places(m, f):
@@ -581,7 +619,8 @@ def _parents(session: Session, child) -> list[dict]:
         if m.id in with_her:
             seen = with_her[m.id]
             together = together or bool(seen.get(m.id)) and seen.get(m.id) == seen.get(f.id)
-        mother_there = not pen or now_pens.get(m.id) == pen or m.id in sighted
+        # Where some ewe was seen pregnant or lambing just then, that settles who could be the mother.
+        mother_there = m.id in sighted or (not sighted and (not pen or now_pens.get(m.id) == pen))
         return together, mother_there
     child_view = visible(child)
     child_view.born_at = born  # so parents too young for it are ruled out, even for a lamb just captured
@@ -1107,6 +1146,28 @@ AUTO_PARENTS_CHANCE = 0.8  # a lamb whose name names no parent gets the top pair
 AUTO_PARENTS_LEAD = 5.0  # ...and this many times likelier than the next pair
 
 
+def _fill_parents(session: Session, animal: Animal) -> str:
+    """Fill in a lamb's missing parent(s) from the parent finder when one pair is clearly ahead (80%+ and five times
+    the next); a parent already recorded (from its name, or set by the player) is kept and must match. Returns a note
+    for the log, or "" if nothing was filled."""
+    ranked = [r for r in _parents(session, animal)
+              if (animal.mother_id is None or r["mother_id"] == animal.mother_id)
+              and (animal.father_id is None or r["father_id"] == animal.father_id)]
+    total = sum(r["chance"] for r in ranked) or 1.0
+    ranked = [{**r, "chance": r["chance"] / total} for r in ranked]  # among pairs that fit what's already known
+    if not ranked or ranked[0]["chance"] < AUTO_PARENTS_CHANCE or (
+            len(ranked) > 1 and ranked[0]["chance"] < AUTO_PARENTS_LEAD * ranked[1]["chance"]):
+        return ""
+    filled = []
+    if animal.mother_id is None:
+        animal.mother_id = ranked[0]["mother_id"]
+        filled.append("mother")
+    if animal.father_id is None:
+        animal.father_id = ranked[0]["father_id"]
+        filled.append("father")
+    return f"{' and '.join(filled)} from the room and pregnancy records ({ranked[0]['chance']:.0%} sure)"
+
+
 def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Optional[Animal]:
     """Register an animal seen for the first time from a clean read of its card, so the player doesn't have to.
 
@@ -1151,14 +1212,11 @@ def _auto_register(session: Session, reading: dict, frame, now: datetime) -> Opt
     animal = create_animal(body, session, auto=True)
     animal.card_name = name
     found_by = ""
-    if parent is None and lamb and not bought:
-        # No parent in its name ("Shelby", "Lucia"): the parent finder's top pair, but only when it's clear-cut.
+    if lamb and not bought and (animal.mother_id is None or animal.father_id is None):
+        # A parent its name doesn't give ("Shelby", "Lucia" - or the mother of "Shelby the 5th"): the parent finder's
+        # top pair, but only when it's clear-cut. The name's parent always stands.
         session.flush()
-        ranked = _parents(session, animal)
-        if ranked and ranked[0]["chance"] >= AUTO_PARENTS_CHANCE and (
-                len(ranked) == 1 or ranked[0]["chance"] >= AUTO_PARENTS_LEAD * ranked[1]["chance"]):
-            animal.mother_id, animal.father_id = ranked[0]["mother_id"], ranked[0]["father_id"]
-            found_by = f"parents from the room and pregnancy records ({ranked[0]['chance']:.0%} sure)"
+        found_by = _fill_parents(session, animal)
     log(session, "captured", animal.id, notes="registered automatically from its card"
         + (f"; {'mother' if parent.sex == 'F' else 'father'} from its name" if parent is not None else "")
         + (f"; {found_by}" if found_by else "")
