@@ -1128,9 +1128,21 @@ def _match_reading(session: Session, reading: dict) -> Optional[Animal]:
     name = (reading.get("name") or "").lower()
     top, herd = reading["genes_top"], reading.get("herd_top")
 
+    now = datetime.now(timezone.utc)
+
     def fits(a):
         same_genes = all(r == "?" or r == g for r, g in zip(top, a.genes_top))
-        return same_genes and (herd is None or a.herd_top is None or a.herd_top == herd)
+        if not (same_genes and (herd is None or a.herd_top is None or a.herd_top == herd)):
+            return False
+        # Names repeat (two Polinas, same top row): the INBRED label and lamb-or-grown tell them apart.
+        if reading.get("inbred") is not None and a.inbred is not None and reading["inbred"] != a.inbred:
+            return False
+        born = _utc(a.born_at)
+        if reading.get("lamb") is not None and born is not None:
+            grown = (now - born).total_seconds() >= planner.GROWTH * 60 + 300  # a few minutes' slack at the change
+            if reading["lamb"] and grown:
+                return False
+        return True
     named = [a for a in candidates if name and name in ((a.name or "").lower(), (a.card_name or "").lower()) and fits(a)]
     if len(named) == 1:
         return named[0]
