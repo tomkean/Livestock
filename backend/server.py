@@ -799,8 +799,16 @@ def _pools_view(session: Session, species: str) -> tuple[list, dict]:
                                goal=settings.get("goal") or "god", wool_herd=int(cfg.get("wool_herd") or capacity))
         breeding = {h: [x["ram"], *x["ewes"]] for h, x in result["harems"].items() if x["ram"] and x["ewes"]}
         result["harems"] = {h: x for h, x in result["harems"].items() if h in breeding}
-    # ...and everyone else is placed one sex per room, within each room's capacity.
-    pen, overflow = pools.place_in_rooms(animals, rooms, breeding, result.get("value", {}))
+    # ...and everyone else is placed one sex per room, within each room's capacity. A pair takes a whole room, so when
+    # that leaves animals without a place, the least valuable pair is dropped (the god pair is the last to go).
+    value = result.get("value", {})
+    pen, overflow = pools.place_in_rooms(animals, rooms, breeding, value)
+    while overflow and len(breeding) > 1:
+        keep = set(result.get("reserve", []))  # a pair making god lambs goes last, whatever its wool
+        weakest = min(breeding, key=lambda h: (sum(i in keep for i in breeding[h]), sum(value.get(i, 0) for i in breeding[h])))
+        del breeding[weakest]
+        result["harems"].pop(weakest, None)
+        pen, overflow = pools.place_in_rooms(animals, rooms, breeding, value)
     result["pen"], result["overflow"] = pen, overflow
     result["holding_rooms"] = names
     result["rooms"] = [{**r, "planned": sum(1 for p in pen.values() if p == r["name"]),
@@ -924,11 +932,16 @@ def _rams_wait_while_ewes_busy(session: Session, animals: list, result: dict):
     by_id = {a.id: a for a in animals}
     # He waits in a room the plan gives to rams (one with space if there is one).
     breeding = {i for x in result["harems"].values() for i in [x["ram"], *x["ewes"]] if i}
-    ram_rooms = {}
+    ram_rooms, ewe_rooms = {}, set()
     for a in animals:
         room = result["pen"].get(a.id)
-        if room and a.id not in breeding and a.sex == "M":
+        if not room or a.id in breeding or a.id in result.get("overflow", []):
+            continue
+        if a.sex == "M":
             ram_rooms[room] = ram_rooms.get(room, 0) + 1
+        else:
+            ewe_rooms.add(room)
+    ram_rooms = {r: n for r, n in ram_rooms.items() if r not in ewe_rooms}  # never among the ewes
     caps = {r["name"]: r["capacity"] for r in result.get("rooms", [])}
     spare = [r for r in ram_rooms if ram_rooms[r] < caps.get(r, 0)]
     wait_room = (spare or list(ram_rooms) or [None])[0]

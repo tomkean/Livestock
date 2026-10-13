@@ -546,16 +546,20 @@ def place_in_rooms(animals, rooms: list[dict], breeding: dict, value: dict) -> t
     waiting = {"M": [], "F": []}
     for a in sorted((a for a in animals if a.id not in placed), key=lambda a: -value.get(a.id, 0)):
         waiting[sex_of(a)].append(a)
-    room_sex = {}
-    # Rooms keep the sex most of their current occupants have, if any; biggest rooms are settled first.
-    for room in sorted(free, key=lambda r: -free[r]):
-        here = [a for a in animals if a.id not in placed and getattr(a, "pen", "") == room]
-        if here:
-            counts = {s: sum(1 for a in here if sex_of(a) == s) for s in "MF"}
-            room_sex[room] = max("MF", key=lambda s: counts[s])
-    for room in sorted(free, key=lambda r: -free[r]):
-        if room not in room_sex:  # an empty room: the sex with the most still to place
-            room_sex[room] = max("MF", key=lambda s: len(waiting[s]) - sum(free[r] for r, x in room_sex.items() if x == s))
+    # Which sex each room holds: every split is tried (a farm has a handful of rooms), and the one that fits the most
+    # animals wins, then the one that moves the fewest (animals already in a room of their sex stay).
+    rooms_free = sorted(free, key=lambda r: -free[r])
+    need = {sex: len(waiting[sex]) for sex in "MF"}
+    here = {r: {sex: sum(1 for a in waiting[sex] if getattr(a, "pen", "") == r) for sex in "MF"} for r in rooms_free}
+    best, room_sex = None, {}
+    for mask in range(2 ** len(rooms_free)):
+        split = {r: ("M" if mask >> k & 1 else "F") for k, r in enumerate(rooms_free)}
+        places = {sex: sum(free[r] for r in rooms_free if split[r] == sex) for sex in "MF"}
+        fits = sum(min(need[sex], places[sex]) for sex in "MF")
+        stays = sum(min(here[r][split[r]], free[r]) for r in rooms_free)
+        score = (fits, stays)
+        if best is None or score > best:
+            best, room_sex = score, split
     biggest = max(free, key=lambda r: free[r]) if free else None
     fill_order = sorted((r for r in free if r != biggest), key=lambda r: -free[r]) + ([biggest] if biggest else [])
     # Stay put where possible, then fill.
