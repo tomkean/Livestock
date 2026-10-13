@@ -820,10 +820,13 @@ def _reserve_status(session: Session, result: dict) -> list[dict]:
         seen = _utc(a.seen_at)
         born = _utc(a.born_at)
         hours_unseen = round((now - seen).total_seconds() / 3600, 1) if seen else None
+        left = pools.hours_left(a, now)
         out.append({"id": a.id, "name": a.name or a.code, "sex": a.sex, "room": a.pen, "breeding": breeding.get(a.id),
+                    "hours_left": round(left, 1) if left is not None else None, "inbred": a.inbred,
                     "age_hours": round((now - born).total_seconds() / 3600, 1) if born else None,
                     "overall": a.overall, "food": a.food, "unseen_hours": hours_unseen,
                     "warn": (hours_unseen is None or hours_unseen > RESERVE_UNSEEN_HOURS
+                             or (left is not None and left < pools.RESERVE_HOURS_LEFT)
                              or (a.overall is not None and a.overall < 30))})
     return out
 

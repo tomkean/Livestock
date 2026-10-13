@@ -7,6 +7,7 @@ sell it once grown. Simulated on the test herd this reached a god male in ~8 h a
 Everything here works on beliefs: expected Good copies per gene from inference (live mode) or from the captured rows
 (test-server mode). Genes outside the target count as already Good/Good, so they never decide anything.
 """
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import genetics
@@ -62,6 +63,10 @@ WOOL_INBRED = {"G": 10, "O": 7, "B": 4}
 Y, H, L = (genetics.GENES.index(g) for g in "YHL")
 
 
+# Lifespan in hours by the card's L (published; +-10%). Inbred animals drop a grade, as for wool.
+LIFESPAN_HOURS = {"G": 72.0, "O": 48.0, "B": 31.2}
+LIFESPAN_INBRED_HOURS = {"G": 48.0, "O": 39.6, "B": 25.7}
+RESERVE_HOURS_LEFT = 12  # a reserve animal with less life than this left is already being replaced
 RESERVE_SIZE = 2  # production keeps this many god rams and god ewes alive, never sold or culled
 RESERVE_MIN = 0.8  # ...each at least this likely Good/Good on every target gene
 
@@ -79,6 +84,21 @@ def god_chance(a, target: str, posterior: dict | None) -> float:
         else:
             return 0.0
     return p
+
+
+def lifespan_hours(a) -> float | None:
+    return (LIFESPAN_INBRED_HOURS if getattr(a, "inbred", None) else LIFESPAN_HOURS).get(a.genes_top[L])
+
+
+def hours_left(a, now) -> float | None:
+    """Expected hours of life left (its age against its lifespan); None when the birth time isn't known."""
+    born = getattr(a, "born_at", None)
+    life = lifespan_hours(a)
+    if born is None or life is None:
+        return None
+    if born.tzinfo is None:
+        born = born.replace(tzinfo=timezone.utc)
+    return life - (now - born).total_seconds() / 3600
 
 
 def wool_per_shear(a) -> int:
@@ -156,9 +176,15 @@ def arrange(animals, target: str, posterior: dict | None, harems: list[str], hol
         # The god reserve: the best god rams and ewes, kept alive whatever their wool. Short of either sex, one breeding
         # room goes back to making god lambs (the best god pair) until the reserve is full again.
         chance = {a.id: god_chance(a, target, posterior) for a in animals}
+        now = datetime.now(timezone.utc)
+
+        def lasting(a):  # old age: one about to die can't be counted on
+            left = hours_left(a, now)
+            return left is None or left >= RESERVE_HOURS_LEFT
         for sex in "MF":
             best = sorted((a for a in grown if a.sex == sex and chance[a.id] >= RESERVE_MIN), key=lambda a: -chance[a.id])
-            reserve |= {a.id for a in best[:RESERVE_SIZE]}
+            reserve |= {a.id for a in best[:RESERVE_SIZE]}  # kept while alive, even near the end
+            best = [a for a in best if lasting(a)]
             short = short or len(best) < RESERVE_SIZE
 
     if goal == "wool":

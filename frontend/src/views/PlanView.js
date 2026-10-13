@@ -162,13 +162,15 @@ export class PlanView extends View {
                 <td>${esc(r.name)}</td><td>${r.sex === 'M' ? 'ram' : 'ewe'}</td>
                 <td>${esc(r.breeding ? `breeding in ${r.breeding}` : r.room || 'room unknown')}</td>
                 <td>${r.age_hours != null ? `${r.age_hours} h old` : ''}</td>
+                <td>${r.hours_left != null ? (r.hours_left > 0 ? `~${Math.round(r.hours_left)} h left${r.inbred ? ' (inbred)' : ''}` : 'past its expected lifespan') : ''}</td>
                 <td>${r.overall != null ? `${r.overall}% overall` : ''}</td>
                 <td>${r.unseen_hours == null ? 'never seen' : r.unseen_hours < 0.1 ? 'seen just now' : `seen ${r.unseen_hours} h ago`}</td>
             </tr>`).join('');
         const rams = (plan.reserve_status || []).filter(r => r.sex === 'M').length;
         const ewes = (plan.reserve_status || []).filter(r => r.sex === 'F').length;
         box.innerHTML = `
-            <p class="hint">God reserve: the best ${2} rams and ${2} ewes (80%+ god chance), never sold or culled.
+            <p class="hint">God reserve: the best 2 rams and 2 ewes (80%+ god chance), never sold or culled. They age out
+                (L green: about 72 h, 48 h if inbred), so replacements are bred before anyone has under 12 h left.
                 ${plan.reserve_short ? `<b class="warn">Short (${rams} rams, ${ewes} ewes): one breeding room is making god lambs until it's full again.</b>` : 'Full.'}</p>
             <table class="reserve">${rows || '<tr><td class="muted">No animal is 80%+ yet.</td></tr>'}</table>`;
     }
