@@ -2,7 +2,9 @@
 import asyncio
 import difflib
 import json
+import os
 import re
+import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -12,7 +14,8 @@ from typing import Optional
 import cv2
 import numpy as np
 import uvicorn
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
@@ -46,15 +49,30 @@ async def _housekeeping_loop():
         await asyncio.sleep(3600)
 
 
+async def _perception_watch():
+    """Tell every open app when Perception starts or stops sending, as a sharing browser does."""
+    while True:
+        await asyncio.sleep(2)
+        try:
+            await hub.perception_check()
+        except Exception as e:
+            print(f"perception watch failed: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app):
     init_db()
-    task = asyncio.create_task(_housekeeping_loop())
+    tasks = [asyncio.create_task(_housekeeping_loop()), asyncio.create_task(_perception_watch())]
     yield
-    task.cancel()
+    for task in tasks:
+        task.cancel()
 
 
 app = FastAPI(title="Livestock", lifespan=lifespan)
+# The shared capture page (Perception, on the Pi) posts the card strip here from Chrome on the gaming PC -- a
+# different origin, so it has to be let in. Only that origin: any page on the internet could otherwise drive this API.
+CAPTURE_ORIGINS = os.environ.get("LIVESTOCK_CAPTURE_ORIGIN", "http://raspberrypi:8300").split(",")
+app.add_middleware(CORSMiddleware, allow_origins=CAPTURE_ORIGINS, allow_methods=["GET", "POST"], allow_headers=["*"])
 
 Box = tuple[float, float, float, float]  # x, y, w, h as fractions of the frame
 
@@ -1082,9 +1100,14 @@ def pending_captures(session: Session = Depends(get_session)):
 
 @app.post("/api/captures")
 async def upload_capture(file: UploadFile = File(...), session: Session = Depends(get_session)):
+    return await _file_capture(await file.read(), session)
+
+
+async def _file_capture(data: bytes, session: Session) -> Capture:
+    """A whole frame to review on the Capture tab."""
     name = f"{datetime.now():%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}.jpg"
     path = CAPTURE_DIR / name
-    path.write_bytes(await file.read())
+    path.write_bytes(data)
     try:
         with Image.open(path) as img:
             width, height = img.size
@@ -1540,9 +1563,15 @@ async def autocapture(file: UploadFile = File(...), full_width: int = 0, full_he
 
     No card: ignored. A known animal: its conditions (and pregnancy, lamb age) are updated quietly. A new animal: the
     frame is filed as a pending capture for the player to confirm, at most once every few minutes."""
+    return await _auto_strip(await file.read(), full_width, full_height, crop_x, crop_y, session)
+
+
+async def _auto_strip(jpeg: bytes, full_width: int, full_height: int, crop_x: int, crop_y: int,
+                      session: Session) -> dict:
+    """Read one strip of screen, from a sharing browser or from Perception."""
     if settings_store.load().get("location") == "Away":  # the player said they're away from the livestock
         return {"away": True}
-    data = np.frombuffer(await file.read(), np.uint8)
+    data = np.frombuffer(jpeg, np.uint8)
     strip = cv2.imdecode(data, cv2.IMREAD_COLOR)
     if strip is None:
         raise HTTPException(422, "not an image")
@@ -1674,6 +1703,61 @@ async def trigger_capture():
     return {"capturers": sent}
 
 
+# ---------------------------------------------------------------- Perception
+
+# The strip of screen where animal cards appear, on a 3840 x 2160 screen: right of centre, the card about x 2110-2900,
+# y 400-1400, and far enough right (to x 3300) for the vendor's Sale panel and dialogue too.
+PERCEPTION_STRIP = (2035, 216, 1306, 1512)
+PERCEPTION_EVERY_MS = 2000
+
+
+@app.get("/api/perception/spec")
+def perception_spec():
+    """What Livestock wants from the shared capture page: the card strip every 2 seconds, whatever is showing --
+    cards and the vendor's screens are told apart here -- and a whole picture when Capture is pressed."""
+    return {
+        "module": "Livestock",
+        "screens": [{
+            "id": "strip", "label": "Cards and vendor", "ref_width": 3840, "ref_height": 2160,
+            "send": {"region": list(PERCEPTION_STRIP), "quality": 0.9},
+            "post": "/api/perception/frame", "every_ms": PERCEPTION_EVERY_MS,
+        }],
+        "requests": "/api/perception/requests",
+    }
+
+
+@app.post("/api/perception/frame")
+async def perception_frame(file: UploadFile = File(...), capture_w: int = Form(...), capture_h: int = Form(...),
+                           x: int = Form(0), y: int = Form(0), session: Session = Depends(get_session)):
+    hub.perception_seen()
+    result = await _auto_strip(await file.read(), capture_w, capture_h, x, y, session)
+    if result.get("away"):
+        summary = "away from livestock: not read"
+    elif result.get("name") or result.get("id"):
+        summary = f"card: {result.get('name')}" + (" (new)" if result.get("new") else "")
+    elif result.get("card"):
+        summary = "card, not clear yet" if result.get("unclear") else "card"
+    elif result.get("card") is False:
+        summary = "no card"
+    else:
+        summary = "vendor"
+    return {**result, "summary": summary}
+
+
+@app.get("/api/perception/requests")
+def perception_requests():
+    """Asked by the capture page every half second: whole pictures wanted now (the Capture button)."""
+    hub.perception_seen()
+    pictures = [{"post": "/api/perception/capture", "fields": {}}] * hub.pictures_wanted
+    hub.pictures_wanted = 0
+    return {"pictures": pictures}
+
+
+@app.post("/api/perception/capture")
+async def perception_capture(file: UploadFile = File(...), session: Session = Depends(get_session)):
+    return await _file_capture(await file.read(), session)
+
+
 @app.get("/api/autocapture/last.jpg")
 def last_autocapture():
     """The latest frame Auto sent (the strip it reads), so a wrong shared window (Steam, Discord) is easy to spot."""
@@ -1688,9 +1772,34 @@ def last_autocapture():
 class Hub:
     """Connected browsers. A 'capturer' is one sharing the gaming PC's screen."""
 
+    # Perception asks for requests every half second while the screen is shared; this long without means it stopped.
+    PERCEPTION_GONE_SECONDS = 5
+
     def __init__(self):
         self.clients: dict[WebSocket, bool] = {}
         self.source = ""  # what the sharing browser says it shares (a window title, or "screen:0:0"), for every device
+        self.perception_at = 0.0  # last heard from the shared capture page
+        self.perception_was_live = False
+        self.pictures_wanted = 0  # whole frames asked of Perception, not yet handed out
+
+    def perception_live(self) -> bool:
+        return time.monotonic() - self.perception_at < self.PERCEPTION_GONE_SECONDS
+
+    def perception_seen(self):
+        self.perception_at = time.monotonic()
+
+    async def perception_check(self):
+        """Perception counts as a browser sharing the screen and watching: say so when it starts or stops."""
+        live = self.perception_live()
+        if live != self.perception_was_live:
+            self.perception_was_live = live
+            if not live:
+                self.pictures_wanted = 0
+            await self.broadcast({"type": "auto_status", "enabled": live, "source": "Perception" if live else ""})
+            await self.broadcast_status()
+
+    def capturers(self) -> int:
+        return sum(self.clients.values()) + (1 if self.perception_live() else 0)
 
     async def broadcast(self, msg: dict, capturers_only=False):
         for ws, capturer in list(self.clients.items()):
@@ -1702,9 +1811,14 @@ class Hub:
                 self.clients.pop(ws, None)
 
     async def broadcast_status(self):
-        await self.broadcast({"type": "status", "capturers": sum(self.clients.values()), "source": self.source})
+        source = self.source or ("Perception" if self.perception_live() else "")
+        await self.broadcast({"type": "status", "capturers": self.capturers(), "source": source})
 
     async def request_capture(self) -> int:
+        """A whole frame, from Perception if it is sending, otherwise from a browser sharing the screen."""
+        if self.perception_live():
+            self.pictures_wanted += 1
+            return 1
         await self.broadcast({"type": "capture_request"}, capturers_only=True)
         return sum(self.clients.values())
 

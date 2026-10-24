@@ -52,7 +52,7 @@ export class CaptureView extends View {
                         <button id="btn-share">${sharing ? 'Stop sharing' : 'Share screen'}</button>
                         <button id="btn-capture-delay">Capture in 5s</button>
                     </div>
-                    <p class="hint">Share screen on the gaming PC. Press Capture from any device while an animal card is showing.</p>
+                    <p class="hint">The gaming PC's screen comes through Perception (link it at raspberrypi:8300); Share screen here does the same without it. Press Capture from any device while an animal card is showing.</p>
                     <p class="hint">Set where you are with the picker at the top. With Auto on, animals seen for the first time register themselves; only unclear cards wait here.</p>
                     <h3>Pending captures</h3>
                     <ul class="captures">${this.captures.map(c => `

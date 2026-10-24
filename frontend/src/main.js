@@ -67,10 +67,10 @@ function showWatching() {
     chip.classList.toggle('primary', watching);
     chip.title = away ? 'Away from livestock: frames are ignored. Pick a place in "Where am I?" to start watching again.'
         : watching ? 'The shared screen is being watched: cards and vendor screens are read every 2 seconds.'
-        : 'Press Share screen on the gaming PC to start watching.';
+        : 'Link the screen in Perception (raspberrypi:8300) on the gaming PC to start watching.';
 }
 document.getElementById('btn-auto').addEventListener('click', () => {
-    if (!ScreenCaptureService.isCapturing() && !remoteWatching) toast('Share the gaming PC screen to start watching', 'info');
+    if (!ScreenCaptureService.isCapturing() && !remoteWatching) toast('Link the gaming PC screen in Perception (raspberrypi:8300) to start watching', 'info');
 });
 onAutoChange(on => {
     showWatching();

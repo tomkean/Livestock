@@ -37,7 +37,12 @@ For UI development, `npm run dev` serves on http://localhost:5173 and proxies to
 
 ## Capturing animal cards
 
-Rust runs on a different PC from the backend. Captures work the same way as in Sentinel:
+Rust runs on a different PC from the backend. The screen is normally shared through **Perception**, the capture page
+on the Pi that serves all the Rust tools (http://raspberrypi:8300, see the Perception project). Livestock is one of its
+modules: it sends the card strip every 2 seconds, so just looking at the herd keeps it up to date, and **Capture**
+from any device takes a whole picture through it. The header shows "Gaming PC screen shared" while it is.
+
+Without Perception, a browser on the gaming PC can share the screen itself:
 
 1. On the **gaming PC**, open `http://<backend-pc>:8100` in Chrome. Go to **Capture** and click **Share screen**.
    Screen sharing needs a secure origin. Add `http://<backend-pc>:8100` to
